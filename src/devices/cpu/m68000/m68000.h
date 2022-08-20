@@ -376,10 +376,12 @@ protected:
 	// device_memory_interface overrides
 	virtual bool memory_translate(int space, int intention, offs_t &address) override;
 
+public:
 #include "m68kcpu.h"
 #include "m68kops.h"
 #include "m68kmmu.h"
 
+protected:
 	virtual void m68k_reset_peripherals() { }
 
 	static double fx80_to_double(floatx80 fx)

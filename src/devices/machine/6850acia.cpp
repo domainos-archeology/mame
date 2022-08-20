@@ -18,7 +18,7 @@
 
 #define LOG_SETUP    (1U << 1)
 
-//#define VERBOSE (LOG_GENERAL | LOG_SETUP)
+#define VERBOSE (LOG_GENERAL | LOG_SETUP)
 //#define LOG_OUTPUT_STREAM std::cout
 
 #include "logmacro.h"
@@ -442,6 +442,7 @@ WRITE_LINE_MEMBER( acia6850_device::write_rxc )
 								}
 
 								m_rdr = m_rx_shift;
+								LOG("MC6850: '%s': RDR = %d\n", tag(), m_rdr);
 
 								if (m_bits == 7 && m_parity != PARITY_NONE)
 								{
