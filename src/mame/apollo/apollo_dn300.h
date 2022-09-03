@@ -14,7 +14,7 @@
 #pragma once
 
 
-//#include "machine/apollo_kbd.h"
+#include "apollo_kbd.h"
 
 #include "cpu/m68000/m68000.h"
 
@@ -118,7 +118,7 @@ public:
 		m_rtc(*this, APOLLO_DN300_RTC_TAG),
 		m_node_id(*this, APOLLO_DN300_NI_TAG),
 		m_graphics(*this, APOLLO_DN300_SCREEN_TAG),
-		// m_keyboard(*this, APOLLO_DN300_KBD_TAG),
+		m_keyboard(*this, APOLLO_DN300_KBD_TAG),
 		m_internal_leds(*this, "internal_led_%u", 1U),
 		m_external_leds(*this, "external_led_%c", unsigned('a'))
 	{ }
@@ -150,15 +150,15 @@ public:
 	optional_device<mc146818_device> m_rtc;
 	required_device<apollo_dn300_ni> m_node_id;
 	required_device<apollo_dn300_graphics> m_graphics;
-	// optional_device<apollo_dn300_kbd_device> m_keyboard;
+	optional_device<apollo_dn300_kbd_device> m_keyboard;
 	output_finder<4> m_internal_leds;
 	output_finder<4> m_external_leds;
 
 	void apollo_pft_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	uint16_t apollo_pft_r(offs_t offset, uint16_t mem_mask = ~0);
 
-	void apollo_mmu_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
-	uint16_t apollo_mmu_r(offs_t offset, uint16_t mem_mask = ~0);
+	void apollo_mmu_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
+	uint8_t apollo_mmu_r(offs_t offset, uint8_t mem_mask = ~0);
 
 	void apollo_sio_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	uint16_t apollo_sio_r(offs_t offset, uint16_t mem_mask = ~0);
@@ -169,14 +169,14 @@ public:
 	void apollo_dma_ctl_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	uint16_t apollo_dma_ctl_r(offs_t offset, uint16_t mem_mask = ~0);
 
-	void apollo_display_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
-	uint16_t apollo_display_r(offs_t offset, uint16_t mem_mask = ~0);
+	void apollo_display_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
+	uint8_t apollo_display_r(offs_t offset, uint8_t mem_mask = ~0);
 
-	void apollo_ring_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
-	uint16_t apollo_ring_r(offs_t offset, uint16_t mem_mask = ~0);
+	void apollo_ring_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
+	uint8_t apollo_ring_r(offs_t offset, uint8_t mem_mask = ~0);
 
-	void apollo_disk_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
-	uint16_t apollo_disk_r(offs_t offset, uint16_t mem_mask = ~0);
+	void apollo_disk_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
+	uint8_t apollo_disk_r(offs_t offset, uint8_t mem_mask = ~0);
 
 	void apollo_fpu_ctl_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	uint16_t apollo_fpu_ctl_r(offs_t offset, uint16_t mem_mask = ~0);
@@ -187,16 +187,13 @@ public:
 	void apollo_fpu_cs_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	uint16_t apollo_fpu_cs_r(offs_t offset, uint16_t mem_mask = ~0);
 
-	void apollo_display_mem_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
-	uint16_t apollo_display_mem_r(offs_t offset, uint16_t mem_mask = ~0);
-
 	void apollo_ptt_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	uint16_t apollo_ptt_r(offs_t offset, uint16_t mem_mask = ~0);
 
-	void apollo_kbd_control_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
-	uint16_t apollo_kbd_status_r(offs_t offset, uint16_t mem_mask = ~0);
-	void apollo_kbd_data_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
-	uint16_t apollo_kbd_data_r(offs_t offset, uint16_t mem_mask = ~0);
+	void apollo_kbd_control_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
+	uint8_t apollo_kbd_status_r(offs_t offset, uint8_t mem_mask = ~0);
+	void apollo_kbd_data_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
+	uint8_t apollo_kbd_data_r(offs_t offset, uint8_t mem_mask = ~0);
 
 	void apollo_csr_status_register_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	uint16_t apollo_csr_status_register_r(offs_t offset, uint16_t mem_mask = ~0);
@@ -299,10 +296,7 @@ public:
 
 #define APOLLO_DN300_CONF_SERVICE_MODE 0x0001
 #define APOLLO_DN300_CONF_DISPLAY      0x001e
-// #define APOLLO_DN300_CONF_8_PLANES     0x0002
-// #define APOLLO_DN300_CONF_4_PLANES     0x0004
 #define APOLLO_DN300_CONF_MONO_15I     0x0008
-// #define APOLLO_DN300_CONF_MONO_19I     0x0010
 #define APOLLO_DN300_CONF_GERMAN_KBD   0x0020
 #define APOLLO_DN300_CONF_30_YEARS_AGO 0x0040
 #define APOLLO_DN300_CONF_25_YEARS_AGO 0x0080
@@ -412,37 +406,15 @@ public:
 	~apollo_dn300_graphics();
 
 
-	uint8_t reg_r(offs_t offset);
-	void reg_w(offs_t offset, uint8_t data);
+	uint16_t reg_r(offs_t offset);
+	void reg_w(offs_t offset, uint16_t data);
 
+	uint16_t mem_r(offs_t offset, uint16_t mem_mask);
+	void mem_w(offs_t offset, uint16_t data, uint16_t mem_mask);
 
-	// old (dn3500) stuff below
-	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+    uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
-
-
-
-	// monochrome control
-	uint8_t  apollo_mcr_r(offs_t offset);
-	void apollo_mcr_w(offs_t offset, uint8_t data);
-
-	// monochrome and color memory
-	uint16_t apollo_mem_r(offs_t offset, uint16_t mem_mask = ~0);
-	void apollo_mem_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
-
-	// color control
-	uint8_t  apollo_ccr_r(offs_t offset);
-	void apollo_ccr_w(offs_t offset, uint8_t data);
-
-	uint16_t apollo_mgm_r(offs_t offset, uint16_t mem_mask = ~0);
-	void apollo_mgm_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
-
-	uint16_t apollo_cgm_r(offs_t offset, uint16_t mem_mask = ~0);
-	void apollo_cgm_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
-
-	void vblank_state_changed(screen_device &screen, bool vblank_state);
-
-	int is_mono() { return m_n_planes == 1; }
+	int is_mono() { return 1; }
 
 protected:
 	required_device<screen_device> m_screen;
@@ -455,198 +427,37 @@ protected:
 	virtual void device_add_mconfig(machine_config &config) override;
 
 protected:
-	class lut_fifo;
-	class bt458;
-
-	const char *cr_text(offs_t offset, uint8_t data, uint8_t rw);
-
-	void increment_h_clock();
-	void increment_v_clock();
-	void increment_p_clock();
-
-	void log_cr1(const char * text);
-	void set_cr1(uint8_t data);
-	void set_cr3a(uint8_t data);
-	void set_cr3b(uint8_t data);
-	void set_lut_cr(uint8_t data);
-
-	void register_vblank_callback();
-
-	uint32_t set_msb0(uint32_t value, uint8_t data)
-	{
-		return (value & 0xffffff00) | data;
-	}
-	uint32_t set_lsb0(uint32_t value, uint8_t data)
-	{
-		return (value & 0xffff00ff) | (data << 8);
-	}
-	uint32_t set_msb1(uint32_t value, uint8_t data)
-	{
-		return (value & 0xff00ffff) | (data << 16);
-	}
-	uint32_t set_lsb1(uint32_t value, uint8_t data)
-	{
-		return (value & 0x00ffffff) | (data << 24);
-	}
-	uint8_t get_msb1(uint32_t value)
-	{
-		return (value >> 16) & 0xff;
-	}
-	uint8_t get_lsb1(uint32_t value)
-	{
-		return (value >> 24) & 0xff;
-	}
-
-	void set_status_rmw();
-	uint16_t rop(uint16_t dest_data, uint16_t src_data, uint8_t plane);
-	void set_source_data(uint32_t offset);
-	uint32_t get_source_data(uint8_t plane);
-	void blt(uint32_t dest_addr, uint16_t mem_mask);
-
-	uint8_t get_pixel(uint32_t offset, uint16_t mask);
-	uint8_t c4p_read_adc(uint8_t data);
-	uint8_t c8p_read_adc(uint8_t data);
+	void blt();
 
 	void screen_update1(bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	void register_vblank_callback();
+    void vblank_state_changed(screen_device &screen, bool vblank_state);
+
 protected:
-	uint16_t m_n_planes;
-	uint16_t m_width;
-	uint16_t m_height;
-	uint16_t m_buffer_width;
-	uint16_t m_buffer_height;
 
-	uint8_t m_sr;
-	uint8_t m_device_id;
-	uint16_t m_write_enable_register;
-	uint32_t m_rop_register;
-	uint16_t m_diag_mem_request;
-	uint8_t m_cr0;
-	uint8_t m_cr1;
-	uint8_t m_cr2;
-	uint8_t m_cr2b;
-	uint8_t m_cr2_s_data;
-	uint8_t m_cr2_s_plane;
-	uint8_t m_cr2_d_plane;
-	uint8_t m_cr3a;
-	uint8_t m_cr3b;
-	uint8_t m_ad_result;
-	uint8_t m_ad_pending;
+	uint16_t m_n_planes = 0U;
+	uint16_t m_width = 0U;
+	uint16_t m_height = 0U;
+	uint16_t m_buffer_width = 0U;
+	uint16_t m_buffer_height = 0U;
 
-	uint8_t m_lut_control;
-	uint8_t m_lut_data;
+	uint16_t m_cr = 0U;
+	uint16_t m_sr = 0U;
 
-	uint8_t m_update_flag;
-	uint8_t m_update_pending;
+	uint16_t m_deb = 0U;
+	uint16_t m_wssy = 0U;
+	uint16_t m_wssx = 0U;
+	uint16_t m_dcy = 0U;
+	uint16_t m_dcx = 0U;
+	uint16_t m_wsdy = 0U;
+	uint16_t m_wsdx = 0U;
 
-	uint8_t m_blt_cycle_count;
-	uint32_t m_image_offset;
-	uint32_t m_guard_latch[8];
+	uint8_t m_update_flag = 0U;
+	uint8_t m_update_pending = 0U;
 
-	int m_h_clock;
-	int m_v_clock;
-	int m_p_clock;
-	int m_data_clock;
-
-	std::unique_ptr<uint16_t[]> m_image_memory;
-	int m_image_plane_size;
-	int m_image_memory_size;
-
-	uint32_t m_color_lookup_table[16];
-
-	std::unique_ptr<lut_fifo> m_lut_fifo;
-	std::unique_ptr<bt458> m_bt458;
-};
-
-
-#define LUT_FIFO_SIZE   1024
-
-
-//**************************************************************************
-// class LUT Fifo
-//**************************************************************************
-
-class apollo_dn300_graphics::lut_fifo
-{
-public:
-	lut_fifo()
-	{
-		reset();
-	}
-
-	void reset()
-	{
-		m_size = LUT_FIFO_SIZE;
-		m_get_index = 0;
-		m_put_index = 0;
-	}
-
-	void put(const uint8_t data)
-	{
-		if (!is_full())
-		{
-			m_data[m_put_index] = data;
-			m_put_index = (m_put_index + 1) % m_size;
-		}
-	}
-
-	uint8_t get()
-	{
-		uint8_t data = is_empty() ? 0xff : m_data[m_get_index];
-		m_get_index = (m_get_index + 1) % m_size;
-		return data;
-	}
-
-	int is_empty()
-	{
-		return m_get_index == m_put_index;
-	}
-
-	int is_full()
-	{
-		return ((m_put_index + 1) % m_size) == m_get_index;
-	}
-
-private:
-	uint16_t m_size;
-	uint16_t m_get_index;
-	uint16_t m_put_index;
-	uint8_t m_data[LUT_FIFO_SIZE];
-};
-
-//**************************************************************************
-//  class Brooktree Bt458
-//**************************************************************************
-
-class apollo_dn300_graphics::bt458
-{
-public:
-	bt458(running_machine &running_machine);
-	void start();
-	void reset();
-	uint8_t read(uint8_t c10);
-	void write(uint8_t data, uint8_t c10);
-	uint32_t get_rgb(uint8_t index);
-
-private:
-	running_machine &machine() const
-	{
-		assert(m_machine != nullptr);
-		return *m_machine;
-	}
-
-	uint8_t m_color_counter;
-	uint8_t m_red;
-	uint8_t m_green;
-
-	uint8_t m_address_register;
-	uint32_t m_color_palette_RAM[256];
-	uint32_t m_overlay_color[4];
-	uint8_t m_read_mask_register;
-	uint8_t m_blink_mask_register;
-	uint8_t m_command_register;
-	uint8_t m_control_test_register;
-
-	running_machine *m_machine;
+	std::unique_ptr<uint16_t[]> m_image_memory{};
+	int m_image_plane_size = 0;
+	int m_image_memory_size = 0;
 };
 
 DECLARE_DEVICE_TYPE(APOLLO_DN300_GRAPHICS, apollo_dn300_graphics)

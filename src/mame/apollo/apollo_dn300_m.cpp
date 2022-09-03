@@ -57,7 +57,6 @@ INPUT_PORTS_START( apollo_dn300_config )
 
 		PORT_CONFNAME(APOLLO_DN300_CONF_DISPLAY, APOLLO_DN300_CONF_MONO_15I, "Graphics Controller")
 		PORT_CONFSETTING(APOLLO_DN300_CONF_MONO_15I, "15\" Monochrome")
-//      PORT_CONFSETTING(APOLLO_DN300_CONF_MONO_19I, "19\" Monochrome")
 
 		PORT_CONFNAME(APOLLO_DN300_CONF_30_YEARS_AGO, APOLLO_DN300_CONF_30_YEARS_AGO, "30 Years Ago ...")
 		PORT_CONFSETTING(0x00, DEF_STR ( Off ) )
@@ -80,6 +79,8 @@ class apollo_dn300_config_device : public device_t
 {
 public:
 	apollo_dn300_config_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	~apollo_dn300_config_device();
+
 protected:
 	// device-level overrides
 	virtual void device_start() override;
@@ -92,6 +93,10 @@ DEFINE_DEVICE_TYPE(APOLLO_DN300_CONF, apollo_dn300_config_device, "apollo_dn300_
 
 apollo_dn300_config_device::apollo_dn300_config_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
 	: device_t(mconfig, APOLLO_DN300_CONF, tag, owner, clock)
+{
+}
+
+apollo_dn300_config_device::~apollo_dn300_config_device()
 {
 }
 
@@ -114,8 +119,6 @@ void apollo_dn300_config_device::device_reset()
 	// load configuration
 	config = machine().root_device().ioport("apollo_dn300_config")->read();
 }
-
-
 
 //##########################################################################
 // machine/apollo_dn300_csr.c - APOLLO_DN300 DS3500 CPU Control and Status registers
@@ -956,6 +959,9 @@ void apollo_dn300_ni::set_node_id_from_disk()
 #undef VERBOSE
 #define VERBOSE 0
 
+#define KBD_TAG "kbd_ser"
+#define UART_TAG "kbd_uart"
+
 void apollo_dn300_state::common(machine_config &config)
 {
 	// configuration MUST be reset first !
@@ -1070,6 +1076,16 @@ void apollo_dn300_state::apollo_dn300(machine_config &config)
 	APOLLO_DN300_SIO(config, m_sio, 3.6864_MHz_XTAL);
 	m_sio->irq_cb().set(FUNC(apollo_dn300_state::sio_irq_handler));
 	m_sio->outport_cb().set(FUNC(apollo_dn300_state::sio_output));
+
+#ifdef notyet
+	m_acia->txd_handler().set(KBD_TAG, FUNC(rs232_port_device::write_txd));
+	m_acia->rts_handler().set(KBD_TAG, FUNC(rs232_port_device::write_rts));
+
+	rs232_port_device &rs232(RS232_PORT(config, KBD_TAG, default_rs232_devices, nullptr));
+	rs232.rxd_handler().set(UART_TAG, FUNC(acia6850_device::write_rxd));
+	rs232.cts_handler().set(UART_TAG, FUNC(acia6850_device::write_cts));
+#endif
+
 #ifdef notyet
 	m_sio->a_tx_cb().set(m_keyboard, FUNC(apollo_dn300_kbd_device::rx_w));
 #endif
@@ -1095,6 +1111,9 @@ void apollo_dn300_state::apollo_dn300_terminal(machine_config &config)
 	rs232_port_device &rs232(RS232_PORT(config, "rs232", default_rs232_devices, "terminal"));
 	rs232.rxd_handler().set(m_sio, FUNC(apollo_dn300_sio::rx_b_w));
 	rs232.set_option_device_input_defaults("terminal", DEVICE_INPUT_DEFAULTS_NAME(apollo_dn300_terminal));
+
+	APOLLO_KBD(config, m_keyboard, 0);
+	m_keyboard->tx_cb().set(m_sio, FUNC(acia6850_device::write_txc));
 }
 
 void apollo_dn300_state::init_apollo()

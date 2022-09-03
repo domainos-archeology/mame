@@ -169,13 +169,13 @@ static int instruction_hook(device_t &device, offs_t curpc)
 
 	// machine.logerror("hello from instruction_hook: %p %x\n", addr_ptr, curpc);
 
-	static int iteration_count_before_we_run = 10;
+	// static int iteration_count_before_we_run = 10;
 	static int divisor = 16;
-	if (curpc == 0x0604) {
+	if (curpc == 0x0604 && 0) {
 		machine.logerror("HOOK: input detection loop!\n");
-		static int typed = 0;
-		if (!typed && --iteration_count_before_we_run == 0) {
-			typed = 1;
+		// static int typed = 0;
+		// if (!typed && --iteration_count_before_we_run == 0) {
+		// 	typed = 1;
 
 			machine.logerror("sending start bits\n");
 			for (int i = 0; i < divisor/2; i++) {
@@ -202,7 +202,7 @@ static int instruction_hook(device_t &device, offs_t curpc)
 				state->m_acia->write_rxd(0);
 				state->m_acia->write_rxc(1);
 			}
-		}
+		// }
 	} else if (curpc == 0x085a) {
 		machine.logerror("HOOK: getc called\n");
 	} else if (curpc == 0x0872) {
@@ -482,11 +482,11 @@ uint16_t apollo_dn300_state::apollo_pft_r(offs_t offset, uint16_t mem_mask)
 	return 0;
 }
 
-void apollo_dn300_state::apollo_mmu_w(offs_t offset, uint16_t data, uint16_t mem_mask)
+void apollo_dn300_state::apollo_mmu_w(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
 	SLOG2(("writing MMU at offset %02x = %02x & %08x", offset, data, mem_mask));
 }
-uint16_t apollo_dn300_state::apollo_mmu_r(offs_t offset, uint16_t mem_mask)
+uint8_t apollo_dn300_state::apollo_mmu_r(offs_t offset, uint8_t mem_mask)
 {
 	SLOG1(("reading MMU at offset %02x & %08x", offset, mem_mask));
 	return 0;
@@ -525,31 +525,31 @@ uint16_t apollo_dn300_state::apollo_dma_ctl_r(offs_t offset, uint16_t mem_mask)
 	return data;
 }
 
-void apollo_dn300_state::apollo_display_w(offs_t offset, uint16_t data, uint16_t mem_mask)
+void apollo_dn300_state::apollo_display_w(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
 	SLOG2(("writing display at offset %02x = %02x", offset, data));
 }
-uint16_t apollo_dn300_state::apollo_display_r(offs_t offset, uint16_t mem_mask)
+uint8_t apollo_dn300_state::apollo_display_r(offs_t offset, uint8_t mem_mask)
 {
 	SLOG1(("reading display at offset %02x & %08x", offset, mem_mask));
 	return 0;
 }
 
-void apollo_dn300_state::apollo_ring_w(offs_t offset, uint16_t data, uint16_t mem_mask)
+void apollo_dn300_state::apollo_ring_w(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
 	SLOG2(("writing ring at offset %02x = %02x & %08x", offset, data, mem_mask));
 }
-uint16_t apollo_dn300_state::apollo_ring_r(offs_t offset, uint16_t mem_mask)
+uint8_t apollo_dn300_state::apollo_ring_r(offs_t offset, uint8_t mem_mask)
 {
 	SLOG1(("reading ring at offset %02x & %08x", offset, mem_mask));
 	return 0;
 }
 
-void apollo_dn300_state::apollo_disk_w(offs_t offset, uint16_t data, uint16_t mem_mask)
+void apollo_dn300_state::apollo_disk_w(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
 	SLOG2(("writing disk at offset %02x = %02x & %08x", offset, data, mem_mask));
 }
-uint16_t apollo_dn300_state::apollo_disk_r(offs_t offset, uint16_t mem_mask)
+uint8_t apollo_dn300_state::apollo_disk_r(offs_t offset, uint8_t mem_mask)
 {
 	SLOG1(("reading disk at offset %02x & %08x", offset, mem_mask));
 	return 0;
@@ -585,16 +585,6 @@ uint16_t apollo_dn300_state::apollo_fpu_cs_r(offs_t offset, uint16_t mem_mask)
 	return 0;
 }
 
-void apollo_dn300_state::apollo_display_mem_w(offs_t offset, uint16_t data, uint16_t mem_mask)
-{
-	SLOG2(("writing display mem at offset %02x = %02x & %08x", offset, data, mem_mask));
-}
-uint16_t apollo_dn300_state::apollo_display_mem_r(offs_t offset, uint16_t mem_mask)
-{
-	SLOG1(("reading display mem at offset %02x & %08x", offset, mem_mask));
-	return 0;
-}
-
 void apollo_dn300_state::apollo_ptt_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
 	SLOG2(("writing PTT at offset %02x = %02x & %08x", offset, data, mem_mask));
@@ -605,28 +595,28 @@ uint16_t apollo_dn300_state::apollo_ptt_r(offs_t offset, uint16_t mem_mask)
 	return 0;
 }
 
-void apollo_dn300_state::apollo_kbd_control_w(offs_t offset, uint16_t data, uint16_t mem_mask)
+void apollo_dn300_state::apollo_kbd_control_w(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
 	SLOG2(("writing keyboard control at offset %02x = %02x & %08x", offset, data, mem_mask));
 	m_acia->control_w(data);
 }
-uint16_t apollo_dn300_state::apollo_kbd_status_r(offs_t offset, uint16_t mem_mask)
+uint8_t apollo_dn300_state::apollo_kbd_status_r(offs_t offset, uint8_t mem_mask)
 {
-	uint16 data = m_acia->status_r();
+	uint8 data = m_acia->status_r();
 	SLOG1(("reading keyboard status at offset %02x & %08x => %08x", offset, mem_mask, data));
-	return data;
+	return data | 1;
 }
 
-void apollo_dn300_state::apollo_kbd_data_w(offs_t offset, uint16_t data, uint16_t mem_mask)
+void apollo_dn300_state::apollo_kbd_data_w(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
 	SLOG2(("writing keyboard data at offset %02x = %02x & %08x", offset, data, mem_mask));
 	m_acia->data_w(data);
 }
-uint16_t apollo_dn300_state::apollo_kbd_data_r(offs_t offset, uint16_t mem_mask)
+uint8_t apollo_dn300_state::apollo_kbd_data_r(offs_t offset, uint8_t mem_mask)
 {
-	uint16_t data = m_acia->data_r();
+	uint8_t data = m_acia->data_r();
 	SLOG1(("reading keyboard data at offset %02x & %08x => %08x", offset, mem_mask, data));
-	return data;
+	return 13; //data;
 }
 
 
@@ -663,7 +653,7 @@ void apollo_dn300_state::dn300_map(address_map &map)
 		map(0x0000b400, 0x0000b7ff).rw(FUNC(apollo_dn300_state::apollo_fpu_cmd_r), FUNC(apollo_dn300_state::apollo_fpu_cmd_w)); // docs call this "fpu cmd"
 		map(0x0000b800, 0x0000bbff).rw(FUNC(apollo_dn300_state::apollo_fpu_cs_r), FUNC(apollo_dn300_state::apollo_fpu_cs_w)); // docs call this "fpu cs"
 
-		map(0x00020000, 0x00021fff).rw(FUNC(apollo_dn300_state::apollo_display_mem_r), FUNC(apollo_dn300_state::apollo_display_mem_w)); // docs call this "disp1 mem"
+		map(0x00020000, 0x0003ffff).rw(m_graphics, FUNC(apollo_dn300_graphics::mem_r), FUNC(apollo_dn300_graphics::mem_w)); // docs call this "disp1 mem"
 
 		// map(0x00100000, 0x0017ffff).rw(/* MD stack / data */),
 
@@ -703,7 +693,7 @@ WRITE_LINE_MEMBER(apollo_dn300_state::apollo_reset_instr_callback)
 	MACHINE_RESET_CALL_MEMBER(apollo_dn300);
 
 	m_graphics->reset();
-	// m_keyboard->reset();
+	m_keyboard->reset();
 }
 
 /***************************************************************************
