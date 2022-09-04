@@ -484,11 +484,11 @@ uint16_t apollo_dn300_state::apollo_pft_r(offs_t offset, uint16_t mem_mask)
 
 void apollo_dn300_state::apollo_mmu_w(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
-	SLOG2(("writing MMU at offset %02x = %02x & %08x", offset, data, mem_mask));
+	// SLOG2(("writing MMU at offset %02x = %02x & %08x", offset, data, mem_mask));
 }
 uint8_t apollo_dn300_state::apollo_mmu_r(offs_t offset, uint8_t mem_mask)
 {
-	SLOG1(("reading MMU at offset %02x & %08x", offset, mem_mask));
+	// SLOG1(("reading MMU at offset %02x & %08x", offset, mem_mask));
 	return 0;
 }
 
@@ -595,6 +595,8 @@ uint16_t apollo_dn300_state::apollo_ptt_r(offs_t offset, uint16_t mem_mask)
 	return 0;
 }
 
+#define ENTER_REPEATEDLY 0
+
 void apollo_dn300_state::apollo_kbd_control_w(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
 	SLOG2(("writing keyboard control at offset %02x = %02x & %08x", offset, data, mem_mask));
@@ -604,7 +606,11 @@ uint8_t apollo_dn300_state::apollo_kbd_status_r(offs_t offset, uint8_t mem_mask)
 {
 	uint8 data = m_acia->status_r();
 	SLOG1(("reading keyboard status at offset %02x & %08x => %08x", offset, mem_mask, data));
+#if ENTER_REPEATEDLY
 	return data | 1;
+#else
+	return data;
+#endif
 }
 
 void apollo_dn300_state::apollo_kbd_data_w(offs_t offset, uint8_t data, uint8_t mem_mask)
@@ -616,7 +622,11 @@ uint8_t apollo_dn300_state::apollo_kbd_data_r(offs_t offset, uint8_t mem_mask)
 {
 	uint8_t data = m_acia->data_r();
 	SLOG1(("reading keyboard data at offset %02x & %08x => %08x", offset, mem_mask, data));
-	return 13; //data;
+#if ENTER_REPEATEDLY
+	return 13;
+#else
+	return data;
+#endif
 }
 
 
@@ -634,10 +644,16 @@ void apollo_dn300_state::dn300_map(address_map &map)
 		map(0x00004000, 0x00007fff).rw(FUNC(apollo_dn300_state::apollo_pft_r), FUNC(apollo_dn300_state::apollo_pft_w));
 
 		map(0x00008000, 0x000083ff).rw(FUNC(apollo_dn300_state::apollo_mmu_r), FUNC(apollo_dn300_state::apollo_mmu_w));
-		map(0x00008400, 0x0000841f).rw(FUNC(apollo_dn300_state::apollo_sio_r), FUNC(apollo_dn300_state::apollo_sio_w));
 
-		map(0x00008420, 0x00008421).rw(FUNC(apollo_dn300_state::apollo_kbd_status_r), FUNC(apollo_dn300_state::apollo_kbd_control_w));
-		map(0x00008422, 0x00008423).rw(FUNC(apollo_dn300_state::apollo_kbd_data_r), FUNC(apollo_dn300_state::apollo_kbd_data_w));
+// logging wrapper functions
+		// map(0x00008400, 0x0000841f).rw(FUNC(apollo_dn300_state::apollo_sio_r), FUNC(apollo_dn300_state::apollo_sio_w));
+		// map(0x00008420, 0x00008421).rw(FUNC(apollo_dn300_state::apollo_kbd_status_r), FUNC(apollo_dn300_state::apollo_kbd_control_w));
+		// map(0x00008422, 0x00008423).rw(FUNC(apollo_dn300_state::apollo_kbd_data_r), FUNC(apollo_dn300_state::apollo_kbd_data_w));
+// directly to sio/acia devices
+		map(0x00008400, 0x0000841f).rw(m_sio, FUNC(apollo_dn300_sio::read), FUNC(apollo_dn300_sio::write));
+		map(0x00008420, 0x00008421).rw(m_acia, FUNC(acia6850_device::status_r), FUNC(acia6850_device::control_w));
+		map(0x00008422, 0x00008423).rw(m_acia, FUNC(acia6850_device::data_r), FUNC(acia6850_device::data_w));
+
 
 		map(0x00008800, 0x00008bff).rw(m_ptm, FUNC(ptm6840_device::read), FUNC(ptm6840_device::write));
 

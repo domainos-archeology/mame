@@ -960,7 +960,7 @@ void apollo_dn300_ni::set_node_id_from_disk()
 #define VERBOSE 0
 
 #define KBD_TAG "kbd_ser"
-#define UART_TAG "kbd_uart"
+#define KEYBOARD_TAG "keyboard"
 
 void apollo_dn300_state::common(machine_config &config)
 {
@@ -970,50 +970,6 @@ void apollo_dn300_state::common(machine_config &config)
 	ACIA6850(config, m_acia, 0);
 	HD63450(config, m_dma63450, 8'000'000, m_maincpu);
 
-#ifdef notyet
-	AM9517A(config, m_dma8237_1, 14.318181_MHz_XTAL / 3);
-	m_dma8237_1->out_hreq_callback().set(FUNC(apollo_dn300_state::apollo_dn300_dma_1_hrq_changed));
-	m_dma8237_1->out_eop_callback().set(FUNC(apollo_dn300_state::apollo_dn300_dma8237_out_eop));
-	m_dma8237_1->in_memr_callback().set(FUNC(apollo_dn300_state::apollo_dn300_dma_read_byte));
-	m_dma8237_1->out_memw_callback().set(FUNC(apollo_dn300_state::apollo_dn300_dma_write_byte));
-	m_dma8237_1->in_ior_callback<0>().set(FUNC(apollo_dn300_state::pc_dma8237_0_dack_r));
-	m_dma8237_1->in_ior_callback<1>().set(FUNC(apollo_dn300_state::pc_dma8237_1_dack_r));
-	m_dma8237_1->in_ior_callback<2>().set(FUNC(apollo_dn300_state::pc_dma8237_2_dack_r));
-	m_dma8237_1->in_ior_callback<3>().set(FUNC(apollo_dn300_state::pc_dma8237_3_dack_r));
-	m_dma8237_1->out_iow_callback<0>().set(FUNC(apollo_dn300_state::pc_dma8237_0_dack_w));
-	m_dma8237_1->out_iow_callback<1>().set(FUNC(apollo_dn300_state::pc_dma8237_1_dack_w));
-	m_dma8237_1->out_iow_callback<2>().set(FUNC(apollo_dn300_state::pc_dma8237_2_dack_w));
-	m_dma8237_1->out_iow_ceallback<3>().set(FUNC(apollo_dn300_state::pc_dma8237_3_dack_w));
-	m_dma8237_1->out_dack_callback<0>().set(FUNC(apollo_dn300_state::pc_dack0_w));
-	m_dma8237_1->out_dack_callback<1>().set(FUNC(apollo_dn300_state::pc_dack1_w));
-	m_dma8237_1->out_dack_callback<2>().set(FUNC(apollo_dn300_state::pc_dack2_w));
-	m_dma8237_1->out_dack_callback<3>().set(FUNC(apollo_dn300_state::pc_dack3_w));
-
-	AM9517A(config, m_dma8237_2, 14.318181_MHz_XTAL / 3);
-	m_dma8237_2->out_hreq_callback().set(FUNC(apollo_dn300_state::apollo_dn300_dma_2_hrq_changed));
-	m_dma8237_2->in_memr_callback().set(FUNC(apollo_dn300_state::apollo_dn300_dma_read_word));
-	m_dma8237_2->out_memw_callback().set(FUNC(apollo_dn300_state::apollo_dn300_dma_write_word));
-	m_dma8237_2->in_ior_callback<1>().set(FUNC(apollo_dn300_state::pc_dma8237_5_dack_r));
-	m_dma8237_2->in_ior_callback<2>().set(FUNC(apollo_dn300_state::pc_dma8237_6_dack_r));
-	m_dma8237_2->in_ior_callback<3>().set(FUNC(apollo_dn300_state::pc_dma8237_7_dack_r));
-	m_dma8237_2->out_iow_callback<1>().set(FUNC(apollo_dn300_state::pc_dma8237_5_dack_w));
-	m_dma8237_2->out_iow_callback<2>().set(FUNC(apollo_dn300_state::pc_dma8237_6_dack_w));
-	m_dma8237_2->out_iow_callback<3>().set(FUNC(apollo_dn300_state::pc_dma8237_7_dack_w));
-	m_dma8237_2->out_dack_callback<0>().set(FUNC(apollo_dn300_state::pc_dack4_w));
-	m_dma8237_2->out_dack_callback<1>().set(FUNC(apollo_dn300_state::pc_dack5_w));
-	m_dma8237_2->out_dack_callback<2>().set(FUNC(apollo_dn300_state::pc_dack6_w));
-	m_dma8237_2->out_dack_callback<3>().set(FUNC(apollo_dn300_state::pc_dack7_w));
-
-	PIC8259(config, m_pic8259_master, 0);
-	m_pic8259_master->out_int_callback().set(FUNC(apollo_dn300_state::apollo_dn300_pic8259_master_set_int_line));
-	m_pic8259_master->in_sp_callback().set_constant(1);
-	m_pic8259_master->read_slave_ack_callback().set(FUNC(apollo_dn300_state::apollo_dn300_pic8259_get_slave_ack));
-
-	PIC8259(config, m_pic8259_slave, 0);
-	m_pic8259_slave->out_int_callback().set(FUNC(apollo_dn300_state::apollo_dn300_pic8259_slave_set_int_line));
-	m_pic8259_slave->in_sp_callback().set_constant(0);
-#endif
-
 	PTM6840(config, m_ptm, 0);
 	m_ptm->set_external_clocks(250000, 125000, 62500);
 	m_ptm->irq_callback().set(FUNC(apollo_dn300_state::apollo_ptm_irq_function));
@@ -1021,53 +977,8 @@ void apollo_dn300_state::common(machine_config &config)
 	clock_device &ptmclock(CLOCK(config, "ptmclock", 250000));
 	ptmclock.signal_handler().set(FUNC(apollo_dn300_state::apollo_ptm_timer_tick));
 
-#ifdef notyet
-	MC146818(config, m_rtc, 32.768_kHz_XTAL);
-	// FIXME: is this interrupt really only connected on DN3000?
-	//m_rtc->irq().set(FUNC(apollo_dn300_state::apollo_dn300_rtc_irq_function));
-	m_rtc->set_use_utc(true);
-	m_rtc->set_binary(false);
-	m_rtc->set_24hrs(false);
-	m_rtc->set_epoch(0);
-#endif
 
 	APOLLO_DN300_NI(config, m_node_id, 0);
-
-#ifdef notyet
-	APOLLO_DN300_SIO(config, m_sio2, 3.6864_MHz_XTAL);
-	m_sio2->irq_cb().set(FUNC(apollo_dn300_state::sio2_irq_handler));
-
-	ISA16(config, m_isa, 0);
-	m_isa->set_custom_spaces();
-	m_isa->irq2_callback().set(m_pic8259_slave, FUNC(pic8259_device::ir2_w)); // in place of irq 2 on at irq 9 is used
-	m_isa->irq3_callback().set(m_pic8259_master, FUNC(pic8259_device::ir3_w));
-	m_isa->irq4_callback().set(m_pic8259_master, FUNC(pic8259_device::ir4_w));
-	m_isa->irq5_callback().set(m_pic8259_master, FUNC(pic8259_device::ir5_w));
-	m_isa->irq6_callback().set(m_pic8259_master, FUNC(pic8259_device::ir6_w));
-	m_isa->irq7_callback().set(m_pic8259_master, FUNC(pic8259_device::ir7_w));
-	m_isa->irq10_callback().set(m_pic8259_slave, FUNC(pic8259_device::ir2_w));
-	m_isa->irq11_callback().set(m_pic8259_slave, FUNC(pic8259_device::ir3_w));
-	m_isa->irq12_callback().set(m_pic8259_slave, FUNC(pic8259_device::ir4_w));
-	m_isa->irq14_callback().set(m_pic8259_slave, FUNC(pic8259_device::ir6_w));
-	m_isa->irq15_callback().set(m_pic8259_slave, FUNC(pic8259_device::ir7_w));
-	m_isa->drq0_callback().set(m_dma8237_1, FUNC(am9517a_device::dreq0_w));
-	m_isa->drq1_callback().set(m_dma8237_1, FUNC(am9517a_device::dreq1_w));
-	m_isa->drq2_callback().set(m_dma8237_1, FUNC(am9517a_device::dreq2_w));
-	m_isa->drq3_callback().set(m_dma8237_1, FUNC(am9517a_device::dreq3_w));
-	m_isa->drq5_callback().set(m_dma8237_2, FUNC(am9517a_device::dreq1_w));
-	m_isa->drq6_callback().set(m_dma8237_2, FUNC(am9517a_device::dreq2_w));
-	m_isa->drq7_callback().set(m_dma8237_2, FUNC(am9517a_device::dreq3_w));
-
-	ISA16_SLOT(config, "isa1", 0, APOLLO_DN300_ISA_TAG, apollo_dn300_isa_cards, "wdc", false); // FIXME: determine ISA bus clock
-	ISA16_SLOT(config, "isa2", 0, APOLLO_DN300_ISA_TAG, apollo_dn300_isa_cards, "ctape", false);
-	ISA16_SLOT(config, "isa3", 0, APOLLO_DN300_ISA_TAG, apollo_dn300_isa_cards, "3c505", false);
-	ISA16_SLOT(config, "isa4", 0, APOLLO_DN300_ISA_TAG, apollo_dn300_isa_cards, nullptr, false);
-	ISA16_SLOT(config, "isa5", 0, APOLLO_DN300_ISA_TAG, apollo_dn300_isa_cards, nullptr, false);
-	ISA16_SLOT(config, "isa6", 0, APOLLO_DN300_ISA_TAG, apollo_dn300_isa_cards, nullptr, false);
-	ISA16_SLOT(config, "isa7", 0, APOLLO_DN300_ISA_TAG, apollo_dn300_isa_cards, nullptr, false);
-
-	SOFTWARE_LIST(config, "ctape_list").set_original("apollo_dn300_ctape");
-#endif
 }
 
 void apollo_dn300_state::apollo_dn300(machine_config &config)
@@ -1077,10 +988,10 @@ void apollo_dn300_state::apollo_dn300(machine_config &config)
 	m_sio->irq_cb().set(FUNC(apollo_dn300_state::sio_irq_handler));
 	m_sio->outport_cb().set(FUNC(apollo_dn300_state::sio_output));
 
-#ifdef notyet
-	m_acia->txd_handler().set(KBD_TAG, FUNC(rs232_port_device::write_txd));
-	m_acia->rts_handler().set(KBD_TAG, FUNC(rs232_port_device::write_rts));
+	APOLLO_DN300_KBD(config, m_keyboard, 0).rxd_handler().set(m_acia, FUNC(acia6850_device::write_rxd));
+	m_acia->txd_handler().set(m_keyboard, FUNC(apollo_dn300_kbd_device::write_txd));
 
+#ifdef notyet
 	rs232_port_device &rs232(RS232_PORT(config, KBD_TAG, default_rs232_devices, nullptr));
 	rs232.rxd_handler().set(UART_TAG, FUNC(acia6850_device::write_rxd));
 	rs232.cts_handler().set(UART_TAG, FUNC(acia6850_device::write_cts));
@@ -1110,10 +1021,7 @@ void apollo_dn300_state::apollo_dn300_terminal(machine_config &config)
 
 	rs232_port_device &rs232(RS232_PORT(config, "rs232", default_rs232_devices, "terminal"));
 	rs232.rxd_handler().set(m_sio, FUNC(apollo_dn300_sio::rx_b_w));
-	rs232.set_option_device_input_defaults("terminal", DEVICE_INPUT_DEFAULTS_NAME(apollo_dn300_terminal));
-
-	APOLLO_KBD(config, m_keyboard, 0);
-	m_keyboard->tx_cb().set(m_sio, FUNC(acia6850_device::write_txc));
+	rs232.set_option_device_input_defaults("terminal", DEVICE_INPUT_DEFAULTS_NAME(apollo_dn300_terminal));	
 }
 
 void apollo_dn300_state::init_apollo()

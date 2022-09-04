@@ -14,7 +14,7 @@
 #pragma once
 
 
-#include "apollo_kbd.h"
+#include "apollo_dn300_kbd.h"
 
 #include "cpu/m68000/m68000.h"
 
