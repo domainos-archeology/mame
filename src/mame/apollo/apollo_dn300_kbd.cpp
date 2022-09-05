@@ -12,7 +12,7 @@
 
 #include "emu.h"
 
-#define VERBOSE 2
+#define VERBOSE 0
 
 #include "apollo_dn300_kbd.h"
 #include "speaker.h"
@@ -22,7 +22,7 @@
 #define LOG1(x) { if (VERBOSE > 0) LOG(x)}
 #define LOG2(x) { if (VERBOSE > 1) LOG(x)}
 
-#define MAP_APOLLO_KEYS 1
+#define MAP_APOLLO_KEYS 0
 
 //**************************************************************************
 //  DEVICE DEFINITIONS
@@ -281,8 +281,9 @@ void apollo_dn300_kbd_device::device_reset()
 	// start timer
 	m_timer->adjust( attotime::zero, 0, attotime::from_msec(5)); // every 5ms
 
-	// keyboard comms is at 8E1, 1200 baud
-	set_data_frame(1, 8, PARITY_EVEN, STOP_BITS_1);
+	// it's either 8N1 or 7E2.  we'll stick with 1200 baud just for kicks
+	set_data_frame(1, 7, PARITY_EVEN, STOP_BITS_2);
+	//set_data_frame(0, 8, PARITY_NONE, STOP_BITS_1);
 	set_rcv_rate(1200);
 	set_tra_rate(1200);
 
@@ -452,24 +453,16 @@ void apollo_dn300_kbd_device::mouse::read_mouse()
 	}
 }
 
-/*-------------------------------------------------
- keyboard_is_german - check for german keyboard
- -------------------------------------------------*/
-
-bool apollo_dn300_kbd_device::keyboard_is_german()
-{
-	return m_german_r() == ASSERT_LINE;
-}
-
 void apollo_dn300_kbd_device::set_mode(uint16_t mode)
 {
-	xmit_char(0xff);
-	xmit_char(mode);
+	// xmit_char(0xff);
+	// xmit_char(mode);
 	m_mode = mode;
 }
 
 void apollo_dn300_kbd_device::tra_complete()    // Tx completed sending byte
 {
+	LOG2(("apollo_dn300_kbd_device::tra_complete()"))
 	// is there more waiting to send?
 	if (m_xmit_read != m_xmit_write)
 	{
@@ -601,27 +594,28 @@ void apollo_dn300_kbd_device::kgetchar(uint8_t data)
 			putdata(&data, 1);
 			break;
 		case 0xff1221: // receive ID message
-			m_loopback_mode = 0;
-			putdata(&data, 1);
-			if (keyboard_is_german())
-			{
-				putstring("3-A\r2-0\rSD-03863-MS\r");
-			}
-			else
-			{
-				putstring("3-@\r2-0\rSD-03863-MS\r");
-			}
+			abort();
+			// m_loopback_mode = 0;
+			// putdata(&data, 1);
+			// if (keyboard_is_german())
+			// {
+			// 	putstring("3-A\r2-0\rSD-03863-MS\r");
+			// }
+			// else
+			// {
+			// 	putstring("3-@\r2-0\rSD-03863-MS\r");
+			// }
 
-			if (m_mode == KBD_MODE_0_COMPATIBILITY)
-			{
-				set_mode(KBD_MODE_0_COMPATIBILITY);
-			}
-			else
-			{
-				set_mode(KBD_MODE_1_KEYSTATE);
-			}
-			m_rx_message = 0;
-			break;
+			// if (m_mode == KBD_MODE_0_COMPATIBILITY)
+			// {
+			// 	set_mode(KBD_MODE_0_COMPATIBILITY);
+			// }
+			// else
+			// {
+			// 	set_mode(KBD_MODE_1_KEYSTATE);
+			// }
+			// m_rx_message = 0;
+			// break;
 		case 0xff2181: // beeper on (for 300 ms)
 			putdata(&data, 1);
 			m_rx_message = 0;
@@ -650,24 +644,11 @@ int apollo_dn300_kbd_device::push_scancode(uint8_t code, uint8_t repeat)
 	uint8_t const caps = BIT(modifiers,0);
 	uint8_t const shift = BIT(modifiers,1) | BIT(modifiers,5);
 	uint8_t const ctrl = BIT(modifiers,2);
-	uint8_t const numlock = BIT(modifiers,6);
-
-	if (keyboard_is_german())
-	{
-		// map special keys for German keyboard
-		switch (code)
-		{
-		case 0x00: code = 0x68; break; // _
-		case 0x0e: code = 0x69; break; // #
-		case 0x29: code = 0x6b; break; // <>
-		case 0x42: code = 0x6f; break; // NP-
-		case 0x46: code = 0x6e; break; // NP+
-		case 0x4e: code = 0x73; break; // NP ENTER
-		}
-	}
 
 #if MAP_APOLLO_KEYS
 
+	uint8_t const numlock = BIT(modifiers,6);
+	
 	// FIXME: numlock was ok for MAME with SDL1.2 but never worked for MAME with SDL2
 	// nasty hack: we toggle the numlock state from the numlock Key Up transition (starting with 0 for numlock off)
 	if (code == 0xe6)
@@ -764,21 +745,28 @@ int apollo_dn300_kbd_device::push_scancode(uint8_t code, uint8_t repeat)
 void apollo_dn300_kbd_device::scan_keyboard()
 {
 	int x;
+#ifdef notyet
 	int repeat = 0;
+#endif
 
 	for (x = 0; x < 0x80; x++)
 	{
-		if (!(m_io_keyboard[x / 32]->read() & (1 << (x % 32))))
+		ioport_value v = m_io_keyboard[x / 32]->read();
+		if (!(v & (1 << (x % 32))))
 		{
 			// no key pressed
 			if (m_keyon[x] != 0)
 			{
+#ifdef notyet
 				// a key has been released
 				push_scancode(0x80 + x, 0);
+#endif
 				m_keytime[x] = 0;
 				m_keyon[x] = 0;
 				m_last_pressed = 0;
+#ifdef notyet
 				LOG1(("released key 0x%02x at time %d",x, m_keytime[x]));
+#endif
 			}
 		}
 		else if (m_keyon[x] == 0)
@@ -794,6 +782,7 @@ void apollo_dn300_kbd_device::scan_keyboard()
 		}
 		else if (m_last_pressed == x)
 		{
+#ifdef notyet
 			// a key is being held; adjust delay/repeat timers
 			m_keytime[x] -= 5;
 			if (m_keytime[x] <= 0)
@@ -802,6 +791,7 @@ void apollo_dn300_kbd_device::scan_keyboard()
 				m_keytime[x] = m_repeat;
 			}
 			LOG2(("holding key 0x%02x at time %d",x, m_keytime[x]));
+#endif
 		}
 	}
 }
@@ -818,8 +808,8 @@ TIMER_CALLBACK_MEMBER(apollo_dn300_kbd_device::kbd_scan_timer)
 }
 
 apollo_dn300_kbd_device::code_entry const apollo_dn300_kbd_device::s_code_table[] = {
-		/* Key   | Keycap      | Down | Up  |Unshifted|Shifted|Control|Caps Lock|Up Trans|Auto  */
-		/* Number| Legend      | Code | Code|Code     | Code  | Code  |Code     | Code   |Repeat*/
+		/* Key   | Keycap         | Down | Up  |Unshifted|Shifted|Control|Caps Lock|Up Trans|Auto  */
+		/* Number| Legend         | Code | Code|Code     | Code  | Code  |Code     | Code   |Repeat*/
 
 		/* B14     ~ ' / ESC   */ { 0x24, 0xA4, 0x60,     0x7E,   0x1E,   0x60,     NOP,     No  },
 		/* B1      ESC         */ { 0x17, 0x97, 0x1B,     0x1B,   NOP,    0x1B,     NOP,     No  },
@@ -851,7 +841,8 @@ apollo_dn300_kbd_device::code_entry const apollo_dn300_kbd_device::s_code_table[
 		/* C11     P           */ { 0x36, 0xB6, 0x70,     0x50,   0x10,   0x50,     NOP,     No  },
 		/* C12     { [ / Ue    */ { 0x37, 0xB7, 0x7B,     0x5B,   0x1B,   0x7B,     NOP,     No  },
 		/* C13     } ] / Oe    */ { 0x38, 0xB8, 0x7D,     0x5D,   0x1D,   0x7D,     NOP,     No  },
-		/* D13     RETURN      */ { 0x52, 0xD2, 0xCB,     0xDB,   NOP,    0xCB,     NOP,     No  },
+		// /* D13     RETURN      */ { 0x52, 0xD2, 0xCB,     0xDB,   NOP,    0xCB,     NOP,     No  },
+		/* D13     RETURN      */ { 13, 13, 13,     13,   NOP,    13,     NOP,     No  },
 
 		/* D2      A           */ { 0x46, 0xC6, 0x61,     0x41,   0x01,   0x41,     NOP,     No  },
 		/* D3      S           */ { 0x47, 0xC7, 0x73,     0x53,   0x13,   0x53,     NOP,     No  },

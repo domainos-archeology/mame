@@ -52,8 +52,8 @@ int apollo_dn300_config(int mask)
 INPUT_PORTS_START( apollo_dn300_config )
 	PORT_START( "apollo_dn300_config" )
 		PORT_CONFNAME(APOLLO_DN300_CONF_SERVICE_MODE, 0x00, "Normal/Service" )
-		PORT_CONFSETTING(0x00, "Service" )
-		PORT_CONFSETTING(APOLLO_DN300_CONF_SERVICE_MODE, "Normal" )
+		PORT_CONFSETTING(0x01, "Service" )
+		PORT_CONFSETTING(0x00, "Normal" )
 
 		PORT_CONFNAME(APOLLO_DN300_CONF_DISPLAY, APOLLO_DN300_CONF_MONO_15I, "Graphics Controller")
 		PORT_CONFSETTING(APOLLO_DN300_CONF_MONO_15I, "15\" Monochrome")
@@ -129,18 +129,19 @@ void apollo_dn300_config_device::device_reset()
 
 #define CPU_CONTROL_REGISTER_ADDRESS 0x010100
 
-static uint16_t cpu_status_register = APOLLO_DN300_CSR_SR_BIT15 | APOLLO_DN300_CSR_SR_SERVICE;
+static uint16_t cpu_status_register = APOLLO_DN300_CSR_SR_BIT15 /* | APOLLO_DN300_CSR_SR_SERVICE */;
 static uint16_t cpu_control_register = 0x0000;
 
 /*-------------------------------------------------
   apollo_dn300_csr_get/set_servicemode
  -------------------------------------------------*/
 
-/*static int apollo_dn300_csr_get_servicemode()
+/*
+static int apollo_dn300_csr_get_servicemode()
 {
     return cpu_status_register & APOLLO_DN300_CSR_SR_SERVICE ? 0 : 1;
-}*/
-
+}
+*/
 static void apollo_dn300_csr_set_servicemode(int mode)
 {
 	apollo_dn300_csr_set_status_register(1, mode ? APOLLO_DN300_CSR_SR_SERVICE : 0);
@@ -977,6 +978,10 @@ void apollo_dn300_state::common(machine_config &config)
 	clock_device &ptmclock(CLOCK(config, "ptmclock", 250000));
 	ptmclock.signal_handler().set(FUNC(apollo_dn300_state::apollo_ptm_timer_tick));
 
+// no clue what this clock rate should be.  but we need a clock to pulse rxc/txc
+	clock_device &acia_clock(CLOCK(config, "acia_clock", 19200));
+	acia_clock.signal_handler().set(m_acia, FUNC(acia6850_device::write_txc));
+	acia_clock.signal_handler().append(m_acia, FUNC(acia6850_device::write_rxc));
 
 	APOLLO_DN300_NI(config, m_node_id, 0);
 }
@@ -988,7 +993,9 @@ void apollo_dn300_state::apollo_dn300(machine_config &config)
 	m_sio->irq_cb().set(FUNC(apollo_dn300_state::sio_irq_handler));
 	m_sio->outport_cb().set(FUNC(apollo_dn300_state::sio_output));
 
-	APOLLO_DN300_KBD(config, m_keyboard, 0).rxd_handler().set(m_acia, FUNC(acia6850_device::write_rxd));
+
+	APOLLO_DN300_KBD(config, m_keyboard, 0);
+	m_keyboard->tx_cb().set(m_acia, FUNC(acia6850_device::write_rxd));
 	m_acia->txd_handler().set(m_keyboard, FUNC(apollo_dn300_kbd_device::write_txd));
 
 #ifdef notyet

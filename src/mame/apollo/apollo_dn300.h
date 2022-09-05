@@ -33,7 +33,7 @@
 #include "screen.h"
 
 #undef VERBOSE
-#define VERBOSE 2
+#define VERBOSE 0
 
 #define LOG(x)  { logerror x; logerror ("\n"); apollo_dn300_check_log(); }
 #define LOG1(x) { if (VERBOSE > 0) LOG(x) }
@@ -92,7 +92,7 @@ void apollo_dn300_set_cache_status_register(device_t *device,uint8_t mask, uint8
 #define APOLLO_DN300_ACIA_TAG  "acia"
 #define APOLLO_DN300_NI_TAG  "node_id"
 #define APOLLO_DN300_SCREEN_TAG "apollo_dn300_screen"
-#define APOLLO_DN300_KBD_TAG  "kbd"
+#define APOLLO_DN300_KBD_TAG  "keyboard"
 
 
 // forward declaration

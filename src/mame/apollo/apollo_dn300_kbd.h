@@ -70,8 +70,6 @@ private:
 
 	void kgetchar(uint8_t data);
 
-	bool keyboard_is_german();
-
 	void set_mode(uint16_t mode);
 	void putdata(const uint8_t *data, int data_length);
 	void putstring(const char *data);
