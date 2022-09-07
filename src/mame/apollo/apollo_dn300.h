@@ -160,9 +160,6 @@ public:
 	void apollo_mmu_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
 	uint8_t apollo_mmu_r(offs_t offset, uint8_t mem_mask = ~0);
 
-	void apollo_sio_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
-	uint16_t apollo_sio_r(offs_t offset, uint16_t mem_mask = ~0);
-
 	void apollo_timers_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	uint16_t apollo_timers_r(offs_t offset, uint16_t mem_mask = ~0);
 
@@ -189,11 +186,6 @@ public:
 
 	void apollo_ptt_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	uint16_t apollo_ptt_r(offs_t offset, uint16_t mem_mask = ~0);
-
-	void apollo_kbd_control_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
-	uint8_t apollo_kbd_status_r(offs_t offset, uint8_t mem_mask = ~0);
-	void apollo_kbd_data_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
-	uint8_t apollo_kbd_data_r(offs_t offset, uint8_t mem_mask = ~0);
 
 	void apollo_csr_status_register_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	uint16_t apollo_csr_status_register_r(offs_t offset, uint16_t mem_mask = ~0);
