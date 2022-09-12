@@ -129,8 +129,8 @@ void apollo_dn300_config_device::device_reset()
 
 #define CPU_CONTROL_REGISTER_ADDRESS 0x010100
 
-static uint16_t cpu_status_register = APOLLO_DN300_CSR_SR_BIT15 /* | APOLLO_DN300_CSR_SR_SERVICE */;
-static uint16_t cpu_control_register = 0x0000;
+static uint16_t mem_status_register = 0x0000;
+static uint8_t mem_control_register = 0x00;
 
 /*-------------------------------------------------
   apollo_dn300_csr_get/set_servicemode
@@ -141,110 +141,73 @@ static int apollo_dn300_csr_get_servicemode()
 {
     return cpu_status_register & APOLLO_DN300_CSR_SR_SERVICE ? 0 : 1;
 }
-*/
 static void apollo_dn300_csr_set_servicemode(int mode)
 {
 	apollo_dn300_csr_set_status_register(1, mode ? APOLLO_DN300_CSR_SR_SERVICE : 0);
 }
+*/
 
-uint16_t apollo_dn300_csr_get_control_register(void)
+uint8_t apollo_dn300_mcsr_get_control_register(void)
 {
-	return cpu_control_register;
+	return mem_control_register;
 }
 
-uint16_t apollo_dn300_csr_get_status_register(void)
+uint16_t apollo_dn300_mcsr_get_status_register(void)
 {
-	return cpu_status_register;
+	return mem_status_register;
 }
 
 void apollo_dn300_csr_set_status_register(uint16_t mask, uint16_t data)
 {
-	uint16_t new_value = (cpu_status_register & ~mask) | (data & mask);
+	uint16_t new_value = (mem_status_register & ~mask) | (data & mask);
 
-	if (new_value != cpu_status_register)
+	if (new_value != mem_status_register)
 	{
-		cpu_status_register = new_value;
+		mem_status_register = new_value;
 		//LOG1(("#### setting CPU Status Register with data=%04x & %04x to %04x", data, mask, cpu_status_register));
 	}
 }
 
 /*-------------------------------------------------
- DN3000/DN3500 CPU Status Register at 0x8000/0x10000
+ DN300/DN320 Memory Control Register at 0x8006
  -------------------------------------------------*/
 
-void apollo_dn300_state::apollo_csr_status_register_w(offs_t offset, uint16_t data, uint16_t mem_mask){
-	// To clear bus timeouts or parity conditions from status register,
-	// write to the status register. This register is readonly.
-	// in DN3500 bit 15 is always set (undocumented !?)
-	cpu_status_register &= (APOLLO_DN300_CSR_SR_BIT15 | APOLLO_DN300_CSR_SR_FP_TRAP | APOLLO_DN300_CSR_SR_SERVICE);
-	SLOG1(("writing CPU Status Register at offset %X = %04x & %04x (%04x)", offset, data, mem_mask, cpu_status_register));
-}
-
-uint16_t apollo_dn300_state::apollo_csr_status_register_r(offs_t offset, uint16_t mem_mask){
-	SLOG2(("reading CPU Status Register at offset %X = %04x & %04x", offset, cpu_status_register, mem_mask));
-	return cpu_status_register & mem_mask;
-}
-
-/*-------------------------------------------------
- DN3000/DN3500 CPU Control Register at 0x8100/0x10100
- -------------------------------------------------*/
-
-void apollo_dn300_state::apollo_csr_control_register_w(offs_t offset, uint16_t data, uint16_t mem_mask)
+void apollo_dn300_state::apollo_dn300_mcsr_control_register_w(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
 	int leds;
 
-	if ((mem_mask & APOLLO_DN300_CSR_CR_FPU_TRAP_ENABLE) == 0)
-	{
-		// FPU Trap enable not involved
-	}
-	else if (((data ^ cpu_control_register) & APOLLO_DN300_CSR_CR_FPU_TRAP_ENABLE) == 0)
-	{
-		// FPU Trap enable remains unchanged
-	}
-	else if ((data & APOLLO_DN300_CSR_CR_FPU_TRAP_ENABLE) == 0)
-	{
-		// enable FPU (i.e. FPU opcodes in CPU)
-		apollo_dn300_set_cpu_has_fpu(m_maincpu, 1);
-	}
-	else
-	{
-		// disable FPU (i.e. FPU opcodes in CPU)
-		apollo_dn300_set_cpu_has_fpu(m_maincpu, 0);
-
-#ifdef notyet
-		if (!apollo_dn300_is_dn3000() && !m_maincpu->get_pmmu_enable())
-		{
-			// hack: set APOLLO_DN300_CSR_SR_FP_TRAP in cpu status register for /sau7/self_test
-			// APOLLO_DN300_CSR_SR_FP_TRAP in status register should be set by next fmove instruction
-			cpu_status_register |= APOLLO_DN300_CSR_SR_FP_TRAP;
-		}
-#endif
-	}
-
-	COMBINE_DATA(&cpu_control_register);
+	COMBINE_DATA(&mem_control_register);
 
 	for (int i = 0; i < 4; i++)
-		m_internal_leds[i] = BIT(cpu_control_register, 15 - i);
-	for (int i = 0; i < 4; i++)
-		m_external_leds[i] = BIT(cpu_control_register, 11 - i);
+		m_internal_leds[i] = BIT(mem_control_register, 7 - i);
 
-	leds = ((cpu_control_register >> 8) & 0xff) ^ 0xff;
+	leds = ((mem_control_register >> 4) & 0xf) ^ 0xf;
 
-	SLOG1(("writing CPU Control Register at offset %X = %04x & %04x (%04x - %d%d%d%d %d%d%d%d)",
-					offset, data, mem_mask, cpu_control_register,
-					(leds >> 3) & 1,(leds >> 2) & 1, (leds >> 1) & 1, (leds >> 0) & 1,
-					(leds >> 7) & 1,(leds >> 6) & 1, (leds >> 5) & 1, (leds >> 4) & 1 ));
-
-	if (data & APOLLO_DN300_CSR_CR_RESET_DEVICES)
-	{
-		// FIXME: reset all devices (but not SIO lines!)
-	}
+	SLOG1(("writing Memory Control Register at offset %X = %04x & %04x (%04x - %d%d%d%d)",
+					offset, data, mem_mask, mem_control_register,
+					(leds >> 3) & 1,(leds >> 2) & 1, (leds >> 1) & 1, (leds >> 0) & 1));
 }
 
-uint16_t apollo_dn300_state::apollo_csr_control_register_r(offs_t offset, uint16_t mem_mask)
+uint8_t apollo_dn300_state::apollo_dn300_mcsr_control_register_r(offs_t offset, uint8_t mem_mask)
 {
-	SLOG1(("reading CPU Control Register at offset %X = %04x & %04x", offset, cpu_control_register, mem_mask));
-	return cpu_control_register & mem_mask;
+	SLOG1(("reading Memory Control Register at offset %X = %04x & %04x", offset, mem_control_register, mem_mask));
+	return mem_control_register & mem_mask;
+}
+
+/*-------------------------------------------------
+ DN300/DN320 Memory Status Register at 0x8006
+ -------------------------------------------------*/
+
+void apollo_dn300_state::apollo_dn300_mcsr_status_register_w(offs_t offset, uint16_t data, uint16_t mem_mask){
+	// To clear parity error condition, write to the status register.
+	// This register is readonly aside from this
+	mem_status_register &= ~(APOLLO_DN300_MCSR_SR_RIGHT_PARITY_ERROR | APOLLO_DN300_MCSR_SR_LEFT_PARITYU_ERROR);
+	SLOG1(("writing Memory Status Register at offset %X = %04x & %04x (%04x)", offset, data, mem_mask, mem_status_register));
+}
+
+uint16_t apollo_dn300_state::apollo_dn300_mcsr_status_register_r(offs_t offset, uint16_t mem_mask){
+	SLOG1(("reading Memory Status Register at offset %X = %04x & %04x", offset, mem_status_register, mem_mask));
+	return mem_status_register & mem_mask;
 }
 
 //##########################################################################
@@ -978,7 +941,7 @@ void apollo_dn300_state::common(machine_config &config)
 	clock_device &ptmclock(CLOCK(config, "ptmclock", 250000));
 	ptmclock.signal_handler().set(FUNC(apollo_dn300_state::apollo_ptm_timer_tick));
 
-// no clue what this clock rate should be.  but we need a clock to pulse rxc/txc
+	// no clue what this clock rate should be.  but we need a clock to pulse rxc/txc
 	clock_device &acia_clock(CLOCK(config, "acia_clock", 19200));
 	acia_clock.signal_handler().set(m_acia, FUNC(acia6850_device::write_txc));
 	acia_clock.signal_handler().append(m_acia, FUNC(acia6850_device::write_rxc));
@@ -1044,7 +1007,6 @@ MACHINE_START_MEMBER(apollo_dn300_state,apollo_dn300)
 	m_cur_eop = false;
 
 	m_internal_leds.resolve();
-	m_external_leds.resolve();
 }
 
 MACHINE_RESET_MEMBER(apollo_dn300_state,apollo_dn300)
@@ -1055,10 +1017,10 @@ MACHINE_RESET_MEMBER(apollo_dn300_state,apollo_dn300)
 
 	MLOG1(("machine_reset_apollo_dn300"));
 
+#ifdef notyet
 	// set configuration
 	apollo_dn300_csr_set_servicemode(apollo_dn300_config(APOLLO_DN300_CONF_SERVICE_MODE));
 
-#ifdef notyet
 	// change year according to configuration settings
 	if (year < 25 && apollo_dn300_config(APOLLO_DN300_CONF_25_YEARS_AGO))
 	{

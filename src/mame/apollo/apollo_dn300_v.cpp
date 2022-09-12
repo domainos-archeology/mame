@@ -19,7 +19,7 @@
 #include "screen.h"
 
 #include "apollo.lh"
-#include "apollo_15i.lh"
+#include "apollo_dn300.lh"
 
 #undef VERBOSE
 #define VERBOSE 0
@@ -426,7 +426,7 @@ void apollo_dn300_graphics::register_vblank_callback()
 
 void apollo_dn300_graphics::device_add_mconfig(machine_config &config)
 {
-	config.set_default_layout(layout_apollo_15i);
+	config.set_default_layout(layout_apollo_dn300);
 	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
 	m_screen->set_video_attributes(VIDEO_UPDATE_AFTER_VBLANK | VIDEO_ALWAYS_UPDATE);
 	m_screen->set_raw(68000000, 1346, 0, 1024, 1346, 0, 1024);

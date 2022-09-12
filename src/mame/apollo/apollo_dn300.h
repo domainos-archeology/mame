@@ -15,11 +15,13 @@
 
 
 #include "apollo_dn300_kbd.h"
+#include "apollo_dn300_mmu.h"
 
 #include "cpu/m68000/m68000.h"
 
 #include "machine/6840ptm.h"
 #include "machine/hd63450.h"
+#include "machine/bankdev.h"
 #include "machine/clock.h"
 #include "machine/mc146818.h"
 #include "machine/mc68681.h"
@@ -32,8 +34,9 @@
 #include "diserial.h"
 #include "screen.h"
 
-#undef VERBOSE
+#ifndef VERBOSE
 #define VERBOSE 0
+#endif
 
 #define LOG(x)  { logerror x; logerror ("\n"); apollo_dn300_check_log(); }
 #define LOG1(x) { if (VERBOSE > 0) LOG(x) }
@@ -70,8 +73,6 @@ int apollo_is_dn300(void);
 // return 1 if node is DN320, 0 otherwise
 int apollo_is_dn320(void);
 
-// return 1 if node is DN330, 0 otherwise
-int apollo_is_dn330(void);
 
 // get the ram configuration byte
 uint8_t apollo_dn300_get_ram_config_byte(void);
@@ -93,6 +94,7 @@ void apollo_dn300_set_cache_status_register(device_t *device,uint8_t mask, uint8
 #define APOLLO_DN300_NI_TAG  "node_id"
 #define APOLLO_DN300_SCREEN_TAG "apollo_dn300_screen"
 #define APOLLO_DN300_KBD_TAG  "keyboard"
+#define APOLLO_DN300_MMU_TAG "apollo_dn300_mmu"
 
 
 // forward declaration
@@ -100,6 +102,7 @@ class apollo_dn300_sio;
 class apollo_dn300_ni;
 class apollo_dn300_graphics;
 class apollo_dn300_kbd_device;
+class apollo_dn300_mmu_device;
 
 class apollo_dn300_state : public driver_device
 {
@@ -119,17 +122,16 @@ public:
 		m_node_id(*this, APOLLO_DN300_NI_TAG),
 		m_graphics(*this, APOLLO_DN300_SCREEN_TAG),
 		m_keyboard(*this, APOLLO_DN300_KBD_TAG),
+		m_mmu(*this, APOLLO_DN300_MMU_TAG),
 		m_internal_leds(*this, "internal_led_%u", 1U),
-		m_external_leds(*this, "external_led_%c", unsigned('a'))
+		m_physical_space(*this, "physical_space")
 	{ }
 
 	void dn300(machine_config &config);
 	void dn320(machine_config &config);
-	void dn330(machine_config &config);
 
 	void init_dn300();
 	void init_dn320();
-	void init_dn330();
 	void init_apollo();
 
 	inline uint16_t getD1() { return m_maincpu->REG_D()[1]; }
@@ -141,7 +143,7 @@ protected:
 public:
 	required_device<m68000_base_device> m_maincpu;
 	required_device<ram_device> m_ram;
-	required_shared_ptr<uint32_t> m_messram_ptr;
+	required_shared_ptr<uint16_t> m_messram_ptr;
 
 	required_device<hd63450_device> m_dma63450;
 	required_device<ptm6840_device> m_ptm;
@@ -151,14 +153,12 @@ public:
 	required_device<apollo_dn300_ni> m_node_id;
 	required_device<apollo_dn300_graphics> m_graphics;
 	optional_device<apollo_dn300_kbd_device> m_keyboard;
+	required_device<apollo_dn300_mmu_device> m_mmu;
 	output_finder<4> m_internal_leds;
-	output_finder<4> m_external_leds;
+	required_device<address_map_bank_device> m_physical_space;
 
-	void apollo_pft_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
-	uint16_t apollo_pft_r(offs_t offset, uint16_t mem_mask = ~0);
-
-	void apollo_mmu_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
-	uint8_t apollo_mmu_r(offs_t offset, uint8_t mem_mask = ~0);
+	void mem_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
+	uint16_t mem_r(offs_t offset, uint16_t mem_mask = ~0);
 
 	void apollo_timers_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	uint16_t apollo_timers_r(offs_t offset, uint16_t mem_mask = ~0);
@@ -184,13 +184,11 @@ public:
 	void apollo_fpu_cs_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	uint16_t apollo_fpu_cs_r(offs_t offset, uint16_t mem_mask = ~0);
 
-	void apollo_ptt_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
-	uint16_t apollo_ptt_r(offs_t offset, uint16_t mem_mask = ~0);
+	void apollo_dn300_mcsr_status_register_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
+	uint16_t apollo_dn300_mcsr_status_register_r(offs_t offset, uint16_t mem_mask = ~0);
+	void apollo_dn300_mcsr_control_register_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
+	uint8_t apollo_dn300_mcsr_control_register_r(offs_t offset, uint8_t mem_mask = ~0);
 
-	void apollo_csr_status_register_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
-	uint16_t apollo_csr_status_register_r(offs_t offset, uint16_t mem_mask = ~0);
-	void apollo_csr_control_register_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
-	uint16_t apollo_csr_control_register_r(offs_t offset, uint16_t mem_mask = ~0);
 	void apollo_dma_1_w(offs_t offset, uint8_t data);
 	uint8_t apollo_dma_1_r(offs_t offset);
 	void apollo_dma_2_w(offs_t offset, uint8_t data);
@@ -211,15 +209,11 @@ public:
 	uint8_t task_alias_register_r(offs_t offset);
 	void latch_page_on_parity_error_register_w(offs_t offset, uint16_t data);
 	uint16_t latch_page_on_parity_error_register_r(offs_t offset);
-	void master_req_register_w(offs_t offset, uint8_t data);
-	uint8_t master_req_register_r(offs_t offset);
-	void selective_clear_locations_w(offs_t offset, uint16_t data);
-	uint16_t selective_clear_locations_r(offs_t offset);
-	uint32_t ram_with_parity_r(offs_t offset, uint32_t mem_mask = ~0);
-	void ram_with_parity_w(offs_t offset, uint32_t data, uint32_t mem_mask = ~0);
-	uint32_t apollo_unmapped_r(offs_t offset, uint32_t mem_mask = ~0);
-	void apollo_unmapped_w(offs_t offset, uint32_t data, uint32_t mem_mask = ~0);
-	void apollo_rom_w(offs_t offset, uint32_t data, uint32_t mem_mask = ~0);
+	uint16_t ram_with_parity_r(offs_t offset, uint16_t mem_mask = ~0);
+	void ram_with_parity_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
+	uint16_t apollo_unmapped_r(offs_t offset, uint16_t mem_mask = ~0);
+	void apollo_unmapped_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
+	void apollo_rom_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 
 	DECLARE_MACHINE_RESET(apollo_dn300);
 	DECLARE_MACHINE_START(apollo_dn300);
@@ -272,9 +266,8 @@ public:
 	void apollo_dn300(machine_config &config);
 	void apollo_dn300_terminal(machine_config &config);
 
-	void dn300_map(address_map &map);
-	void dn320_map(address_map &map);
-	void dn330_map(address_map &map);
+	void dn300_mem(address_map &map);
+	void dn300_physical_map(address_map &map);
 
 	uint32_t ptm_counter;
 	uint8_t sio_output_data;
@@ -304,27 +297,21 @@ int apollo_dn300_config(int mask);
 
 INPUT_PORTS_EXTERN(apollo_dn300_config);
 
-/*----------- machine/apollo_dn300_csr.cpp -----------*/
+/*----------- machine/apollo_dn300_mcsr.cpp -----------*/
 
-#define APOLLO_DN300_CSR_SR_SERVICE            0x0001
-#define APOLLO_DN300_CSR_SR_ATBUS_IO_TIMEOUT   0x0002
-#define APOLLO_DN300_CSR_SR_FP_TRAP            0x0004
-#define APOLLO_DN300_CSR_SR_INTERRUPT_PENDING  0x0008 // DN3000 only
-#define APOLLO_DN300_CSR_SR_PARITY_BYTE_MASK   0x00f0
-#define APOLLO_DN300_CSR_SR_CPU_TIMEOUT        0x0100
-#define APOLLO_DN300_CSR_SR_ATBUS_MEM_TIMEOUT  0x2000
-#define APOLLO_DN300_CSR_SR_BIT15              0x8000
-#define APOLLO_DN300_CSR_SR_CLEAR_ALL          0x3ffe
+#define APOLLO_DN300_MCSR_SR_PARITY_TRAP_ENABLED     0x0001
+#define APOLLO_DN300_MCSR_SR_RIGHT_PARITY_ERROR      0x0002
+#define APOLLO_DN300_MCSR_SR_LEFT_PARITYU_ERROR      0x0004
+#define APOLLO_DN300_MCSR_SR_PARITY_DURING_DMA_CYCLE 0x0008
+#define APOLLO_DN300_MCSR_SR_FAILING_PPN_MASK        0xff00
 
-#define APOLLO_DN300_CSR_CR_INTERRUPT_ENABLE   0x0001
-#define APOLLO_DN300_CSR_CR_RESET_DEVICES       0x0002
-#define APOLLO_DN300_CSR_CR_FPU_TRAP_ENABLE    0x0004
-#define APOLLO_DN300_CSR_CR_FORCE_BAD_PARITY   0x0008
-#define APOLLO_DN300_CSR_CR_PARITY_BYTE_MASK   0x00f0
+#define APOLLO_DN300_MCSR_CR_PARITY_TRAP_ENABLE      0x01
+#define APOLLO_DN300_MCSR_CR_FORCE_RIGHT_BYTE_PARITY 0x02
+#define APOLLO_DN300_MCSR_CR_FORCE_LEFT_BYTE_PARITY  0x04
 
-uint16_t apollo_dn300_csr_get_control_register(void);
-uint16_t apollo_dn300_csr_get_status_register(void);
-void apollo_dn300_csr_set_status_register(uint16_t mask, uint16_t data);
+uint8_t apollo_dn300_mcsr_get_control_register(void);
+uint16_t apollo_dn300_mcsr_get_status_register(void);
+void apollo_dn300_mcsr_set_status_register(uint16_t mask, uint16_t data);
 
 /*----------- machine/apollo_dn300_sio.cpp -----------*/
 

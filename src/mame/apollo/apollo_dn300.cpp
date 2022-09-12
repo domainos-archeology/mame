@@ -42,19 +42,18 @@
 #define DN300_RAM_SIZE     1536
 
 #if DN300_RAM_SIZE == 512
-#define DN300_RAM_BASE 0x00100000
-#define DN300_RAM_END  0x0017FFFF
+#define DN300_RAM_BASE 0x100000
+#define DN300_RAM_END  0x17FFFF
 #elif DN300_RAM_SIZE == 1024
-#define DN300_RAM_BASE 0x00100000
-#define DN300_RAM_END  0x001FFFFF
+#define DN300_RAM_BASE 0x100000
+#define DN300_RAM_END  0x1FFFFF
 #elif DN300_RAM_SIZE == 1536
-#define DN300_RAM_BASE 0x00100000
-#define DN300_RAM_END  0x0027FFFF
+#define DN300_RAM_BASE 0x100000
+#define DN300_RAM_END  0x27FFFF
 #endif
 
 #define NODE_TYPE_DN300 300
 #define NODE_TYPE_DN320 320
-#define NODE_TYPE_DN330 530
 
 #define DEFAULT_NODE_ID 0x12345
 
@@ -68,7 +67,6 @@ static uint16_t parity_error_byte_mask = 0;
 // static int parity_error_handler_install_counter = 0;
 
 static uint16_t latch_page_on_parity_error_register = 0x0000;
-static uint16_t master_req_register = 0x0000;
 
 static uint32_t ram_base_address;
 static uint32_t ram_end_address;
@@ -136,14 +134,6 @@ int apollo_is_dn320(void) {
 }
 
 /***************************************************************************
- apollo_is_dn330 - return 1 if node is DN330, 0 otherwise
- ***************************************************************************/
-
-int apollo_is_dn330(void) {
-	return node_type == NODE_TYPE_DN330;
-}
-
-/***************************************************************************
  apollo_get_ram_config_byte - get the ram configuration byte
  ***************************************************************************/
 
@@ -159,7 +149,7 @@ uint8_t apollo_dn300_get_ram_config_byte(void) {
 static int instruction_hook(device_t &device, offs_t curpc)
 {
 	running_machine &machine = device.machine();
-	apollo_dn300_state *state = machine.driver_data<apollo_dn300_state>();
+	// apollo_dn300_state *state = machine.driver_data<apollo_dn300_state>();
 	// address_space      &space = device.memory().space(AS_PROGRAM);
 	// uint8_t            *addr_ptr;
 
@@ -169,46 +159,12 @@ static int instruction_hook(device_t &device, offs_t curpc)
 
 	// machine.logerror("hello from instruction_hook: %p %x\n", addr_ptr, curpc);
 
-	// static int iteration_count_before_we_run = 10;
-	static int divisor = 16;
-	if (curpc == 0x0604 && 0) {
-		machine.logerror("HOOK: input detection loop!\n");
-		// static int typed = 0;
-		// if (!typed && --iteration_count_before_we_run == 0) {
-		// 	typed = 1;
-
-			machine.logerror("sending start bits\n");
-			for (int i = 0; i < divisor/2; i++) {
-				state->m_acia->write_rxc(0);
-				state->m_acia->write_rxd(0);
-				state->m_acia->write_rxc(1);
-			}
-
-			machine.logerror("sending data\n");
-			char c = 13; // this is the character that the rom requires.
-			for (int i = 0; i < 8; i++) {
-				for (int j = 0; j < divisor; j++) {
-					state->m_acia->write_rxc(0);
-					state->m_acia->write_rxd(c & 1);
-					state->m_acia->write_rxc(1);
-				}
-
-				c >>= 1;
-			}
-
-			machine.logerror("sending stop bits\n");
-			for (int i = 0; i < divisor; i++) {
-				state->m_acia->write_rxc(0);
-				state->m_acia->write_rxd(0);
-				state->m_acia->write_rxc(1);
-			}
-		// }
-	} else if (curpc == 0x085a) {
+	if (curpc == 0x085a) {
 		machine.logerror("HOOK: getc called\n");
 	} else if (curpc == 0x0872) {
 		machine.logerror("HOOK: pollc called\n");
 	} else if (curpc == 0x0844) {
-		machine.logerror("HOOK: _putc_internal called, character = '%c'\n", state->getD1());
+		// machine.logerror("HOOK: _putc_internal called, character = '%c'\n", state->getD1());
 	} else if (curpc == 0x2580) {
 		machine.logerror("HOOK: diagnostics called\n");
 	}
@@ -224,13 +180,11 @@ void apollo_dn300_state::apollo_bus_error()
 {
 	m_maincpu->set_input_line(M68K_LINE_BUSERROR, ASSERT_LINE);
 	m_maincpu->set_input_line(M68K_LINE_BUSERROR, CLEAR_LINE);
-
-	apollo_dn300_csr_set_status_register(APOLLO_DN300_CSR_SR_CPU_TIMEOUT, APOLLO_DN300_CSR_SR_CPU_TIMEOUT);
 }
 
 void apollo_dn300_state::cpu_space_map(address_map &map)
 {
-	map(0xfffffff2, 0xffffffff).r(FUNC(apollo_dn300_state::apollo_irq_acknowledge));
+	//map(0xfffffff2, 0xffffffff).r(FUNC(apollo_dn300_state::apollo_irq_acknowledge));
 }
 
 u16 apollo_dn300_state::apollo_irq_acknowledge(offs_t offset)
@@ -248,7 +202,7 @@ u16 apollo_dn300_state::apollo_irq_acknowledge(offs_t offset)
 }
 
 /***************************************************************************
- DN330 Cache Control/Status Register at 0x10200 // FIXME(toshok)
+ DN390 Cache Control/Status Register at 0x10200 // FIXME(toshok)
  ***************************************************************************/
 
 void apollo_dn300_state::cache_control_register_w(offs_t offset, uint8_t data){
@@ -305,60 +259,16 @@ uint16_t apollo_dn300_state::latch_page_on_parity_error_register_r(offs_t offset
 }
 
 /***************************************************************************
- DN3500 Master REQ Register at 0x11600
- ***************************************************************************/
-
-void apollo_dn300_state::master_req_register_w(offs_t offset, uint8_t data){
-	master_req_register = data;
-	SLOG2(("writing Master REQ Register at offset %02x = %02x", offset, data));
-}
-
-uint8_t apollo_dn300_state::master_req_register_r(offs_t offset){
-	uint8_t data = 0xff;
-	SLOG1(("reading Master REQ Register at offset %02x = %02x", offset, data));
-	return data;
-}
-
-/***************************************************************************
- DN3500 Selective Clear Locations at 0x11600
- ***************************************************************************/
-
-void apollo_dn300_state::selective_clear_locations_w(offs_t offset, uint16_t data){
-	SLOG2(("writing Selective Clear Locations at offset %02x = %02x", offset*2, data));
-	switch (offset * 2) {
-	case 0x00: // Clear All
-		apollo_dn300_csr_set_status_register(APOLLO_DN300_CSR_SR_CLEAR_ALL, 0);
-		break;
-	case 0x04: // clear floating-point trap
-		apollo_dn300_csr_set_status_register(APOLLO_DN300_CSR_SR_FP_TRAP, 0);
-		break;
-	case 0x06: // clear Parity error interrupt
-		apollo_dn300_csr_set_status_register(APOLLO_DN300_CSR_SR_PARITY_BYTE_MASK, 0);
-		break;
-	case 0x08: // clear Bus Error Status (CPU Timeout)
-		apollo_dn300_csr_set_status_register(APOLLO_DN300_CSR_SR_CPU_TIMEOUT, 0);
-		break;
-	case 0x0e: // Clear (Flush) Cache
-		break;
-	}
-}
-
-uint16_t apollo_dn300_state::selective_clear_locations_r(offs_t offset){
-	uint16_t data = 0xffff;
-	SLOG1(("reading Selective Clear Locations at offset %02x = %02x", offset*2, data));
-	return data;
-}
-
-/***************************************************************************
  DN3000/DN3500 RAM with parity (and null proc loop delay for DomainOS)
  ***************************************************************************/
 
-uint32_t apollo_dn300_state::ram_with_parity_r(offs_t offset, uint32_t mem_mask){
-	uint32_t data = m_messram_ptr[parity_error_offset+offset];
+uint16_t apollo_dn300_state::ram_with_parity_r(offs_t offset, uint16_t mem_mask){
+	uint16_t data = m_messram_ptr[parity_error_offset+offset];
 
 	SLOG2(("memory dword read with parity error at %08x = %08x & %08x parity_byte=%04x",
 			ram_base_address + parity_error_offset*4 + offset*4,data, mem_mask, parity_error_byte_mask));
 
+#ifdef notyet
 	if (parity_error_byte_mask != 0) {
 		latch_page_on_parity_error_register = (ram_base_address + parity_error_offset * 4) >> 10;
 
@@ -370,10 +280,11 @@ uint32_t apollo_dn300_state::ram_with_parity_r(offs_t offset, uint32_t mem_mask)
 
 		}
 	}
+#endif
 	return data;
 }
 
-void apollo_dn300_state::ram_with_parity_w(offs_t offset, uint32_t data, uint32_t mem_mask){
+void apollo_dn300_state::ram_with_parity_w(offs_t offset, uint16_t data, uint16_t mem_mask){
 #ifdef notyet
 	COMBINE_DATA(m_messram_ptr+offset);
 
@@ -418,7 +329,7 @@ void apollo_dn300_state::ram_with_parity_w(offs_t offset, uint32_t data, uint32_
  DN3000/DN3500 unmapped memory
  ***************************************************************************/
 
-uint32_t apollo_dn300_state::apollo_unmapped_r(offs_t offset, uint32_t mem_mask)
+uint16_t apollo_dn300_state::apollo_unmapped_r(offs_t offset, uint16_t mem_mask)
 {
 	offs_t address = offset * 4;
 
@@ -444,57 +355,29 @@ uint32_t apollo_dn300_state::apollo_unmapped_r(offs_t offset, uint32_t mem_mask)
 
 	/* unmapped; access causes a bus error */
 	apollo_bus_error();
-	return 0xffffffff;
+	return 0xffff;
 }
 
-void apollo_dn300_state::apollo_unmapped_w(offs_t offset, uint32_t data, uint32_t mem_mask)
+void apollo_dn300_state::apollo_unmapped_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
-	SLOG(("unmapped memory dword write to %08x = %08x & %08x", offset * 4, data, mem_mask));
+	SLOG(("unmapped memory dword write to %08x = %04x & %04x", offset * 4, data, mem_mask));
 
 	/* unmapped; access causes a bus error */
 	apollo_bus_error();
 }
 
-/***************************************************************************
- DN3000/DN3500 ROM write
- ***************************************************************************/
-
-void apollo_dn300_state::apollo_rom_w(offs_t offset, uint32_t data, uint32_t mem_mask)
+void apollo_dn300_state::mem_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
-	// offs_t address =  offset * 4;
-	// offs_t pc = m_maincpu->pcbase();
-
-	// if (pc == 0x00002c1c && address == 0x00000004 && VERBOSE < 2) {
-	// 	// don't log invalid code in 3500_boot_12191_7.bin
-	// } else {
-		SLOG1(("ROM dword write to %08x = %08x & %08x", offset * 4, data, mem_mask));
-	// }
+	m_mmu->write16(offset, data, mem_mask);
 }
-
-
-void apollo_dn300_state::apollo_pft_w(offs_t offset, uint16_t data, uint16_t mem_mask)
+uint16_t apollo_dn300_state::mem_r(offs_t offset, uint16_t mem_mask)
 {
-	SLOG2(("writing PFT at offset %02x = %02x & %08x", offset, data, mem_mask));
-}
-uint16_t apollo_dn300_state::apollo_pft_r(offs_t offset, uint16_t mem_mask)
-{
-	SLOG1(("reading PFT at offset %02x & %08x", offset, mem_mask));
-	return 0;
-}
-
-void apollo_dn300_state::apollo_mmu_w(offs_t offset, uint8_t data, uint8_t mem_mask)
-{
-	SLOG2(("writing MMU at offset %02x = %02x & %08x", offset, data, mem_mask));
-}
-uint8_t apollo_dn300_state::apollo_mmu_r(offs_t offset, uint8_t mem_mask)
-{
-	SLOG1(("reading MMU at offset %02x & %08x", offset, mem_mask));
-	return 0;
+	return m_mmu->read16(offset, mem_mask);
 }
 
 void apollo_dn300_state::apollo_timers_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
-	SLOG2(("writing timers at offset %02x = %02x & %08x", offset, data, mem_mask));
+	SLOG1(("writing timers at offset %02x = %02x & %08x", offset, data, mem_mask));
 	m_ptm->write(offset, data);
 }
 uint16_t apollo_dn300_state::apollo_timers_r(offs_t offset, uint16_t mem_mask)
@@ -505,13 +388,13 @@ uint16_t apollo_dn300_state::apollo_timers_r(offs_t offset, uint16_t mem_mask)
 
 void apollo_dn300_state::apollo_dma_ctl_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
-	SLOG2(("writing DMA CTL at offset %02x = %02x & %08x", offset, data, mem_mask));
+	SLOG1(("writing DMA CTL at offset %02x = %02x & %08x", offset, data, mem_mask));
 	m_dma63450->write(offset, data);
 }
 uint16_t apollo_dn300_state::apollo_dma_ctl_r(offs_t offset, uint16_t mem_mask)
 {
 	uint8_t data = m_dma63450->read(offset);
-	SLOG2(("reading DMA CTL at offset %02x - %02x & %08x", offset, data, mem_mask));
+	SLOG1(("reading DMA CTL at offset %02x - %02x & %08x", offset, data, mem_mask));
 	return data;
 }
 
@@ -527,7 +410,7 @@ uint8_t apollo_dn300_state::apollo_display_r(offs_t offset, uint8_t mem_mask)
 
 void apollo_dn300_state::apollo_ring_w(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
-	SLOG2(("writing ring at offset %02x = %02x & %08x", offset, data, mem_mask));
+	SLOG1(("writing ring at offset %02x = %02x & %08x", offset, data, mem_mask));
 }
 uint8_t apollo_dn300_state::apollo_ring_r(offs_t offset, uint8_t mem_mask)
 {
@@ -537,7 +420,7 @@ uint8_t apollo_dn300_state::apollo_ring_r(offs_t offset, uint8_t mem_mask)
 
 void apollo_dn300_state::apollo_disk_w(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
-	SLOG2(("writing disk at offset %02x = %02x & %08x", offset, data, mem_mask));
+	SLOG1(("writing disk at offset %02x = %02x & %08x", offset, data, mem_mask));
 }
 uint8_t apollo_dn300_state::apollo_disk_r(offs_t offset, uint8_t mem_mask)
 {
@@ -547,7 +430,7 @@ uint8_t apollo_dn300_state::apollo_disk_r(offs_t offset, uint8_t mem_mask)
 
 void apollo_dn300_state::apollo_fpu_ctl_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
-	SLOG2(("writing FPU CTL at offset %02x = %02x & %08x", offset, data, mem_mask));
+	SLOG1(("writing FPU CTL at offset %02x = %02x & %08x", offset, data, mem_mask));
 }
 uint16_t apollo_dn300_state::apollo_fpu_ctl_r(offs_t offset, uint16_t mem_mask)
 {
@@ -557,7 +440,7 @@ uint16_t apollo_dn300_state::apollo_fpu_ctl_r(offs_t offset, uint16_t mem_mask)
 
 void apollo_dn300_state::apollo_fpu_cmd_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
-	SLOG2(("writing FPU CMD at offset %02x = %02x & %08x", offset, data, mem_mask));
+	SLOG1(("writing FPU CMD at offset %02x = %02x & %08x", offset, data, mem_mask));
 }
 uint16_t apollo_dn300_state::apollo_fpu_cmd_r(offs_t offset, uint16_t mem_mask)
 {
@@ -567,7 +450,7 @@ uint16_t apollo_dn300_state::apollo_fpu_cmd_r(offs_t offset, uint16_t mem_mask)
 
 void apollo_dn300_state::apollo_fpu_cs_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
-	SLOG2(("writing FPU CS at offset %02x = %02x & %08x", offset, data, mem_mask));
+	SLOG1(("writing FPU CS at offset %02x = %02x & %08x", offset, data, mem_mask));
 }
 uint16_t apollo_dn300_state::apollo_fpu_cs_r(offs_t offset, uint16_t mem_mask)
 {
@@ -575,57 +458,57 @@ uint16_t apollo_dn300_state::apollo_fpu_cs_r(offs_t offset, uint16_t mem_mask)
 	return 0;
 }
 
-void apollo_dn300_state::apollo_ptt_w(offs_t offset, uint16_t data, uint16_t mem_mask)
-{
-	SLOG2(("writing PTT at offset %02x = %02x & %08x", offset, data, mem_mask));
-}
-uint16_t apollo_dn300_state::apollo_ptt_r(offs_t offset, uint16_t mem_mask)
-{
-	SLOG1(("reading PTT at offset %02x & %08x", offset, mem_mask));
-	return 0;
-}
-
 /***************************************************************************
  ADDRESS MAPS
  ***************************************************************************/
 
-void apollo_dn300_state::dn300_map(address_map &map)
+void apollo_dn300_state::dn300_physical_map(address_map &map)
 {
-		map(0x00000000, 0xffffffff).rw(FUNC(apollo_dn300_state::apollo_unmapped_r), FUNC(apollo_dn300_state::apollo_unmapped_w));
-		map(0x00000000, 0x00003fff).rom(); /* boot ROM  */
+		map(0x000000, 0xffffff).rw(FUNC(apollo_dn300_state::apollo_unmapped_r), FUNC(apollo_dn300_state::apollo_unmapped_w));
+		map(0x000000, 0x003fff).rom(); /* boot ROM  */
 
-		map(0x00000000, 0x00003fff).w(FUNC(apollo_dn300_state::apollo_rom_w));
+		map(0x008000, 0x0083ff).rw(m_mmu, FUNC(apollo_dn300_mmu_device::unk_r), FUNC(apollo_dn300_mmu_device::unk_w));
+		map(0x008000, 0x008001).rw(m_mmu, FUNC(apollo_dn300_mmu_device::pid_priv_power_r), FUNC(apollo_dn300_mmu_device::pid_priv_power_w));
+		map(0x008002, 0x008002).rw(m_mmu, FUNC(apollo_dn300_mmu_device::status_r), FUNC(apollo_dn300_mmu_device::status_w));
+		map(0x004000, 0x007fff).rw(m_mmu, FUNC(apollo_dn300_mmu_device::pft_r), FUNC(apollo_dn300_mmu_device::pft_w));
+		map(0x700000, 0x7fffff).rw(m_mmu, FUNC(apollo_dn300_mmu_device::ptt_r), FUNC(apollo_dn300_mmu_device::ptt_w));
 
-		map(0x00004000, 0x00007fff).rw(FUNC(apollo_dn300_state::apollo_pft_r), FUNC(apollo_dn300_state::apollo_pft_w));
+		// these live in the mmu space but we should have them outside as well...
+		map(0x008005, 0x008005).rw(FUNC(apollo_dn300_state::apollo_dn300_mcsr_control_register_r), FUNC(apollo_dn300_state::apollo_dn300_mcsr_control_register_w));
+		map(0x008006, 0x008007).rw(FUNC(apollo_dn300_state::apollo_dn300_mcsr_status_register_r), FUNC(apollo_dn300_state::apollo_dn300_mcsr_status_register_w));
 
-		map(0x00008000, 0x000083ff).rw(FUNC(apollo_dn300_state::apollo_mmu_r), FUNC(apollo_dn300_state::apollo_mmu_w));
+		map(0x008400, 0x00841f).rw(m_sio, FUNC(apollo_dn300_sio::read), FUNC(apollo_dn300_sio::write));
+		map(0x008420, 0x008421).rw(m_acia, FUNC(acia6850_device::status_r), FUNC(acia6850_device::control_w));
+		map(0x008422, 0x008423).rw(m_acia, FUNC(acia6850_device::data_r), FUNC(acia6850_device::data_w));
 
-		map(0x00008400, 0x0000841f).rw(m_sio, FUNC(apollo_dn300_sio::read), FUNC(apollo_dn300_sio::write));
-		map(0x00008420, 0x00008421).rw(m_acia, FUNC(acia6850_device::status_r), FUNC(acia6850_device::control_w));
-		map(0x00008422, 0x00008423).rw(m_acia, FUNC(acia6850_device::data_r), FUNC(acia6850_device::data_w));
+		map(0x008800, 0x008bff).rw(m_ptm, FUNC(ptm6840_device::read), FUNC(ptm6840_device::write));
 
-		map(0x00008800, 0x00008bff).rw(m_ptm, FUNC(ptm6840_device::read), FUNC(ptm6840_device::write));
+		map(0x009000, 0x0093ff).rw(FUNC(apollo_dn300_state::apollo_dma_ctl_r), FUNC(apollo_dn300_state::apollo_dma_ctl_w)); // docs make it seem like this is just 0x9000 - 0x90ff
+		map(0x009400, 0x0097ff).rw(FUNC(apollo_dn300_state::apollo_display_r), FUNC(apollo_dn300_state::apollo_display_w)); // docs call this "display 1"
 
-		map(0x00009000, 0x000093ff).rw(FUNC(apollo_dn300_state::apollo_dma_ctl_r), FUNC(apollo_dn300_state::apollo_dma_ctl_w)); // docs make it seem like this is just 0x9000 - 0x90ff
-		map(0x00009400, 0x000097ff).rw(FUNC(apollo_dn300_state::apollo_display_r), FUNC(apollo_dn300_state::apollo_display_w)); // docs call this "display 1"
+		map(0x009400, 0x00940f).rw(m_graphics, FUNC(apollo_dn300_graphics::reg_r), FUNC(apollo_dn300_graphics::reg_w));
 
-		map(0x00009400, 0x0000940f).rw(m_graphics, FUNC(apollo_dn300_graphics::reg_r), FUNC(apollo_dn300_graphics::reg_w));
+		map(0x009800, 0x009bff).rw(FUNC(apollo_dn300_state::apollo_ring_r), FUNC(apollo_dn300_state::apollo_ring_w)); // docs call this "ring 2"
+		map(0x009c00, 0x009fff).rw(FUNC(apollo_dn300_state::apollo_disk_r), FUNC(apollo_dn300_state::apollo_disk_w)); // docs call this "FLP,WIN,CAL"
 
-		map(0x00009800, 0x00009bff).rw(FUNC(apollo_dn300_state::apollo_ring_r), FUNC(apollo_dn300_state::apollo_ring_w)); // docs call this "ring 2"
-		map(0x00009c00, 0x00009fff).rw(FUNC(apollo_dn300_state::apollo_disk_r), FUNC(apollo_dn300_state::apollo_disk_w)); // docs call this "FLP,WIN,CAL"
+		map(0x00b000, 0x00b3ff).rw(FUNC(apollo_dn300_state::apollo_fpu_ctl_r), FUNC(apollo_dn300_state::apollo_fpu_ctl_w)); // docs call this "fpu ctl"
+		map(0x00b400, 0x00b7ff).rw(FUNC(apollo_dn300_state::apollo_fpu_cmd_r), FUNC(apollo_dn300_state::apollo_fpu_cmd_w)); // docs call this "fpu cmd"
+		map(0x00b800, 0x00bbff).rw(FUNC(apollo_dn300_state::apollo_fpu_cs_r), FUNC(apollo_dn300_state::apollo_fpu_cs_w)); // docs call this "fpu cs"
 
-		map(0x0000b000, 0x0000b3ff).rw(FUNC(apollo_dn300_state::apollo_fpu_ctl_r), FUNC(apollo_dn300_state::apollo_fpu_ctl_w)); // docs call this "fpu ctl"
-		map(0x0000b400, 0x0000b7ff).rw(FUNC(apollo_dn300_state::apollo_fpu_cmd_r), FUNC(apollo_dn300_state::apollo_fpu_cmd_w)); // docs call this "fpu cmd"
-		map(0x0000b800, 0x0000bbff).rw(FUNC(apollo_dn300_state::apollo_fpu_cs_r), FUNC(apollo_dn300_state::apollo_fpu_cs_w)); // docs call this "fpu cs"
+		map(0x020000, 0x03ffff).rw(m_graphics, FUNC(apollo_dn300_graphics::mem_r), FUNC(apollo_dn300_graphics::mem_w)); // docs call this "disp1 mem"
 
-		map(0x00020000, 0x0003ffff).rw(m_graphics, FUNC(apollo_dn300_graphics::mem_r), FUNC(apollo_dn300_graphics::mem_w)); // docs call this "disp1 mem"
+		// map(0x100000, 0x17ffff).rw(/* MD stack / data */),
 
-		// map(0x00100000, 0x0017ffff).rw(/* MD stack / data */),
-
-		map(0x00700000, 0x007fffff).rw(FUNC(apollo_dn300_state::apollo_ptt_r), FUNC(apollo_dn300_state::apollo_ptt_w));
 
 		// map(DN300_RAM_BASE, DN300_RAM_END).ram().w(FUNC(apollo_dn300_state::ram_with_parity_w)).share(RAM_TAG);
 		map(DN300_RAM_BASE, DN300_RAM_END).ram().share(RAM_TAG);
+}
+
+void apollo_dn300_state::dn300_mem(address_map &map)
+{
+	// 24-bit virtual addresses
+	map(0x000000, 0xffffff).rw(FUNC(apollo_dn300_state::mem_r), FUNC(apollo_dn300_state::mem_w));
+	map(0x000000, 0x003fff).rom(); /* boot ROM  */
 }
 
 /***************************************************************************
@@ -706,18 +589,6 @@ void apollo_dn300_state::init_dn320()
 	// ram_config_byte= DN3000_RAM_CONFIG_8MB;
 }
 
-void apollo_dn300_state::init_dn330()
-{
-	init_dn300();
-	MLOG1(("driver_init_dn330"));
-
-	ram_base_address = DN300_RAM_BASE;
-	ram_end_address = DN300_RAM_END;
-
-	node_type = NODE_TYPE_DN330;
-	// ram_config_byte= DN3000_RAM_CONFIG_8MB;
-}
-
 /***************************************************************************
  Input Ports
  ***************************************************************************/
@@ -733,32 +604,45 @@ INPUT_PORTS_END
 void apollo_dn300_state::dn300(machine_config &config)
 {
 	/* basic machine hardware */
-	M68020(config, m_maincpu, 16000000); /* 16 MHz 68010 */
-	m_maincpu->set_addrmap(AS_PROGRAM, &apollo_dn300_state::dn300_map);
-	m_maincpu->set_addrmap(m68000_base_device::AS_CPU_SPACE, &apollo_dn300_state::cpu_space_map);
+	M68010(config, m_maincpu, 16000000); /* 16 MHz 68010 */
+	m_maincpu->set_addrmap(AS_PROGRAM, &apollo_dn300_state::dn300_mem);
+	// m_maincpu->set_addrmap(m68000_base_device::AS_CPU_SPACE, &apollo_dn300_state::cpu_space_map);
 
 	config.set_maximum_quantum(attotime::from_hz(60));
 
 	apollo_dn300(config);
 	APOLLO_DN300_GRAPHICS(config, m_graphics, 0);
 
+	APOLLO_DN300_MMU(config, m_mmu, 0);
+	m_mmu->set_cpu(m_maincpu);
+	m_mmu->set_physical_space(m_physical_space);
+
 	/* internal ram */
 	RAM(config, m_ram).set_default_size("1536K").set_extra_options("512K,1M,1536K");
+
+	ADDRESS_MAP_BANK(config, "physical_space").set_map(&apollo_dn300_state::dn300_physical_map).set_options(ENDIANNESS_BIG, 16, 24);
 }
 
 void apollo_dn300_state::dn320(machine_config &config)
 {
 	/* basic machine hardware */
-	M68020(config, m_maincpu, 16000000); /* 16 MHz 68010 */
-	m_maincpu->set_addrmap(AS_PROGRAM, &apollo_dn300_state::dn300_map);
-	m_maincpu->set_addrmap(m68000_base_device::AS_CPU_SPACE, &apollo_dn300_state::cpu_space_map);
+	M68010(config, m_maincpu, 16000000); /* 16 MHz 68010 */
+	m_maincpu->set_addrmap(AS_PROGRAM, &apollo_dn300_state::dn300_mem);
+	// m_maincpu->set_addrmap(m68000_base_device::AS_CPU_SPACE, &apollo_dn300_state::cpu_space_map);
 
 	config.set_maximum_quantum(attotime::from_hz(60));
 
 	apollo_dn300(config);
+	APOLLO_DN300_GRAPHICS(config, m_graphics, 0);
+
+	APOLLO_DN300_MMU(config, m_mmu, 0);
+	m_mmu->set_cpu(m_maincpu);
+	m_mmu->set_physical_space(m_physical_space);
 
 	/* internal ram */
 	RAM(config, m_ram).set_default_size("1536K").set_extra_options("512K,1M,1536K");
+
+	ADDRESS_MAP_BANK(config, "physical_space").set_map(&apollo_dn300_state::dn300_physical_map).set_options(ENDIANNESS_BIG, 16, 24);
 }
 
 /***************************************************************************
