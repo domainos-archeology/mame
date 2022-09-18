@@ -549,7 +549,7 @@ WRITE_LINE_MEMBER(apollo_dn300_state::apollo_reset_instr_callback)
 
 void apollo_dn300_state::machine_start(){
 	memory_share *messram = memshare(RAM_TAG);
-	MLOG1(("machine_start_dn3500: ram size is %d MB", (int)messram->bytes()/(1024*1024)));
+	MLOG1(("machine_start_dn300: ram size is %g MB", (float)messram->bytes()/(1024*1024)));
 
 	// clear ram
 	memset(messram->ptr(), 0x00, messram->bytes());
