@@ -281,9 +281,7 @@ void apollo_dn300_kbd_device::device_reset()
 	// start timer
 	m_timer->adjust( attotime::zero, 0, attotime::from_msec(5)); // every 5ms
 
-	// it's either 8N1 or 7E2.  we'll stick with 1200 baud just for kicks
 	set_data_frame(1, 7, PARITY_EVEN, STOP_BITS_2);
-	//set_data_frame(0, 8, PARITY_NONE, STOP_BITS_1);
 	set_rcv_rate(1200);
 	set_tra_rate(1200);
 
