@@ -52,7 +52,7 @@ offs_t apollo_dn300_mmu_device::translate(offs_t offset) {
     // Page Translation Table at [ n/a | 700000]
     // through [ n/a | 800000 ]
     // One PPTE every 1024 bytes in table. 
-    int ptt_index = offset / 1024;
+    int ptt_index = (offset & ~0x3ff)/2;
     int offset_within_page = offset % 1024;
     int ppn = m_ptt[ptt_index] & 0xfff;
 
