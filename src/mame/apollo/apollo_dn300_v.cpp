@@ -22,7 +22,7 @@
 #include "apollo_dn300.lh"
 
 #undef VERBOSE
-#define VERBOSE 0
+#define VERBOSE 2
 
 #define VIDEO_SCREEN_TAG "screen"
 

@@ -167,6 +167,8 @@ static int instruction_hook(device_t &device, offs_t curpc)
 		// machine.logerror("HOOK: _putc_internal called, character = '%c'\n", state->getD1());
 	} else if (curpc == 0x2580) {
 		machine.logerror("HOOK: diagnostics called\n");
+	} else if (curpc == 0x112a) {
+		machine.logerror("HOOK: first instruction after mmu enabled!");
 	}
 
 	return 0;
@@ -465,7 +467,8 @@ uint16_t apollo_dn300_state::apollo_fpu_cs_r(offs_t offset, uint16_t mem_mask)
 void apollo_dn300_state::dn300_physical_map(address_map &map)
 {
 		map(0x000000, 0xffffff).rw(FUNC(apollo_dn300_state::apollo_unmapped_r), FUNC(apollo_dn300_state::apollo_unmapped_w));
-		map(0x000000, 0x003fff).rom(); /* boot ROM  */
+		// we don't list the boot rom here because we get errors when we do.  it... seems to still work?
+		// map(0x000000, 0x003fff).rom(); /* boot ROM  */
 
 		map(0x008000, 0x0083ff).rw(m_mmu, FUNC(apollo_dn300_mmu_device::unk_r), FUNC(apollo_dn300_mmu_device::unk_w));
 		map(0x008000, 0x008001).rw(m_mmu, FUNC(apollo_dn300_mmu_device::pid_priv_power_r), FUNC(apollo_dn300_mmu_device::pid_priv_power_w));
