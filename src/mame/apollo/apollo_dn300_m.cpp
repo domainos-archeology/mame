@@ -931,9 +931,6 @@ void apollo_dn300_state::common(machine_config &config)
 	// configuration MUST be reset first !
 	APOLLO_DN300_CONF(config, APOLLO_DN300_CONF_TAG, 0);
 
-	ACIA6850(config, m_acia, 0);
-	HD63450(config, m_dma63450, 8'000'000, m_maincpu);
-
 	PTM6840(config, m_ptm, 0);
 	m_ptm->set_external_clocks(250000, 125000, 62500);
 	m_ptm->irq_callback().set(FUNC(apollo_dn300_state::apollo_ptm_irq_function));
@@ -942,9 +939,25 @@ void apollo_dn300_state::common(machine_config &config)
 	ptmclock.signal_handler().set(FUNC(apollo_dn300_state::apollo_ptm_timer_tick));
 
 	// no clue what this clock rate should be.  but we need a clock to pulse rxc/txc
+	ACIA6850(config, m_acia, 0);
 	clock_device &acia_clock(CLOCK(config, "acia_clock", 19200));
 	acia_clock.signal_handler().set(m_acia, FUNC(acia6850_device::write_txc));
 	acia_clock.signal_handler().append(m_acia, FUNC(acia6850_device::write_rxc));
+
+	// 9000-903F - ring receive header
+	// 9040-907F - ring receive data
+	// 9080-90BF - ring transmit
+	// 90CO-90FF - winchester/floppy
+	HD63450(config, m_dmac, 8'000'000, m_maincpu);
+	// m_dmac->dma_read<0>().set(FUNC(apollo_dn300_ring::rcv_header_read_byte));
+	// m_dmac->dma_write<0>().set(FUNC(apollo_dn300_ring::rcv_header_write_byte));
+	// m_dmac->dma_read<1>().set(FUNC(apollo_dn300_ring::rcv_data_read_byte));
+	// m_dmac->dma_write<1>().set(FUNC(apollo_dn300_ring::rcv_data_write_byte));
+	// m_dmac->dma_read<2>().set(FUNC(apollo_dn300_ring::transmit_read_byte));
+	// m_dmac->dma_write<2>().set(FUNC(apollo_dn300_ring::transmit_write_byte));
+	m_dmac->dma_read<2>().set(FUNC(apollo_dn300_state::disk_read_byte));
+	m_dmac->dma_write<2>().set(FUNC(apollo_dn300_state::disk_write_byte));
+
 
 	APOLLO_DN300_NI(config, m_node_id, 0);
 }
@@ -991,7 +1004,7 @@ void apollo_dn300_state::apollo_dn300_terminal(machine_config &config)
 
 	rs232_port_device &rs232(RS232_PORT(config, "rs232", default_rs232_devices, "terminal"));
 	rs232.rxd_handler().set(m_sio, FUNC(apollo_dn300_sio::rx_b_w));
-	rs232.set_option_device_input_defaults("terminal", DEVICE_INPUT_DEFAULTS_NAME(apollo_dn300_terminal));	
+	rs232.set_option_device_input_defaults("terminal", DEVICE_INPUT_DEFAULTS_NAME(apollo_dn300_terminal));
 }
 
 void apollo_dn300_state::init_apollo()

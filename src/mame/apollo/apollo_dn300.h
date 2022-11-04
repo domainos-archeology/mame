@@ -16,6 +16,7 @@
 
 #include "apollo_dn300_kbd.h"
 #include "apollo_dn300_mmu.h"
+#include "apollo_dn300_disk.h"
 
 #include "cpu/m68000/m68000.h"
 
@@ -95,6 +96,7 @@ void apollo_dn300_set_cache_status_register(device_t *device,uint8_t mask, uint8
 #define APOLLO_DN300_SCREEN_TAG "apollo_dn300_screen"
 #define APOLLO_DN300_KBD_TAG  "keyboard"
 #define APOLLO_DN300_MMU_TAG "apollo_dn300_mmu"
+#define APOLLO_DN300_DISK_TAG "apollo_dn300_disk"
 
 
 // forward declaration
@@ -103,6 +105,7 @@ class apollo_dn300_ni;
 class apollo_dn300_graphics;
 class apollo_dn300_kbd_device;
 class apollo_dn300_mmu_device;
+class apollo_dn300_disk_device;
 
 class apollo_dn300_state : public driver_device
 {
@@ -112,7 +115,7 @@ public:
 		m_maincpu(*this, MAINCPU),
 		m_ram(*this, RAM_TAG),
 		m_messram_ptr(*this, RAM_TAG),
-		m_dma63450(*this, APOLLO_DN300_DMA_TAG),
+		m_dmac(*this, APOLLO_DN300_DMA_TAG),
 		// m_pic8259_master(*this, APOLLO_DN300_PIC1_TAG),
 		// m_pic8259_slave(*this, APOLLO_DN300_PIC2_TAG),
 		m_ptm(*this, APOLLO_DN300_PTM_TAG),
@@ -123,6 +126,7 @@ public:
 		m_graphics(*this, APOLLO_DN300_SCREEN_TAG),
 		m_keyboard(*this, APOLLO_DN300_KBD_TAG),
 		m_mmu(*this, APOLLO_DN300_MMU_TAG),
+		m_disk(*this, APOLLO_DN300_DISK_TAG),
 		m_internal_leds(*this, "internal_led_%u", 1U),
 		m_physical_space(*this, "physical_space")
 	{ }
@@ -145,7 +149,7 @@ public:
 	required_device<ram_device> m_ram;
 	required_shared_ptr<uint16_t> m_messram_ptr;
 
-	required_device<hd63450_device> m_dma63450;
+	required_device<hd63450_device> m_dmac;
 	required_device<ptm6840_device> m_ptm;
 	required_device<apollo_dn300_sio> m_sio;
 	required_device<acia6850_device> m_acia;
@@ -154,8 +158,12 @@ public:
 	required_device<apollo_dn300_graphics> m_graphics;
 	optional_device<apollo_dn300_kbd_device> m_keyboard;
 	required_device<apollo_dn300_mmu_device> m_mmu;
+	required_device<apollo_dn300_disk_device> m_disk;
 	output_finder<4> m_internal_leds;
 	required_device<address_map_bank_device> m_physical_space;
+
+	uint8_t disk_read_byte(offs_t offset);
+	void disk_write_byte(offs_t offset, uint8_t data);
 
 	void mem_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	uint16_t mem_r(offs_t offset, uint16_t mem_mask = ~0);
@@ -163,17 +171,11 @@ public:
 	void apollo_timers_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	uint16_t apollo_timers_r(offs_t offset, uint16_t mem_mask = ~0);
 
-	void apollo_dma_ctl_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
-	uint16_t apollo_dma_ctl_r(offs_t offset, uint16_t mem_mask = ~0);
-
 	void apollo_display_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
 	uint8_t apollo_display_r(offs_t offset, uint8_t mem_mask = ~0);
 
 	void apollo_ring_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
 	uint8_t apollo_ring_r(offs_t offset, uint8_t mem_mask = ~0);
-
-	void apollo_disk_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
-	uint8_t apollo_disk_r(offs_t offset, uint8_t mem_mask = ~0);
 
 	void apollo_fpu_ctl_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	uint16_t apollo_fpu_ctl_r(offs_t offset, uint16_t mem_mask = ~0);
