@@ -61,10 +61,13 @@ private:
 	// our current state
 	uint8_t m_status_high;
 	uint8_t m_status_low;
-	uint8_t m_attention_status;
-	bool m_write_enabled;
 	uint8_t m_selected_head;
 	uint8_t m_selected_drive;
+	uint8_t m_general_status;
+	uint8_t m_sense_byte_1;
+	uint8_t m_sense_byte_2;
+	bool m_write_enabled;
+	bool m_attention_enabled;
 };
 
 // device type definition
