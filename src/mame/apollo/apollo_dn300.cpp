@@ -186,7 +186,7 @@ void apollo_dn300_state::apollo_bus_error()
 
 void apollo_dn300_state::cpu_space_map(address_map &map)
 {
-	//map(0xfffffff2, 0xffffffff).r(FUNC(apollo_dn300_state::apollo_irq_acknowledge));
+	map(0xfffff2, 0xffffff).r(FUNC(apollo_dn300_state::apollo_irq_acknowledge));
 }
 
 u16 apollo_dn300_state::apollo_irq_acknowledge(offs_t offset)
@@ -598,7 +598,7 @@ void apollo_dn300_state::dn300(machine_config &config)
 	/* basic machine hardware */
 	M68010(config, m_maincpu, 16000000); /* 16 MHz 68010 */
 	m_maincpu->set_addrmap(AS_PROGRAM, &apollo_dn300_state::dn300_mem);
-	// m_maincpu->set_addrmap(m68000_base_device::AS_CPU_SPACE, &apollo_dn300_state::cpu_space_map);
+	m_maincpu->set_addrmap(m68000_base_device::AS_CPU_SPACE, &apollo_dn300_state::cpu_space_map);
 
 	config.set_maximum_quantum(attotime::from_hz(60));
 
@@ -611,7 +611,6 @@ void apollo_dn300_state::dn300(machine_config &config)
 
 	APOLLO_DN300_DISK(config, m_disk, 0);
 	m_disk->set_cpu(m_maincpu);
-	m_disk->set_physical_space(m_physical_space);
 
 	/* internal ram */
 	RAM(config, m_ram).set_default_size("1536K").set_extra_options("512K,1M,1536K");
@@ -624,7 +623,7 @@ void apollo_dn300_state::dn320(machine_config &config)
 	/* basic machine hardware */
 	M68010(config, m_maincpu, 16000000); /* 16 MHz 68010 */
 	m_maincpu->set_addrmap(AS_PROGRAM, &apollo_dn300_state::dn300_mem);
-	// m_maincpu->set_addrmap(m68000_base_device::AS_CPU_SPACE, &apollo_dn300_state::cpu_space_map);
+	m_maincpu->set_addrmap(m68000_base_device::AS_CPU_SPACE, &apollo_dn300_state::cpu_space_map);
 
 	config.set_maximum_quantum(attotime::from_hz(60));
 
@@ -637,7 +636,6 @@ void apollo_dn300_state::dn320(machine_config &config)
 
 	APOLLO_DN300_DISK(config, m_disk, 0);
 	m_disk->set_cpu(m_maincpu);
-	m_disk->set_physical_space(m_physical_space);
 
 	/* internal ram */
 	RAM(config, m_ram).set_default_size("1536K").set_extra_options("512K,1M,1536K");

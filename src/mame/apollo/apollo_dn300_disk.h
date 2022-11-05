@@ -29,11 +29,6 @@ public:
 		m_cpu.set_tag(std::forward<T>(cputag));
 	}
 
-	template <typename T> void set_physical_space(T &&tag)
-	{
-		m_physical_space.set_tag(std::forward<T>(tag));
-	}
-
 	void write(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
     uint8_t read(offs_t offset, uint8_t mem_mask = ~0);
 
@@ -44,7 +39,6 @@ protected:
 
 private:
     required_device<cpu_device> m_cpu;
-	required_device<address_map_bank_device> m_physical_space;
 
 	uint8_t m_ansi_cmd;
 	uint8_t m_ansi_parm;

@@ -12,7 +12,6 @@ DEFINE_DEVICE_TYPE(APOLLO_DN300_DISK, apollo_dn300_disk_device, "apollo_dn300_di
 apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock):
     device_t(mconfig, APOLLO_DN300_DISK, tag, owner, clock),
     m_cpu(*this, "cpu"),
-    m_physical_space(*this, "physical_space"),
 	m_ansi_cmd(0),
 	m_ansi_parm(0),
 	m_sector(0),
@@ -218,7 +217,7 @@ uint8_t apollo_dn300_disk_device::read(offs_t offset, uint8_t mem_mask)
 		default:
 			SLOG1(("DN300_DISK: unknown read at offset %02x & %08x", offset, mem_mask));
 			return 0;
-		}
+	}
 }
 
 
