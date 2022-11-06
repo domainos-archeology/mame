@@ -141,6 +141,7 @@ uint8_t apollo_dn300_get_ram_config_byte(void) {
 	return ram_config_byte;
 }
 
+static bool dump_curpc = false;
 
 /***************************************************************************
   instruction_hook
@@ -150,14 +151,16 @@ static int instruction_hook(device_t &device, offs_t curpc)
 {
 	running_machine &machine = device.machine();
 	// apollo_dn300_state *state = machine.driver_data<apollo_dn300_state>();
-	// address_space      &space = device.memory().space(AS_PROGRAM);
-	// uint8_t            *addr_ptr;
+	address_space      &space = device.memory().space(AS_PROGRAM);
+	uint8_t            *addr_ptr;
 
 	// this is the pointer in the host machine's address space corresponding to
 	// curpc.  we don't need it.
-	// addr_ptr = (uint8_t*)space.get_read_ptr(curpc);
+	addr_ptr = (uint8_t*)space.get_read_ptr(curpc);
 
-	// machine.logerror("hello from instruction_hook: %p %x\n", addr_ptr, curpc);
+	if (dump_curpc) {
+	  machine.logerror("hello from instruction_hook: %p %x\n", addr_ptr, curpc);
+	}
 
 	if (curpc == 0x085a) {
 		machine.logerror("HOOK: getc called\n");
@@ -168,7 +171,12 @@ static int instruction_hook(device_t &device, offs_t curpc)
 	} else if (curpc == 0x2580) {
 		machine.logerror("HOOK: diagnostics called\n");
 	} else if (curpc == 0x112a) {
-		machine.logerror("HOOK: first instruction after mmu enabled!");
+		machine.logerror("HOOK: first instruction after mmu enabled!\n");
+	} else if (curpc == 0x1b56) {
+		machine.logerror("HOOK: starting dma op!\n");
+		dump_curpc = true;
+	} else if (curpc == 0x1b5c) {
+		machine.logerror("HOOK: first instruction after starting dma op!\n");
 	}
 
 	return 0;
@@ -186,7 +194,7 @@ void apollo_dn300_state::apollo_bus_error()
 
 void apollo_dn300_state::cpu_space_map(address_map &map)
 {
-	map(0xfffff2, 0xffffff).r(FUNC(apollo_dn300_state::apollo_irq_acknowledge));
+	map(0x100400, 0x1004ff).r(FUNC(apollo_dn300_state::apollo_irq_acknowledge));
 }
 
 u16 apollo_dn300_state::apollo_irq_acknowledge(offs_t offset)
@@ -202,6 +210,17 @@ u16 apollo_dn300_state::apollo_irq_acknowledge(offs_t offset)
 #endif
 		return m68000_base_device::autovector(offset+1);
 }
+
+WRITE_LINE_MEMBER( apollo_dn300_state::dma_irq )
+{
+	MLOG2(("dma_irq: state=%d", state));
+}
+
+void apollo_dn300_state::dma_end(offs_t offset, uint8_t data)
+{
+	MLOG2(("dma_end: offset=%x data=%x", offset, data));
+}
+
 
 /***************************************************************************
  DN390 Cache Control/Status Register at 0x10200 // FIXME(toshok)
@@ -490,7 +509,6 @@ void apollo_dn300_state::dn300_physical_map(address_map &map)
 		map(0x020000, 0x03ffff).rw(m_graphics, FUNC(apollo_dn300_graphics::mem_r), FUNC(apollo_dn300_graphics::mem_w)); // docs call this "disp1 mem"
 
 		// map(0x100000, 0x17ffff).rw(/* MD stack / data */),
-
 
 		// map(DN300_RAM_BASE, DN300_RAM_END).ram().w(FUNC(apollo_dn300_state::ram_with_parity_w)).share(RAM_TAG);
 		map(DN300_RAM_BASE, DN300_RAM_END).ram().share(RAM_TAG);

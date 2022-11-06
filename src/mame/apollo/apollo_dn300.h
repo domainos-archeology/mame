@@ -236,6 +236,10 @@ public:
 	uint8_t apollo_pic8259_get_slave_ack(offs_t offset);
 	DECLARE_WRITE_LINE_MEMBER( apollo_rtc_irq_function );
 
+	DECLARE_WRITE_LINE_MEMBER( dma_irq );
+	void dma_end(offs_t offset, uint8_t data);
+
+
 	uint8_t pc_dma8237_0_dack_r();
 	uint8_t pc_dma8237_1_dack_r();
 	uint8_t pc_dma8237_2_dack_r();

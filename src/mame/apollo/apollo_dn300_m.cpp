@@ -951,8 +951,8 @@ void apollo_dn300_state::common(machine_config &config)
 	HD63450(config, m_dmac, 8'000'000, m_maincpu);
 	m_dmac->set_clocks(attotime::from_usec(2), attotime::from_nsec(450), attotime::from_usec(4), attotime::from_hz(15625/2));
 	m_dmac->set_burst_clocks(attotime::from_usec(2), attotime::from_nsec(450), attotime::from_nsec(450), attotime::from_nsec(50));
-	// m_dmac->irq_callback().set(FUNC(apollo_dn300_state::dma_irq));
-	// m_dmac->dma_end().set(FUNC(apollo_dn300_state::dma_end));
+	m_dmac->irq_callback().set(FUNC(apollo_dn300_state::dma_irq));
+	m_dmac->dma_end().set(FUNC(apollo_dn300_state::dma_end));
 	// m_dmac->dma_read<0>().set(FUNC(apollo_dn300_ring::rcv_header_read_byte));
 	// m_dmac->dma_write<0>().set(FUNC(apollo_dn300_ring::rcv_header_write_byte));
 	// m_dmac->dma_read<1>().set(FUNC(apollo_dn300_ring::rcv_data_read_byte));
