@@ -2289,6 +2289,8 @@ void m68000_base_device::m68ki_exception_interrupt(u32 int_level)
 	if(m_stopped)
 		return;
 
+    logerror("m68000_base_device::m68ki_exception_interrupt, level %d\n", int_level);
+
 	/* Inform the device than an interrupt is taken */
 	if(m_interrupt_mixer)
 		standard_irq_callback(int_level);
@@ -2543,6 +2545,7 @@ void m68000_base_device::execute_set_input(int inputnum, int state)
 		case M68K_IRQ_6:
 		case M68K_IRQ_7:
 		case INPUT_LINE_NMI:
+		    logerror("m68000_base_device::execute_set_input, inputnum %d, state %d\n", inputnum, state);
 			set_irq_line(inputnum, state);
 			break;
 

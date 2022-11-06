@@ -9,7 +9,7 @@
 #include "emu.h"
 #include "hd63450.h"
 
-//#define VERBOSE 1
+#define VERBOSE 5
 #include "logmacro.h"
 
 DEFINE_DEVICE_TYPE(HD63450, hd63450_device, "hd63450", "Hitachi HD63450 DMAC")
@@ -164,7 +164,7 @@ void hd63450_device::write(offs_t offset, uint16_t data, uint16_t mem_mask)
 		{
 			// Writes to CSR clear all corresponding 1 bits except PCS and ACT
 			m_reg[channel].csr &= ~((data & 0xf600) >> 8);
-//          LOG("DMA#%i: Channel status write : %02x\n",channel,dmac.reg[channel].csr);
+          LOG("DMA#%i: Channel status write : %02x\n",channel,m_reg[channel].csr);
 
 			// Clearing ERR also resets CER (which is otherwise read-only)
 			if ((data & 0x1000) != 0)
@@ -357,6 +357,8 @@ void hd63450_device::dma_transfer_continue(int channel)
 
 void hd63450_device::single_transfer(int x)
 {
+    LOG("DMA#%i: single_transfer\n", x);
+
 	address_space &space = m_cpu->space(AS_PROGRAM);
 	int data;
 	int datasize = 1;
@@ -404,7 +406,7 @@ void hd63450_device::single_transfer(int x)
 				break;
 			}
 		}
-//              LOG("DMA#%i: byte transfer %08lx -> %08lx  (byte = %02x)\n",x,dmac.reg[x].dar,dmac.reg[x].mar,data);
+              LOG("DMA#%i: byte transfer %08lx -> %08lx  (byte = %02x)\n",x,m_reg[x].dar,m_reg[x].mar,data);
 	}
 	else  // memory -> device
 	{
@@ -442,7 +444,7 @@ void hd63450_device::single_transfer(int x)
 				break;
 			}
 		}
-//              LOG("DMA#%i: byte transfer %08lx -> %08lx\n",x,m_reg[x].mar,m_reg[x].dar);
+              LOG("DMA#%i: byte transfer %08lx -> %08lx\n",x,m_reg[x].mar,m_reg[x].dar);
 	}
 
 	if (m_bec == ERR_BUS)
@@ -527,6 +529,7 @@ void hd63450_device::set_error(int channel, uint8_t code)
 
 WRITE_LINE_MEMBER(hd63450_device::drq0_w)
 {
+    LOG("DMA#0: drq\n");
 	bool ostate = m_drq_state[0];
 	m_drq_state[0] = state;
 
@@ -542,6 +545,7 @@ WRITE_LINE_MEMBER(hd63450_device::drq0_w)
 
 WRITE_LINE_MEMBER(hd63450_device::drq1_w)
 {
+    LOG("DMA#1: drq\n");
 	bool ostate = m_drq_state[1];
 	m_drq_state[1] = state;
 
@@ -556,6 +560,7 @@ WRITE_LINE_MEMBER(hd63450_device::drq1_w)
 
 WRITE_LINE_MEMBER(hd63450_device::drq2_w)
 {
+    LOG("DMA#2: drq\n");
 	bool ostate = m_drq_state[2];
 	m_drq_state[2] = state;
 
@@ -570,6 +575,7 @@ WRITE_LINE_MEMBER(hd63450_device::drq2_w)
 
 WRITE_LINE_MEMBER(hd63450_device::drq3_w)
 {
+    LOG("DMA#3: drq\n");
 	bool ostate = m_drq_state[3];
 	m_drq_state[3] = state;
 
@@ -584,6 +590,7 @@ WRITE_LINE_MEMBER(hd63450_device::drq3_w)
 
 void hd63450_device::set_irq(int channel)
 {
+    LOG("DMA#%i: assert irq line\n",channel);
 	if ((m_reg[channel].ccr & 0x08) == 0)
 		return;
 
