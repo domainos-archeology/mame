@@ -959,8 +959,8 @@ void apollo_dn300_state::common(machine_config &config)
 	// m_dmac->dma_write<1>().set(FUNC(apollo_dn300_ring::rcv_data_write_byte));
 	// m_dmac->dma_read<2>().set(FUNC(apollo_dn300_ring::transmit_read_byte));
 	// m_dmac->dma_write<2>().set(FUNC(apollo_dn300_ring::transmit_write_byte));
-	m_dmac->dma_read<2>().set(FUNC(apollo_dn300_state::disk_read_byte));
-	m_dmac->dma_write<2>().set(FUNC(apollo_dn300_state::disk_write_byte));
+	m_dmac->dma_read<3>().set(FUNC(apollo_dn300_state::disk_read_byte));
+	m_dmac->dma_write<3>().set(FUNC(apollo_dn300_state::disk_write_byte));
 
 
 	APOLLO_DN300_NI(config, m_node_id, 0);

@@ -11,6 +11,7 @@ DEFINE_DEVICE_TYPE(APOLLO_DN300_DISK, apollo_dn300_disk_device, "apollo_dn300_di
 
 apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock):
     device_t(mconfig, APOLLO_DN300_DISK, tag, owner, clock),
+	drq_cb(*this),
     m_cpu(*this, "cpu"),
 	m_ansi_cmd(0),
 	m_ansi_parm(0),
@@ -34,6 +35,9 @@ apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig
 
 void apollo_dn300_disk_device::device_start()
 {
+	drq_cb.resolve();
+
+	// save_item(NAME(drq));
 }
 
 void apollo_dn300_disk_device::device_reset()
@@ -233,6 +237,24 @@ void apollo_dn300_disk_device::execute_command()
 
 		case CMD_READ_RECORD:
 			SLOG1(("CMD_READ_RECORD unimplemented"))
+#define PULSE_DRQ() do { drq_cb(true); drq_cb(false); } while (0)
+			// 16 for the first operation
+			PULSE_DRQ();
+			PULSE_DRQ();
+			PULSE_DRQ();
+			PULSE_DRQ();
+			PULSE_DRQ();
+			PULSE_DRQ();
+			PULSE_DRQ();
+			PULSE_DRQ();
+			PULSE_DRQ();
+			PULSE_DRQ();
+			PULSE_DRQ();
+			PULSE_DRQ();
+			PULSE_DRQ();
+			PULSE_DRQ();
+			PULSE_DRQ();
+			PULSE_DRQ();
 			break;
 
 		case CMD_WRITE_RECORD:

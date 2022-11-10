@@ -299,8 +299,10 @@ void hd63450_device::dma_transfer_start(int channel)
 
 	// Burst transfers will halt the CPU until the transfer is complete
 	// max rate transfer hold the bus
+	/**
 	if (((m_reg[channel].dcr & 0xc0) == 0x00) || ((m_reg[channel].ocr & 3) == 1))  // Burst transfer
 	{
+		LOG("DMA: halting CPU!\n");
 		m_cpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
 		m_timer[channel]->adjust(attotime::zero, channel, m_burst_clock[channel]);
 	}
@@ -310,6 +312,7 @@ void hd63450_device::dma_transfer_start(int channel)
 		m_timer[channel]->adjust(attotime::from_usec(500), channel, attotime::never);
 	else if ((m_reg[channel].ocr & 3) == 2)
 		m_timer[channel]->adjust(attotime::never, channel, attotime::never);
+		*/
 
 	m_transfer_size[channel] = m_reg[channel].mtc;
 
@@ -372,7 +375,7 @@ void hd63450_device::single_transfer(int x)
 	{
 		if (!m_dma_read[x].isnull())
 		{
-			data = m_dma_read[x](m_reg[x].mar);
+        	LOG("DMA#%i: byte transfer (m_dma_read) -> %08lx (%d left)\n",x,m_reg[x].mar, m_reg[x].mtc);			data = m_dma_read[x](m_reg[x].mar);
 			if (data == -1)
 				return;  // not ready to receive data
 			space.write_byte(m_reg[x].mar,data);
@@ -383,30 +386,32 @@ void hd63450_device::single_transfer(int x)
 			switch(m_reg[x].ocr & 0x30)  // operation size
 			{
 			case 0x00:  // 8 bit
+        	  LOG("DMA#%i: byte transfer %08lx -> %08lx (%d left)\n",x,m_reg[x].mar,m_reg[x].dar, m_reg[x].mtc);
 				data = space.read_byte(m_reg[x].dar);  // read from device address
 				space.write_byte(m_reg[x].mar, data);  // write to memory address
 				datasize = 1;
 				break;
 			case 0x10:  // 16 bit
-				data = space.read_word(m_reg[x].dar);  // read from device address
+              LOG("DMA#%i: word transfer %08lx -> %08lx\n",x,m_reg[x].mar,m_reg[x].dar);				data = space.read_word(m_reg[x].dar);  // read from device address
 				space.write_word(m_reg[x].mar, data);  // write to memory address
 				datasize = 2;
 				break;
 			case 0x20:  // 32 bit
-				data = space.read_word(m_reg[x].dar) << 16;  // read from device address
+              LOG("DMA#%i: long transfer %08lx -> %08lx\n",x,m_reg[x].mar,m_reg[x].dar);
+			  	data = space.read_word(m_reg[x].dar) << 16;  // read from device address
 				data |= space.read_word(m_reg[x].dar+2);
 				space.write_word(m_reg[x].mar, (data & 0xffff0000) >> 16);  // write to memory address
 				space.write_word(m_reg[x].mar+2, data & 0x0000ffff);
 				datasize = 4;
 				break;
 			case 0x30:  // 8 bit packed (?)
+              LOG("DMA#%i: 8bit-packed transfer %08lx -> %08lx\n",x,m_reg[x].mar,m_reg[x].dar);
 				data = space.read_byte(m_reg[x].dar);  // read from device address
 				space.write_byte(m_reg[x].mar, data);  // write to memory address
 				datasize = 1;
 				break;
 			}
 		}
-              LOG("DMA#%i: byte transfer %08lx -> %08lx  (byte = %02x)\n",x,m_reg[x].dar,m_reg[x].mar,data);
 	}
 	else  // memory -> device
 	{
@@ -421,16 +426,19 @@ void hd63450_device::single_transfer(int x)
 			switch(m_reg[x].ocr & 0x30)  // operation size
 			{
 			case 0x00:  // 8 bit
+              LOG("DMA#%i: byte transfer %08lx -> %08lx (%d left)\n",x,m_reg[x].mar,m_reg[x].dar, m_reg[x].mtc);
 				data = space.read_byte(m_reg[x].mar);  // read from memory address
 				space.write_byte(m_reg[x].dar, data);  // write to device address
 				datasize = 1;
 				break;
 			case 0x10:  // 16 bit
+              LOG("DMA#%i: word transfer %08lx -> %08lx\n",x,m_reg[x].mar,m_reg[x].dar);
 				data = space.read_word(m_reg[x].mar);  // read from memory address
 				space.write_word(m_reg[x].dar, data);  // write to device address
 				datasize = 2;
 				break;
 			case 0x20:  // 32 bit
+              LOG("DMA#%i: long transfer %08lx -> %08lx\n",x,m_reg[x].mar,m_reg[x].dar);
 				data = space.read_word(m_reg[x].mar) << 16;  // read from memory address
 				data |= space.read_word(m_reg[x].mar+2);  // read from memory address
 				space.write_word(m_reg[x].dar, (data & 0xffff0000) >> 16);  // write to device address
@@ -438,13 +446,13 @@ void hd63450_device::single_transfer(int x)
 				datasize = 4;
 				break;
 			case 0x30:  // 8 bit packed (?)
+              LOG("DMA#%i: 8bit-packed transfer %08lx -> %08lx\n",x,m_reg[x].mar,m_reg[x].dar);
 				data = space.read_byte(m_reg[x].mar);  // read from memory address
 				space.write_byte(m_reg[x].dar, data);  // write to device address
 				datasize = 1;
 				break;
 			}
 		}
-              LOG("DMA#%i: byte transfer %08lx -> %08lx\n",x,m_reg[x].mar,m_reg[x].dar);
 	}
 
 	if (m_bec == ERR_BUS)

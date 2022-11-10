@@ -32,12 +32,16 @@ public:
 	void write(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
     uint8_t read(offs_t offset, uint8_t mem_mask = ~0);
 
+	auto drq_wr_callback() { return drq_cb.bind(); }
+
 protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 private:
+	devcb_write_line drq_cb;
+
     required_device<cpu_device> m_cpu;
 
 	uint8_t m_ansi_cmd;

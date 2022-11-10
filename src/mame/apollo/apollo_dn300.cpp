@@ -629,7 +629,8 @@ void apollo_dn300_state::dn300(machine_config &config)
 
 	APOLLO_DN300_DISK(config, m_disk, 0);
 	m_disk->set_cpu(m_maincpu);
-
+	m_disk->drq_wr_callback().set(m_dmac, FUNC(hd63450_device::drq3_w));
+	
 	/* internal ram */
 	RAM(config, m_ram).set_default_size("1536K").set_extra_options("512K,1M,1536K");
 
