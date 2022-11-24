@@ -159,21 +159,16 @@ static int instruction_hook(device_t &device, offs_t curpc)
 	addr_ptr = (uint8_t*)space.get_read_ptr(curpc);
 
 	if (dump_curpc) {
-	  machine.logerror("hello from instruction_hook: %p %x\n", addr_ptr, curpc);
+	  machine.logerror("ip: %p %x\n", addr_ptr, curpc);
 	}
 
-	if (curpc == 0x085a) {
-		machine.logerror("HOOK: getc called\n");
-	} else if (curpc == 0x0872) {
-		machine.logerror("HOOK: pollc called\n");
-	} else if (curpc == 0x0844) {
-		// machine.logerror("HOOK: _putc_internal called, character = '%c'\n", state->getD1());
-	} else if (curpc == 0x2580) {
-		machine.logerror("HOOK: diagnostics called\n");
-	} else if (curpc == 0x112a) {
+	if (curpc == 0x112a) {
 		machine.logerror("HOOK: first instruction after mmu enabled!\n");
 	} else if (curpc == 0x1b56) {
 		machine.logerror("HOOK: starting dma op!\n");
+		// dump_curpc = true;
+	} else if (curpc == 0x13c8) {
+		machine.logerror("HOOK: done loading sysboot!\n");
 		dump_curpc = true;
 	} else if (curpc == 0x1b5c) {
 		machine.logerror("HOOK: first instruction after starting dma op!\n");
@@ -457,17 +452,6 @@ uint16_t apollo_dn300_state::apollo_fpu_cs_r(offs_t offset, uint16_t mem_mask)
 	return 0;
 }
 
-uint8_t apollo_dn300_state::disk_read_byte(offs_t offset)
-{
-	SLOG1(("reading disk DMA at offset %02x", offset));
-	return 0;
-}
-
-void apollo_dn300_state::disk_write_byte(offs_t offset, uint8_t data)
-{
-	SLOG1(("writing disk DMA at offset %02x = %02x", offset, data));
-}
-
 /***************************************************************************
  ADDRESS MAPS
  ***************************************************************************/
@@ -630,7 +614,7 @@ void apollo_dn300_state::dn300(machine_config &config)
 	APOLLO_DN300_DISK(config, m_disk, 0);
 	m_disk->set_cpu(m_maincpu);
 	m_disk->drq_wr_callback().set(m_dmac, FUNC(hd63450_device::drq3_w));
-	
+
 	/* internal ram */
 	RAM(config, m_ram).set_default_size("1536K").set_extra_options("512K,1M,1536K");
 

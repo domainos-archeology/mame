@@ -163,36 +163,36 @@ void apollo_dn300_disk_device::write(offs_t offset, uint8_t data, uint8_t mem_ma
 {
 	switch (offset) {
 		case REG_ANSI_CMD:
+			SLOG1(("DN300_DISK: ANSI_COMMAND write = %02x", data));
 			m_ansi_cmd = data;
-			SLOG1(("DN300_DISK: ANSI_COMMAND = %02x", data));
 			break;
 		case REG_ANSI_PARM:
+			SLOG1(("DN300_DISK: ANSI_PARM write = %02x", data));
 			m_ansi_parm = data;
-			SLOG1(("DN300_DISK: ANSI_PARM = %02x", data));
 			break;
 		case REG_SECTOR:
+			SLOG1(("DN300_DISK: SECTOR write = %02x", data));
 			m_sector = data;
-			SLOG1(("DN300_DISK: SECTOR = %02x", data));
 			break;
 		case REG_CYLINDER_HIGH:
+			SLOG1(("DN300_DISK: CYLINDER_HIGH write = %02x", data));
 			m_cylinder_high = data;
-			SLOG1(("DN300_DISK: CYLINDER_HIGH = %02x", data));
 			break;
 		case REG_CYLINDER_LOW:
+			SLOG1(("DN300_DISK: CYLINDER_LOW write = %02x", data));
 			m_cylinder_low = data;
-			SLOG1(("DN300_DISK: CYLINDER_LOW = %02x", data));
 			break;
 		case REG_HEAD:
+			SLOG1(("DN300_DISK: HEAD write = %02x", data));
 			m_head = data;
-			SLOG1(("DN300_DISK: HEAD = %02x", data));
 			break;
 		case REG_INTERRUPT_CONTROL:
+			SLOG1(("DN300_DISK: INTERRUPT_CONTROL write = %02x", data));
 			m_interrupt_control = data;
-			SLOG1(("DN300_DISK: INTERRUPT_CONTROL = %02x", data));
 			break;
 		case REG_CONTROLLER_COMMAND:
+			SLOG1(("DN300_DISK: CONTROLLER_COMMAND write = %02x", data));
 			m_controller_command = data;
-			SLOG1(("DN300_DISK: CONTROLLER_COMMAND = %02x", data));
 			execute_command();
 			break;
 		default:
@@ -205,18 +205,18 @@ uint8_t apollo_dn300_disk_device::read(offs_t offset, uint8_t mem_mask)
 {
 	switch (offset) {
 		case REG_ATTENTION_STATUS:
-			SLOG1(("DN300_DISK: ATTENTION_STATUS = %02x", m_general_status));
+			SLOG1(("DN300_DISK: ATTENTION_STATUS read = %02x", m_general_status));
 			// reading this clears some status bits
 			m_status_high &= ~STATUS_HIGH_DRIVE_ATTENTION;
 			return m_general_status;
 		case REG_ANSI_PARM:
-			SLOG1(("DN300_DISK: ANSI_PARM = %02x", m_ansi_parm));
+			SLOG1(("DN300_DISK: ANSI_PARM read = %02x", m_ansi_parm));
 			return m_ansi_parm;
 		case REG_STATUS_HIGH:
-			SLOG1(("DN300_DISK: STATUS_HIGH = %02x & %02x", m_status_high, mem_mask));
+			SLOG1(("DN300_DISK: STATUS_HIGH read = %02x & %02x", m_status_high, mem_mask));
 			return m_status_high;
 		case REG_STATUS_LOW:
-			SLOG1(("DN300_DISK: STATUS_LOW = %02x", m_status_low));
+			SLOG1(("DN300_DISK: STATUS_LOW read = %02x", m_status_low));
 			return m_status_low;
 		default:
 			SLOG1(("DN300_DISK: unknown read at offset %02x & %08x", offset, mem_mask));
@@ -228,35 +228,38 @@ uint8_t apollo_dn300_disk_device::read(offs_t offset, uint8_t mem_mask)
 void apollo_dn300_disk_device::execute_command()
 {
 	// clear the status bits that clear on command
-	m_status_high &= ~0x80;
+	m_status_high &= ~0x08;
 	m_status_low &= ~0xfa;
 
+	SLOG1(("execute_command: %02x", m_controller_command))
 	switch (m_controller_command) {
 		case CMD_NOOP:
 			break;
 
-		case CMD_READ_RECORD:
-			SLOG1(("CMD_READ_RECORD unimplemented"))
-#define PULSE_DRQ() do { drq_cb(true); drq_cb(false); } while (0)
-			// 16 for the first operation
-			PULSE_DRQ();
-			PULSE_DRQ();
-			PULSE_DRQ();
-			PULSE_DRQ();
-			PULSE_DRQ();
-			PULSE_DRQ();
-			PULSE_DRQ();
-			PULSE_DRQ();
-			PULSE_DRQ();
-			PULSE_DRQ();
-			PULSE_DRQ();
-			PULSE_DRQ();
-			PULSE_DRQ();
-			PULSE_DRQ();
-			PULSE_DRQ();
-			PULSE_DRQ();
-			break;
+		case CMD_READ_RECORD: {
+			// hack to read track 0 cylinder 0 block 0
+			FILE *fp = fopen("/Users/toshok/src/domainos-archeology/dn3500_sr10.4.awd", "r");
+			fseek(fp, 1056 * m_sector, SEEK_SET);
+			fread(m_read_buffer, 1056, 1, fp);
+			fclose(fp);
+			m_read_cursor = 0;
 
+			SLOG1(("CMD_READ_RECORD for sector %d", m_sector));
+
+#define PULSE_DRQ() do { drq_cb(true); drq_cb(false); } while (0)
+			// 0x10 for the first operation
+			for (int i = 0; i < 0x10; i++) {
+				PULSE_DRQ();
+			}
+
+			// 0x200 for the second operation
+			for (int i = 0; i < 0x200; i++) {
+				PULSE_DRQ();
+			}
+
+			m_status_high |= STATUS_HIGH_END_OF_OP_INTERRUPT;
+			break;
+		}
 		case CMD_WRITE_RECORD:
 			SLOG1(("CMD_WRITE_RECORD unimplemented"))
 			break;
@@ -266,6 +269,7 @@ void apollo_dn300_disk_device::execute_command()
 			break;
 
 		case CMD_SEEK:
+			SLOG1(("CMD_SEEK to cylinder %02x%02x", m_cylinder_high, m_cylinder_low))
 			// Guessing this is equivalent to the ansi seek command?
 
 			// This command shall cause the selected device to seek to the
@@ -743,3 +747,16 @@ void apollo_dn300_disk_device::execute_ansi_command()
 			break;
 	}
 }
+
+uint8_t apollo_dn300_disk_device::read_byte(offs_t _unused_offset)
+{
+	// SLOG1(("reading disk DMA from offset %02x -> %02x", m_read_cursor, _unused_offset));
+	// send back the byte pointed to by the read cursor
+	return m_read_buffer[m_read_cursor++];
+}
+
+void apollo_dn300_disk_device::write_byte(offs_t offset, uint8_t data)
+{
+	SLOG1(("writing disk DMA at offset %02x = %02x", offset, data));
+}
+

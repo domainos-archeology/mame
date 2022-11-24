@@ -34,6 +34,8 @@ public:
 
 	auto drq_wr_callback() { return drq_cb.bind(); }
 
+	uint8_t read_byte(offs_t offset);
+	void write_byte(offs_t offset, uint8_t data);
 protected:
 	// device-level overrides
 	virtual void device_start() override;
@@ -66,6 +68,9 @@ private:
 	uint8_t m_sense_byte_2;
 	bool m_write_enabled;
 	bool m_attention_enabled;
+
+	uint32_t m_read_cursor;
+	char m_read_buffer[1056];
 };
 
 // device type definition

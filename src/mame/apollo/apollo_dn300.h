@@ -162,9 +162,6 @@ public:
 	output_finder<4> m_internal_leds;
 	required_device<address_map_bank_device> m_physical_space;
 
-	uint8_t disk_read_byte(offs_t offset);
-	void disk_write_byte(offs_t offset, uint8_t data);
-
 	void mem_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	uint16_t mem_r(offs_t offset, uint16_t mem_mask = ~0);
 
