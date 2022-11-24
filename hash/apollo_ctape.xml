@@ -49,4 +49,37 @@ license:CC0
 		</part>
 	</software>
 
+	<software name="domainos_sr10.2">
+		<description>Domain/OS SR10.2</description>
+		<year>1989</year>
+		<publisher>Apollo</publisher>
+
+		<part name="cass1" interface="sc499_cass">
+			<feature name="part_id" value="Tape 1 (CRTG_STD_SFW_BOOT_1)"/>
+			<dataarea name="ctape" size="28696576">
+				<rom name="017286-001.CRTG_STD_SFW_BOOT_1-REV.00-SYSTEM_RELEASE_VER_SR10.2-RAI.ct" size="28696576" crc="63cad240" sha1="b8af05feb44bb77ecf6c86ffab1356c802bce3c0" />
+			</dataarea>
+		</part>
+
+		<part name="cass1" interface="sc499_cass">
+			<feature name="part_id" value="Tape 2 (CRTG_STD_SFW_1)"/>
+			<dataarea name="ctape" size="59666432">
+				<rom name="017287-001.CRTG_STD_SFW_1-REV.00-SYSTEM_RELEASE_VER_SR10.2-RAI.ct" size="59666432" crc="ef104afb" sha1="caf99d1e42b14f58032f47485cff76fdb2ad823e" />
+			</dataarea>
+		</part>
+
+		<part name="cass1" interface="sc499_cass">
+			<feature name="part_id" value="Tape 3 (CRTG_STD_SFW_2)"/>
+			<dataarea name="ctape" size="62972416">
+				<rom name="017287-002.CRTG_STD_SFW_2-REV.00-SYSTEM_RELEASE_VER_SR10.2-RAI.ct" size="62972416" crc="323f3f5f" sha1="d0a694cd269f2333c67e8ad9250f539a515ddd0a" />
+			</dataarea>
+		</part>
+
+		<part name="cass1" interface="sc499_cass">
+			<feature name="part_id" value="Tape 4 (CRTG_STD_SFW_3)"/>
+			<dataarea name="ctape" size="48983552">
+				<rom name="017287-003.CRTG_STD_SFW_3-REV.00-SYSTEM_RELEASE_VER_SR10.2-RAI.ct" size="48983552" crc="1060e1ac" sha1="017dba20d9b646ccda588ff27ce489aaa98fce90" />
+			</dataarea>
+		</part>
+	</software>
 </softwarelist>
