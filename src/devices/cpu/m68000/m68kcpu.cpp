@@ -1602,8 +1602,10 @@ void m68000_base_device::init16emmu(address_space &space, address_space &ospace)
 	space.specific(m_program16);
 
 	m_readimm16 = [this](offs_t address) -> u16 {
-		if (m_emmu_enabled)
-			address = emmu_translate_addr(address);
+		if (m_emmu_enabled) {
+			address = emmu_translate_addr(address*2)/2;
+		}
+
 		return m_oprogram16.read_word(address);
 	};
 
@@ -1615,7 +1617,7 @@ void m68000_base_device::init16emmu(address_space &space, address_space &ospace)
 
 	m_read16  = [this](offs_t address) -> u16    {
 		if (m_emmu_enabled)
-			address = emmu_translate_addr(address);
+			address = emmu_translate_addr(address*2)/2;
 		if (WORD_ALIGNED(address))
 			return m_program16.read_word(address);
 		u16 result = m_program16.read_byte(address) << 8;
@@ -1630,7 +1632,7 @@ void m68000_base_device::init16emmu(address_space &space, address_space &ospace)
 
 	m_write16 = [this](offs_t address, u16 data)  {
 		if (m_emmu_enabled)
-			address = emmu_translate_addr(address);
+			address = emmu_translate_addr(address*2)/2;
 		if (WORD_ALIGNED(address)) {
 			m_program16.write_word(address, data);
 			return;
@@ -2586,6 +2588,7 @@ void m68000_base_device::device_start()
 	m_cmpild_instr_callback.resolve();
 	m_rte_instr_callback.resolve();
 	m_tas_write_callback.resolve();
+	m_emmu_translate_callback.resolve();
 }
 
 void m68000_base_device::device_stop()

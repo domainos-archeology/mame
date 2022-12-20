@@ -592,7 +592,6 @@ void apollo_dn300_state::dn300(machine_config &config)
 
 	APOLLO_DN300_MMU(config, m_mmu, 0);
 	m_mmu->set_cpu(m_maincpu);
-
 	m_maincpu->set_emmu_translate_callback(m_mmu, FUNC(apollo_dn300_mmu_device::translate));
 
 	APOLLO_DN300_DISK(config, m_disk, 0);
@@ -606,7 +605,7 @@ void apollo_dn300_state::dn300(machine_config &config)
 void apollo_dn300_state::dn320(machine_config &config)
 {
 	/* basic machine hardware */
-	M68010(config, m_maincpu, 16000000); /* 16 MHz 68010 */
+	M68010EMMU(config, m_maincpu, 16000000); /* 16 MHz 68010 with an external mmu */
 	m_maincpu->set_addrmap(AS_PROGRAM, &apollo_dn300_state::dn300_physical_map);
 	m_maincpu->set_addrmap(m68000_base_device::AS_CPU_SPACE, &apollo_dn300_state::cpu_space_map);
 
@@ -617,6 +616,7 @@ void apollo_dn300_state::dn320(machine_config &config)
 
 	APOLLO_DN300_MMU(config, m_mmu, 0);
 	m_mmu->set_cpu(m_maincpu);
+	m_maincpu->set_emmu_translate_callback(m_mmu, FUNC(apollo_dn300_mmu_device::translate));
 
 	APOLLO_DN300_DISK(config, m_disk, 0);
 	m_disk->set_cpu(m_maincpu);

@@ -1324,7 +1324,6 @@ int m68851_buserror(u32& addr)
 
 offs_t emmu_translate_addr(offs_t addr_in)
 {
-	MMULOG("emmu_translate_addr: %08x\n", addr_in);
 	if (!m_emmu_translate_callback.isnull())
 	{
 		return m_emmu_translate_callback(addr_in);
