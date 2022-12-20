@@ -1621,7 +1621,7 @@ void m68000_base_device::init16emmu(address_space &space, address_space &ospace)
 
 	m_read32  = [this](offs_t address) -> u32    {
 		if (m_emmu_enabled)
-			address = hmmu_translate_addr(address);
+			address = emmu_translate_addr(address);
 		return m_program16.read_dword(address);
 	};
 
@@ -1640,7 +1640,7 @@ void m68000_base_device::init16emmu(address_space &space, address_space &ospace)
 
 	m_write32 = [this](offs_t address, u32 data)  {
 		if (m_emmu_enabled)
-			address = hmmu_translate_addr(address);
+			address = emmu_translate_addr(address);
 		m_program16.write_dword(address, data);
 	};
 }
