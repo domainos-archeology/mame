@@ -150,7 +150,7 @@ static bool dump_curpc = false;
 static int instruction_hook(device_t &device, offs_t curpc)
 {
 	running_machine &machine = device.machine();
-	// apollo_dn300_state *state = machine.driver_data<apollo_dn300_state>();
+	apollo_dn300_state *state = machine.driver_data<apollo_dn300_state>();
 	address_space      &space = device.memory().space(AS_PROGRAM);
 	uint8_t            *addr_ptr;
 
@@ -162,14 +162,16 @@ static int instruction_hook(device_t &device, offs_t curpc)
 	  machine.logerror("ip: %p %x\n", addr_ptr, curpc);
 	}
 
-	if (curpc == 0x112a) {
+	if (curpc == 0x0844) {
+		machine.logerror("HOOK: _putc_internal called, character = '%c'\n", state->getD1());
+	} else if (curpc == 0x112a) {
 		machine.logerror("HOOK: first instruction after mmu enabled!\n");
 	} else if (curpc == 0x1b56) {
 		machine.logerror("HOOK: starting dma op!\n");
 		// dump_curpc = true;
 	} else if (curpc == 0x13c8) {
 		machine.logerror("HOOK: done loading sysboot!\n");
-		dump_curpc = true;
+		// dump_curpc = true;
 	} else if (curpc == 0x1b5c) {
 		machine.logerror("HOOK: first instruction after starting dma op!\n");
 	}
@@ -486,6 +488,7 @@ void apollo_dn300_state::dn300_physical_map(address_map &map)
 
 		// map(DN300_RAM_BASE, DN300_RAM_END).ram().w(FUNC(apollo_dn300_state::ram_with_parity_w)).share(RAM_TAG);
 		map(DN300_RAM_BASE, DN300_RAM_END).ram().share(RAM_TAG);
+
 }
 
 /***************************************************************************

@@ -70,7 +70,10 @@ private:
 	bool m_attention_enabled;
 
 	uint32_t m_read_cursor;
-	char m_read_buffer[1056];
+	char m_read_buffer[2000];
+
+	FILE *m_disk_fp;
+	FILE *m_sysboot_fp;
 };
 
 // device type definition

@@ -31,6 +31,15 @@ apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig
 	m_write_enabled(false),
 	m_attention_enabled(true)
 {
+
+	m_disk_fp = fopen("/home/toshok/src/domainos-archeology/dn3500_sr10.4.awd", "r");
+	if (m_disk_fp == NULL) {
+		abort();
+	}
+	m_sysboot_fp = fopen("/home/toshok/src/domainos-archeology/sysboot-10.2", "r");
+	if (m_sysboot_fp == NULL) {
+		abort();
+	}
 }
 
 void apollo_dn300_disk_device::device_start()
@@ -237,14 +246,21 @@ void apollo_dn300_disk_device::execute_command()
 			break;
 
 		case CMD_READ_RECORD: {
-			// hack to read track 0 cylinder 0 block 0
-			FILE *fp = fopen("/Users/toshok/src/domainos-archeology/dn3500_sr10.4.awd", "r");
-			fseek(fp, 1056 * m_sector, SEEK_SET);
-			fread(m_read_buffer, 1056, 1, fp);
-			fclose(fp);
-			m_read_cursor = 0;
-
 			SLOG1(("CMD_READ_RECORD for sector %d", m_sector));
+
+			SLOG1(("reading header from disk image"));
+			fseek(m_disk_fp, 1056 * m_sector, SEEK_SET);
+			fread(m_read_buffer, 32, 1, m_disk_fp);
+			if (m_sector >= 2 && m_sector <= 11) {
+				SLOG1(("reading data from sysboot"));
+				fseek(m_sysboot_fp, 1024 * (m_sector-2), SEEK_SET);
+				memset(&m_read_buffer[32], 0, 1024); // just in case we get a short read.
+				fread(&m_read_buffer[32], 1024, 1, m_sysboot_fp);
+			} else {
+				SLOG1(("reading data from disk image"));
+				fread(&m_read_buffer[32], 1024, 1, m_disk_fp);
+			}
+			m_read_cursor = 0;
 
 #define PULSE_DRQ() do { drq_cb(true); drq_cb(false); } while (0)
 			// 0x10 for the first operation
