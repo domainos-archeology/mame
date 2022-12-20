@@ -127,8 +127,7 @@ public:
 		m_keyboard(*this, APOLLO_DN300_KBD_TAG),
 		m_mmu(*this, APOLLO_DN300_MMU_TAG),
 		m_disk(*this, APOLLO_DN300_DISK_TAG),
-		m_internal_leds(*this, "internal_led_%u", 1U),
-		m_physical_space(*this, "physical_space")
+		m_internal_leds(*this, "internal_led_%u", 1U)
 	{ }
 
 	void dn300(machine_config &config);
@@ -160,10 +159,6 @@ public:
 	required_device<apollo_dn300_mmu_device> m_mmu;
 	required_device<apollo_dn300_disk_device> m_disk;
 	output_finder<4> m_internal_leds;
-	required_device<address_map_bank_device> m_physical_space;
-
-	void mem_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
-	uint16_t mem_r(offs_t offset, uint16_t mem_mask = ~0);
 
 	void apollo_timers_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	uint16_t apollo_timers_r(offs_t offset, uint16_t mem_mask = ~0);
@@ -269,7 +264,6 @@ public:
 	void apollo_dn300(machine_config &config);
 	void apollo_dn300_terminal(machine_config &config);
 
-	void dn300_mem(address_map &map);
 	void dn300_physical_map(address_map &map);
 
 	uint32_t ptm_counter;

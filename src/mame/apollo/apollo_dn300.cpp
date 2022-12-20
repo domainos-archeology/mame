@@ -382,15 +382,6 @@ void apollo_dn300_state::apollo_unmapped_w(offs_t offset, uint16_t data, uint16_
 	apollo_bus_error();
 }
 
-void apollo_dn300_state::mem_w(offs_t offset, uint16_t data, uint16_t mem_mask)
-{
-	m_mmu->write16(offset, data, mem_mask);
-}
-uint16_t apollo_dn300_state::mem_r(offs_t offset, uint16_t mem_mask)
-{
-	return m_mmu->read16(offset, mem_mask);
-}
-
 void apollo_dn300_state::apollo_timers_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
 	SLOG1(("writing timers at offset %02x = %02x & %08x", offset, data, mem_mask));
@@ -459,8 +450,7 @@ uint16_t apollo_dn300_state::apollo_fpu_cs_r(offs_t offset, uint16_t mem_mask)
 void apollo_dn300_state::dn300_physical_map(address_map &map)
 {
 		map(0x000000, 0xffffff).rw(FUNC(apollo_dn300_state::apollo_unmapped_r), FUNC(apollo_dn300_state::apollo_unmapped_w));
-		// we don't list the boot rom here because we get errors when we do.  it... seems to still work?
-		// map(0x000000, 0x003fff).rom(); /* boot ROM  */
+		map(0x000000, 0x003fff).rom(); /* boot ROM  */
 
 		map(0x008000, 0x0083ff).rw(m_mmu, FUNC(apollo_dn300_mmu_device::unk_r), FUNC(apollo_dn300_mmu_device::unk_w));
 		map(0x008000, 0x008001).rw(m_mmu, FUNC(apollo_dn300_mmu_device::pid_priv_power_r), FUNC(apollo_dn300_mmu_device::pid_priv_power_w));
@@ -496,13 +486,6 @@ void apollo_dn300_state::dn300_physical_map(address_map &map)
 
 		// map(DN300_RAM_BASE, DN300_RAM_END).ram().w(FUNC(apollo_dn300_state::ram_with_parity_w)).share(RAM_TAG);
 		map(DN300_RAM_BASE, DN300_RAM_END).ram().share(RAM_TAG);
-}
-
-void apollo_dn300_state::dn300_mem(address_map &map)
-{
-	// 24-bit virtual addresses
-	map(0x000000, 0xffffff).rw(FUNC(apollo_dn300_state::mem_r), FUNC(apollo_dn300_state::mem_w));
-	map(0x000000, 0x003fff).rom(); /* boot ROM  */
 }
 
 /***************************************************************************
@@ -598,8 +581,8 @@ INPUT_PORTS_END
 void apollo_dn300_state::dn300(machine_config &config)
 {
 	/* basic machine hardware */
-	M68010(config, m_maincpu, 16000000); /* 16 MHz 68010 */
-	m_maincpu->set_addrmap(AS_PROGRAM, &apollo_dn300_state::dn300_mem);
+	M68010EMMU(config, m_maincpu, 16000000); /* 16 MHz 68010 with an external mmu */
+	m_maincpu->set_addrmap(AS_PROGRAM, &apollo_dn300_state::dn300_physical_map);
 	m_maincpu->set_addrmap(m68000_base_device::AS_CPU_SPACE, &apollo_dn300_state::cpu_space_map);
 
 	config.set_maximum_quantum(attotime::from_hz(60));
@@ -609,7 +592,8 @@ void apollo_dn300_state::dn300(machine_config &config)
 
 	APOLLO_DN300_MMU(config, m_mmu, 0);
 	m_mmu->set_cpu(m_maincpu);
-	m_mmu->set_physical_space(m_physical_space);
+
+	m_maincpu->set_emmu_translate_callback(m_mmu, FUNC(apollo_dn300_mmu_device::translate));
 
 	APOLLO_DN300_DISK(config, m_disk, 0);
 	m_disk->set_cpu(m_maincpu);
@@ -617,15 +601,13 @@ void apollo_dn300_state::dn300(machine_config &config)
 
 	/* internal ram */
 	RAM(config, m_ram).set_default_size("1536K").set_extra_options("512K,1M,1536K");
-
-	ADDRESS_MAP_BANK(config, "physical_space").set_map(&apollo_dn300_state::dn300_physical_map).set_options(ENDIANNESS_BIG, 16, 24);
 }
 
 void apollo_dn300_state::dn320(machine_config &config)
 {
 	/* basic machine hardware */
 	M68010(config, m_maincpu, 16000000); /* 16 MHz 68010 */
-	m_maincpu->set_addrmap(AS_PROGRAM, &apollo_dn300_state::dn300_mem);
+	m_maincpu->set_addrmap(AS_PROGRAM, &apollo_dn300_state::dn300_physical_map);
 	m_maincpu->set_addrmap(m68000_base_device::AS_CPU_SPACE, &apollo_dn300_state::cpu_space_map);
 
 	config.set_maximum_quantum(attotime::from_hz(60));
@@ -635,15 +617,12 @@ void apollo_dn300_state::dn320(machine_config &config)
 
 	APOLLO_DN300_MMU(config, m_mmu, 0);
 	m_mmu->set_cpu(m_maincpu);
-	m_mmu->set_physical_space(m_physical_space);
 
 	APOLLO_DN300_DISK(config, m_disk, 0);
 	m_disk->set_cpu(m_maincpu);
 
 	/* internal ram */
 	RAM(config, m_ram).set_default_size("1536K").set_extra_options("512K,1M,1536K");
-
-	ADDRESS_MAP_BANK(config, "physical_space").set_map(&apollo_dn300_state::dn300_physical_map).set_data_width(16).set_addr_width(24);
 }
 
 /***************************************************************************

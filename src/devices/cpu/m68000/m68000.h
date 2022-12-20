@@ -163,6 +163,7 @@ public:
 	template <typename... T> void set_cmpild_callback(T &&... args) { m_cmpild_instr_callback.set(std::forward<T>(args)...); }
 	template <typename... T> void set_rte_callback(T &&... args) { m_rte_instr_callback.set(std::forward<T>(args)...); }
 	template <typename... T> void set_tas_write_callback(T &&... args) { m_tas_write_callback.set(std::forward<T>(args)...); }
+	template <typename... T> void set_emmu_translate_callback(T &&... args) { m_emmu_translate_callback.set(std::forward<T>(args)...); }
 	u16 get_fc();
 	void set_hmmu_enable(int enable);
 	void set_emmu_enable(int enable);
@@ -219,6 +220,7 @@ protected:
 	u32 m_run_mode;     /* Stores whether we are processing a reset, bus error, address error, or something else */
 	int    m_has_pmmu;     /* Indicates if a PMMU available (yes on 030, 040, no on EC030) */
 	int    m_has_hmmu;     /* Indicates if an Apple HMMU is available in place of the 68851 (020 only) */
+	int    m_has_emmu;     /* Indicates if an external MMU is available */
 	int    m_pmmu_enabled; /* Indicates if the PMMU is enabled */
 	int    m_hmmu_enabled; /* Indicates if the HMMU is enabled */
 	int    m_emmu_enabled; /* Indicates if external MMU is enabled */
@@ -262,6 +264,7 @@ protected:
 	write8sm_delegate m_tas_write_callback;               /* Called instead of normal write8 by the TAS instruction,
 	                                                        allowing writeback to be disabled globally or selectively
 	                                                        or other side effects to be implemented */
+	transform_offs_delegate m_emmu_translate_callback;
 
 	address_space *m_program, *m_oprogram, *m_cpu_space;
 
@@ -276,6 +279,7 @@ protected:
 
 	void init8(address_space &space, address_space &ospace);
 	void init16(address_space &space, address_space &ospace);
+	void init16emmu(address_space &space, address_space &ospace);
 	void init32(address_space &space, address_space &ospace);
 	void init32mmu(address_space &space, address_space &ospace);
 	void init32hmmu(address_space &space, address_space &ospace);
@@ -339,6 +343,7 @@ protected:
 	void init_cpu_m68000(void);
 	void init_cpu_m68008(void);
 	void init_cpu_m68010(void);
+	void init_cpu_m68010emmu(void);
 	void init_cpu_m68020(void);
 	void init_cpu_m68020fpu(void);
 	void init_cpu_m68020pmmu(void);
@@ -509,6 +514,23 @@ public:
 
 	virtual u32 execute_min_cycles() const noexcept override { return 4; }
 	virtual u32 execute_max_cycles() const noexcept override { return 158; }
+
+	// device-level overrides
+	virtual void device_start() override;
+};
+
+class m68010emmu_device : public m68000_base_device
+{
+public:
+	// construction/destruction
+	m68010emmu_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock);
+
+	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
+
+	virtual u32 execute_min_cycles() const noexcept override { return 4; }
+	virtual u32 execute_max_cycles() const noexcept override { return 158; }
+
+	virtual bool memory_translate(int space, int intention, offs_t &address) override;
 
 	// device-level overrides
 	virtual void device_start() override;
@@ -726,6 +748,7 @@ DECLARE_DEVICE_TYPE(M68000, m68000_device)
 DECLARE_DEVICE_TYPE(M68008, m68008_device)
 DECLARE_DEVICE_TYPE(M68008FN, m68008fn_device)
 DECLARE_DEVICE_TYPE(M68010, m68010_device)
+DECLARE_DEVICE_TYPE(M68010EMMU, m68010emmu_device)
 DECLARE_DEVICE_TYPE(M68EC020, m68ec020_device)
 DECLARE_DEVICE_TYPE(M68020, m68020_device)
 DECLARE_DEVICE_TYPE(M68020FPU, m68020fpu_device)

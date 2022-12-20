@@ -1026,6 +1026,7 @@ void m68000_base_device::init_cpu_common(void)
 	/* disable all MMUs */
 	m_has_pmmu         = 0;
 	m_has_hmmu         = 0;
+	m_has_emmu         = 0;
 	m_pmmu_enabled     = 0;
 	m_hmmu_enabled     = 0;
 	m_emmu_enabled     = 0;
@@ -1061,6 +1062,7 @@ void m68000_base_device::init_cpu_common(void)
 	save_item(NAME(m_nmi_pending));
 	save_item(NAME(m_has_pmmu));
 	save_item(NAME(m_has_hmmu));
+	save_item(NAME(m_has_emmu));
 	save_item(NAME(m_pmmu_enabled));
 	save_item(NAME(m_hmmu_enabled));
 	save_item(NAME(m_emmu_enabled));
@@ -1592,6 +1594,52 @@ void m68000_base_device::init32mmu(address_space &space, address_space &ospace)
 	};
 }
 
+void m68000_base_device::init16emmu(address_space &space, address_space &ospace)
+{
+	m_space = &space;
+	m_ospace = &ospace;
+	ospace.cache(m_oprogram16);
+	space.specific(m_program16);
+
+	m_readimm16 = [this](offs_t address) -> u16 {
+		if (m_emmu_enabled)
+			address = emmu_translate_addr(address);
+		return m_oprogram16.read_word(address);
+	};
+
+	m_read8   = [this](offs_t address) -> u8     {
+		if (m_emmu_enabled)
+			address = emmu_translate_addr(address);
+		return m_program16.read_byte(address);
+	};
+
+	m_read16  = [this](offs_t address) -> u16    {
+		if (m_emmu_enabled)
+			address = emmu_translate_addr(address);
+		if (WORD_ALIGNED(address))
+			return m_program16.read_word(address);
+		u16 result = m_program16.read_byte(address) << 8;
+		return result | m_program16.read_byte(address + 1);
+	};
+
+	m_write8  = [this](offs_t address, u8 data)  {
+		if (m_emmu_enabled)
+			address = emmu_translate_addr(address);
+		m_program16.write_byte(address, data);
+	};
+
+	m_write16 = [this](offs_t address, u16 data)  {
+		if (m_emmu_enabled)
+			address = emmu_translate_addr(address);
+		if (WORD_ALIGNED(address)) {
+			m_program16.write_word(address, data);
+			return;
+		}
+		m_program16.write_byte(address, data >> 8);
+		m_program16.write_byte(address + 1, data);
+	};
+}
+
 void m68000_base_device::init32hmmu(address_space &space, address_space &ospace)
 {
 	m_space = &space;
@@ -1816,6 +1864,7 @@ void m68000_base_device::init_cpu_m68000(void)
 	m_cyc_reset        = 132;
 	m_has_pmmu         = 0;
 	m_has_hmmu         = 0;
+	m_has_emmu         = 0;
 	m_has_fpu          = 0;
 
 	define_state();
@@ -1876,6 +1925,14 @@ void m68000_base_device::init_cpu_m68010(void)
 	define_state();
 }
 
+void m68000_base_device::init_cpu_m68010emmu(void)
+{
+	init_cpu_m68010();
+
+	m_has_emmu           = 1;
+
+	init16emmu(*m_program, *m_oprogram);
+}
 
 void m68000_base_device::init_cpu_m68020(void)
 {
@@ -2204,6 +2261,11 @@ std::unique_ptr<util::disasm_interface> m68010_device::create_disassembler()
 	return std::make_unique<m68k_disassembler>(m68k_disassembler::TYPE_68010);
 }
 
+std::unique_ptr<util::disasm_interface> m68010emmu_device::create_disassembler()
+{
+	return std::make_unique<m68k_disassembler>(m68k_disassembler::TYPE_68010);
+}
+
 std::unique_ptr<util::disasm_interface> m68ec020_device::create_disassembler()
 {
 	return std::make_unique<m68k_disassembler>(m68k_disassembler::TYPE_68020);
@@ -2355,7 +2417,8 @@ m68000_base_device::m68000_base_device(const machine_config &mconfig, const char
 		m_reset_instr_callback(*this),
 		m_cmpild_instr_callback(*this),
 		m_rte_instr_callback(*this),
-		m_tas_write_callback(*this)
+		m_tas_write_callback(*this),
+		m_emmu_translate_callback(*this)
 {
 	clear_all();
 }
@@ -2372,7 +2435,8 @@ m68000_base_device::m68000_base_device(const machine_config &mconfig, const char
 		m_reset_instr_callback(*this),
 		m_cmpild_instr_callback(*this),
 		m_rte_instr_callback(*this),
-		m_tas_write_callback(*this)
+		m_tas_write_callback(*this),
+		m_emmu_translate_callback(*this)
 {
 	clear_all();
 }
@@ -2591,6 +2655,7 @@ DEFINE_DEVICE_TYPE(M68000,      m68000_device,      "m68000",       "Motorola MC
 DEFINE_DEVICE_TYPE(M68008,      m68008_device,      "m68008",       "Motorola MC68008") // 48-pin plastic or ceramic DIP
 DEFINE_DEVICE_TYPE(M68008FN,    m68008fn_device,    "m68008fn",     "Motorola MC68008FN") // 52-pin PLCC
 DEFINE_DEVICE_TYPE(M68010,      m68010_device,      "m68010",       "Motorola MC68010")
+DEFINE_DEVICE_TYPE(M68010EMMU,  m68010emmu_device,  "m68010emmu",   "Motorola MC68010EMMU")
 DEFINE_DEVICE_TYPE(M68EC020,    m68ec020_device,    "m68ec020",     "Motorola MC68EC020")
 DEFINE_DEVICE_TYPE(M68020,      m68020_device,      "m68020",       "Motorola MC68020")
 DEFINE_DEVICE_TYPE(M68020FPU,   m68020fpu_device,   "m68020fpu",    "Motorola MC68020FPU")
@@ -2669,6 +2734,29 @@ void m68010_device::device_start()
 	init_cpu_m68010();
 }
 
+bool m68010emmu_device::memory_translate(int space, int intention, offs_t &address)
+{
+	/* only applies to the program address space and only does something if the MMU's enabled */
+	{
+		if ((space == AS_PROGRAM) && (m_emmu_enabled))
+		{
+			address = emmu_translate_addr(address);
+		}
+	}
+	return true;
+}
+
+
+m68010emmu_device::m68010emmu_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock)
+	: m68000_base_device(mconfig, tag, owner, clock, M68010EMMU, 16,24)
+{
+}
+
+void m68010emmu_device::device_start()
+{
+	m68000_base_device::device_start();
+	init_cpu_m68010emmu();
+}
 
 
 m68020_device::m68020_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock)

@@ -9,7 +9,6 @@ DEFINE_DEVICE_TYPE(APOLLO_DN300_MMU, apollo_dn300_mmu_device, "apollo_dn300_mmu"
 apollo_dn300_mmu_device::apollo_dn300_mmu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock):
     device_t(mconfig, APOLLO_DN300_MMU, tag, owner, clock),
     m_cpu(*this, "cpu"),
-    m_physical_space(*this, "physical_space"),
     m_enabled(0),
     m_ptt_access_enabled(0),
     m_asid(0)
@@ -96,28 +95,16 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset) {
     int byte_offset_within_page = byte_offset % PAGE_SIZE;
     int ppn = m_ptt[ptt_index] & 0xfff;
 
-	// MLOG1((
-	//  "apollo_dn300_mmu_device::translate(%x) -> PTT index %d, PTTE %x, PPN %x, translated %x",
-	//  byte_offset,
-	//  ptt_index,
-	//  m_ptt[ptt_index],
-	//  ppn,
-	//  (ppn << 10) | byte_offset_within_page));
+	MLOG1((
+	 "apollo_dn300_mmu_device::translate(%x) -> PTT index %d, PTTE %x, PPN %x, translated %x",
+	 byte_offset,
+	 ptt_index,
+	 m_ptt[ptt_index],
+	 ppn,
+	 (ppn << 10) | byte_offset_within_page));
 
 	// we need to do more here with the PFT entry for this page, but for now, just return the physical address
 	return (ppn << 10) | byte_offset_within_page;
-}
-
-void apollo_dn300_mmu_device::write16(offs_t offset, uint16_t data, uint16_t mem_mask)
-{
-	offs_t write_offs = m_enabled ? translate(offset*2)/2 : offset;
-    m_physical_space->write16(write_offs, data, mem_mask);
-}
-
-uint16_t apollo_dn300_mmu_device::read16(offs_t offset, uint16_t mem_mask)
-{
-	offs_t read_offs = m_enabled ? translate(offset*2)/2 : offset;
-    return m_physical_space->read16(read_offs, mem_mask);
 }
 
 void apollo_dn300_mmu_device::ptt_w(offs_t offset, uint16_t data, uint16_t mem_mask)
@@ -184,6 +171,8 @@ void apollo_dn300_mmu_device::pid_priv_power_w(offs_t offset, uint16_t data, uin
             m_enabled ? "yes" : "no",
             m_ptt_access_enabled ? "yes" : "no"));
     SLOG1(("asid %d", m_asid));
+
+	m_cpu->set_emmu_enable(m_enabled);
 }
 uint16_t apollo_dn300_mmu_device::pid_priv_power_r(offs_t offset, uint16_t mem_mask)
 {

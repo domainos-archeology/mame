@@ -9,7 +9,7 @@
 
 // MMU status register bit definitions
 
-#if 0
+#if 1
 #define MMULOG logerror
 #else
 #define MMULOG(...)
@@ -1320,4 +1320,15 @@ int m68851_buserror(u32& addr)
 
 	addr = m_mmu_last_logical_addr;
 	return false;
+}
+
+offs_t emmu_translate_addr(offs_t addr_in)
+{
+	MMULOG("emmu_translate_addr: %08x\n", addr_in);
+	if (!m_emmu_translate_callback.isnull())
+	{
+		return m_emmu_translate_callback(addr_in);
+	}
+
+	return addr_in;
 }
