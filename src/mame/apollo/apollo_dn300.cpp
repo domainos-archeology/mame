@@ -52,6 +52,7 @@
 #define DN300_RAM_END  0x27FFFF
 #endif
 
+
 #define NODE_TYPE_DN300 300
 #define NODE_TYPE_DN320 320
 
@@ -368,7 +369,7 @@ uint16_t apollo_dn300_state::apollo_unmapped_r(offs_t offset, uint16_t mem_mask)
 	} else if (address == 0x0000ac00 && VERBOSE < 2) {
 		// omit logging for Bus error test address in DN3000 boot prom
 	} else {
-		SLOG1(("unmapped memory dword read from %08x with mask %08x (ir=%04x)", address , mem_mask, m68k->state_int(M68K_IR)));
+		SLOG1(("unmapped memory dword read from %08x with mask %08x (ir=%04x) (mmu enabled? %s)", address , mem_mask, m68k->state_int(M68K_IR), m_mmu->is_enabled() ? "yes" : "no"));
 	}
 
 	/* unmapped; access causes a bus error */
@@ -451,43 +452,44 @@ uint16_t apollo_dn300_state::apollo_fpu_cs_r(offs_t offset, uint16_t mem_mask)
 
 void apollo_dn300_state::dn300_physical_map(address_map &map)
 {
-		map(0x000000, 0xffffff).rw(FUNC(apollo_dn300_state::apollo_unmapped_r), FUNC(apollo_dn300_state::apollo_unmapped_w));
-		map(0x000000, 0x003fff).rom(); /* boot ROM  */
+	// map.unmap_value_high();
+	map(0x000000, 0xffffff).rw(FUNC(apollo_dn300_state::apollo_unmapped_r), FUNC(apollo_dn300_state::apollo_unmapped_w));
+	map(0x000000, 0x003fff).rom(); /* boot ROM  */
 
-		map(0x008000, 0x0083ff).rw(m_mmu, FUNC(apollo_dn300_mmu_device::unk_r), FUNC(apollo_dn300_mmu_device::unk_w));
-		map(0x008000, 0x008001).rw(m_mmu, FUNC(apollo_dn300_mmu_device::pid_priv_power_r), FUNC(apollo_dn300_mmu_device::pid_priv_power_w));
-		map(0x008002, 0x008002).rw(m_mmu, FUNC(apollo_dn300_mmu_device::status_r), FUNC(apollo_dn300_mmu_device::status_w));
-		map(0x004000, 0x007fff).rw(m_mmu, FUNC(apollo_dn300_mmu_device::pft_r), FUNC(apollo_dn300_mmu_device::pft_w));
-		map(0x700000, 0x7fffff).rw(m_mmu, FUNC(apollo_dn300_mmu_device::ptt_r), FUNC(apollo_dn300_mmu_device::ptt_w));
+	map(0x008000, 0x0083ff).rw(m_mmu, FUNC(apollo_dn300_mmu_device::unk_r), FUNC(apollo_dn300_mmu_device::unk_w));
+	map(0x008000, 0x008001).rw(m_mmu, FUNC(apollo_dn300_mmu_device::pid_priv_power_r), FUNC(apollo_dn300_mmu_device::pid_priv_power_w));
+	map(0x008002, 0x008002).rw(m_mmu, FUNC(apollo_dn300_mmu_device::status_r), FUNC(apollo_dn300_mmu_device::status_w));
+	map(0x004000, 0x007fff).rw(m_mmu, FUNC(apollo_dn300_mmu_device::pft_r), FUNC(apollo_dn300_mmu_device::pft_w));
+	map(0x700000, 0x7fffff).rw(m_mmu, FUNC(apollo_dn300_mmu_device::ptt_r), FUNC(apollo_dn300_mmu_device::ptt_w));
 
-		// these live in the mmu space but we should have them outside as well...
-		map(0x008005, 0x008005).rw(FUNC(apollo_dn300_state::apollo_dn300_mcsr_control_register_r), FUNC(apollo_dn300_state::apollo_dn300_mcsr_control_register_w));
-		map(0x008006, 0x008007).rw(FUNC(apollo_dn300_state::apollo_dn300_mcsr_status_register_r), FUNC(apollo_dn300_state::apollo_dn300_mcsr_status_register_w));
+	// these live in the mmu space but we should have them outside as well...
+	map(0x008005, 0x008005).rw(FUNC(apollo_dn300_state::apollo_dn300_mcsr_control_register_r), FUNC(apollo_dn300_state::apollo_dn300_mcsr_control_register_w));
+	map(0x008006, 0x008007).rw(FUNC(apollo_dn300_state::apollo_dn300_mcsr_status_register_r), FUNC(apollo_dn300_state::apollo_dn300_mcsr_status_register_w));
 
-		map(0x008400, 0x00841f).rw(m_sio, FUNC(apollo_dn300_sio::read), FUNC(apollo_dn300_sio::write));
-		map(0x008420, 0x008421).rw(m_acia, FUNC(acia6850_device::status_r), FUNC(acia6850_device::control_w));
-		map(0x008422, 0x008423).rw(m_acia, FUNC(acia6850_device::data_r), FUNC(acia6850_device::data_w));
+	map(0x008400, 0x00841f).rw(m_sio, FUNC(apollo_dn300_sio::read), FUNC(apollo_dn300_sio::write));
+	map(0x008420, 0x008421).rw(m_acia, FUNC(acia6850_device::status_r), FUNC(acia6850_device::control_w));
+	map(0x008422, 0x008423).rw(m_acia, FUNC(acia6850_device::data_r), FUNC(acia6850_device::data_w));
 
-		map(0x008800, 0x008bff).rw(m_ptm, FUNC(ptm6840_device::read), FUNC(ptm6840_device::write));
+	map(0x008800, 0x008bff).rw(m_ptm, FUNC(ptm6840_device::read), FUNC(ptm6840_device::write));
 
-		map(0x009000, 0x0093ff).rw(m_dmac, FUNC(hd63450_device::read), FUNC(hd63450_device::write)); // docs make it seem like this is just 0x9000 - 0x90ff
-		map(0x009400, 0x0097ff).rw(FUNC(apollo_dn300_state::apollo_display_r), FUNC(apollo_dn300_state::apollo_display_w)); // docs call this "display 1"
+	map(0x009000, 0x0093ff).rw(m_dmac, FUNC(hd63450_device::read), FUNC(hd63450_device::write)); // docs make it seem like this is just 0x9000 - 0x90ff
+	map(0x009400, 0x0097ff).rw(FUNC(apollo_dn300_state::apollo_display_r), FUNC(apollo_dn300_state::apollo_display_w)); // docs call this "display 1"
 
-		map(0x009400, 0x00940f).rw(m_graphics, FUNC(apollo_dn300_graphics::reg_r), FUNC(apollo_dn300_graphics::reg_w));
+	map(0x009400, 0x00940f).rw(m_graphics, FUNC(apollo_dn300_graphics::reg_r), FUNC(apollo_dn300_graphics::reg_w));
 
-		map(0x009800, 0x009bff).rw(FUNC(apollo_dn300_state::apollo_ring_r), FUNC(apollo_dn300_state::apollo_ring_w)); // docs call this "ring 2"
-		map(0x009c00, 0x009fff).rw(m_disk, FUNC(apollo_dn300_disk_device::read), FUNC(apollo_dn300_disk_device::write));
+	map(0x009800, 0x009bff).rw(FUNC(apollo_dn300_state::apollo_ring_r), FUNC(apollo_dn300_state::apollo_ring_w)); // docs call this "ring 2"
+	map(0x009c00, 0x009fff).rw(m_disk, FUNC(apollo_dn300_disk_device::read), FUNC(apollo_dn300_disk_device::write));
 
-		map(0x00b000, 0x00b3ff).rw(FUNC(apollo_dn300_state::apollo_fpu_ctl_r), FUNC(apollo_dn300_state::apollo_fpu_ctl_w)); // docs call this "fpu ctl"
-		map(0x00b400, 0x00b7ff).rw(FUNC(apollo_dn300_state::apollo_fpu_cmd_r), FUNC(apollo_dn300_state::apollo_fpu_cmd_w)); // docs call this "fpu cmd"
-		map(0x00b800, 0x00bbff).rw(FUNC(apollo_dn300_state::apollo_fpu_cs_r), FUNC(apollo_dn300_state::apollo_fpu_cs_w)); // docs call this "fpu cs"
+	map(0x00b000, 0x00b3ff).rw(FUNC(apollo_dn300_state::apollo_fpu_ctl_r), FUNC(apollo_dn300_state::apollo_fpu_ctl_w)); // docs call this "fpu ctl"
+	map(0x00b400, 0x00b7ff).rw(FUNC(apollo_dn300_state::apollo_fpu_cmd_r), FUNC(apollo_dn300_state::apollo_fpu_cmd_w)); // docs call this "fpu cmd"
+	map(0x00b800, 0x00bbff).rw(FUNC(apollo_dn300_state::apollo_fpu_cs_r), FUNC(apollo_dn300_state::apollo_fpu_cs_w)); // docs call this "fpu cs"
 
-		map(0x020000, 0x03ffff).rw(m_graphics, FUNC(apollo_dn300_graphics::mem_r), FUNC(apollo_dn300_graphics::mem_w)); // docs call this "disp1 mem"
+	map(0x020000, 0x03ffff).rw(m_graphics, FUNC(apollo_dn300_graphics::mem_r), FUNC(apollo_dn300_graphics::mem_w)); // docs call this "disp1 mem"
 
-		// map(0x100000, 0x17ffff).rw(/* MD stack / data */),
+	// map(0x100000, 0x17ffff).rw(/* MD stack / data */),
 
-		// map(DN300_RAM_BASE, DN300_RAM_END).ram().w(FUNC(apollo_dn300_state::ram_with_parity_w)).share(RAM_TAG);
-		map(DN300_RAM_BASE, DN300_RAM_END).ram().share(RAM_TAG);
+	// map(DN300_RAM_BASE, DN300_RAM_END).ram().w(FUNC(apollo_dn300_state::ram_with_parity_w)).share(RAM_TAG);
+	map(DN300_RAM_BASE, DN300_RAM_END).ram().share(RAM_TAG);
 
 }
 

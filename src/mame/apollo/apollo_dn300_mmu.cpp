@@ -95,13 +95,13 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset) {
     int byte_offset_within_page = byte_offset % PAGE_SIZE;
     int ppn = m_ptt[ptt_index] & 0xfff;
 
-	MLOG1((
-	 "apollo_dn300_mmu_device::translate(%x) -> PTT index %d, PTTE %x, PPN %x, translated %x",
-	 byte_offset,
-	 ptt_index,
-	 m_ptt[ptt_index],
-	 ppn,
-	 (ppn << 10) | byte_offset_within_page));
+	// MLOG1((
+	//  "apollo_dn300_mmu_device::translate(%x) -> PTT index %d, PTTE %x, PPN %x, translated %x",
+	//  byte_offset,
+	//  ptt_index,
+	//  m_ptt[ptt_index],
+	//  ppn,
+	//  (ppn << 10) | byte_offset_within_page));
 
 	// we need to do more here with the PFT entry for this page, but for now, just return the physical address
 	return (ppn << 10) | byte_offset_within_page;

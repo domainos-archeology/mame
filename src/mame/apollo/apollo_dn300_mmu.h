@@ -31,6 +31,8 @@ public:
 		m_cpu.set_tag(std::forward<T>(cputag));
 	}
 
+	bool is_enabled() { return m_enabled; }
+
 	offs_t translate(offs_t offset);
 
 	void pft_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);

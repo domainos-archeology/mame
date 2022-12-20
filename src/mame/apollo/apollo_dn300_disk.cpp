@@ -34,11 +34,11 @@ apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig
 
 	m_disk_fp = fopen("/home/toshok/src/domainos-archeology/dn3500_sr10.4.awd", "r");
 	if (m_disk_fp == NULL) {
-		abort();
+		logerror("couldn't open disk image\n");
 	}
 	m_sysboot_fp = fopen("/home/toshok/src/domainos-archeology/sysboot-10.2", "r");
 	if (m_sysboot_fp == NULL) {
-		abort();
+		logerror("couldn't open sysboot\n");
 	}
 }
 
