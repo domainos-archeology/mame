@@ -184,10 +184,16 @@ static int instruction_hook(device_t &device, offs_t curpc)
  apollo bus error
  ***************************************************************************/
 
-void apollo_dn300_state::apollo_bus_error()
+void apollo_dn300_state::apollo_bus_error(offs_t fault_addr, u8 rw)
 {
+#if 0
+	// this is how we'll do restartable instructions in the future
+	m_maincpu->set_buserror_details(fault_addr, rw, m_maincpu->get_fc(), true);
+#else
+	// the old-style bus error
 	m_maincpu->set_input_line(M68K_LINE_BUSERROR, ASSERT_LINE);
 	m_maincpu->set_input_line(M68K_LINE_BUSERROR, CLEAR_LINE);
+#endif
 }
 
 void apollo_dn300_state::cpu_space_map(address_map &map)
@@ -373,7 +379,7 @@ uint16_t apollo_dn300_state::apollo_unmapped_r(offs_t offset, uint16_t mem_mask)
 	}
 
 	/* unmapped; access causes a bus error */
-	apollo_bus_error();
+	apollo_bus_error(address, 1);
 	return 0xffff;
 }
 
@@ -382,7 +388,7 @@ void apollo_dn300_state::apollo_unmapped_w(offs_t offset, uint16_t data, uint16_
 	SLOG(("unmapped memory dword write to %08x = %04x & %04x", offset * 4, data, mem_mask));
 
 	/* unmapped; access causes a bus error */
-	apollo_bus_error();
+	apollo_bus_error(offset * 4, 0);
 }
 
 void apollo_dn300_state::apollo_timers_w(offs_t offset, uint16_t data, uint16_t mem_mask)
@@ -454,7 +460,7 @@ void apollo_dn300_state::dn300_physical_map(address_map &map)
 {
 	// map.unmap_value_high();
 	map(0x000000, 0xffffff).rw(FUNC(apollo_dn300_state::apollo_unmapped_r), FUNC(apollo_dn300_state::apollo_unmapped_w));
-	map(0x000000, 0x003fff).rom(); /* boot ROM  */
+	map(0x000000, 0x003fff).nopw().rom(); /* boot ROM  */
 
 	map(0x008000, 0x0083ff).rw(m_mmu, FUNC(apollo_dn300_mmu_device::unk_r), FUNC(apollo_dn300_mmu_device::unk_w));
 	map(0x008000, 0x008001).rw(m_mmu, FUNC(apollo_dn300_mmu_device::pid_priv_power_r), FUNC(apollo_dn300_mmu_device::pid_priv_power_w));

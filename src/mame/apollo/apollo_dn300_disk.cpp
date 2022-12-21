@@ -31,12 +31,19 @@ apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig
 	m_write_enabled(false),
 	m_attention_enabled(true)
 {
+	char* DISK_IMAGE = getenv("DISK_IMAGE");
+	char* SYSBOOT_OVERRIDE_IMAGE = getenv("SYSBOOT_OVERRIDE_IMAGE");
 
-	m_disk_fp = fopen("/home/toshok/src/domainos-archeology/dn3500_sr10.4.awd", "r");
+	if (DISK_IMAGE) {
+		m_disk_fp = fopen(DISK_IMAGE, "r");
+	}
+	if (SYSBOOT_OVERRIDE_IMAGE) {
+		m_sysboot_fp = fopen(SYSBOOT_OVERRIDE_IMAGE, "r");
+	}
+
 	if (m_disk_fp == NULL) {
 		logerror("couldn't open disk image\n");
 	}
-	m_sysboot_fp = fopen("/home/toshok/src/domainos-archeology/sysboot-10.2", "r");
 	if (m_sysboot_fp == NULL) {
 		logerror("couldn't open sysboot\n");
 	}
@@ -251,8 +258,8 @@ void apollo_dn300_disk_device::execute_command()
 			SLOG1(("reading header from disk image"));
 			fseek(m_disk_fp, 1056 * m_sector, SEEK_SET);
 			fread(m_read_buffer, 32, 1, m_disk_fp);
-			if (m_sector >= 2 && m_sector <= 11) {
-				SLOG1(("reading data from sysboot"));
+			if (m_sector >= 2 && m_sector <= 11 && m_sysboot_fp) {
+				SLOG1(("reading data from sysboot override"));
 				fseek(m_sysboot_fp, 1024 * (m_sector-2), SEEK_SET);
 				memset(&m_read_buffer[32], 0, 1024); // just in case we get a short read.
 				fread(&m_read_buffer[32], 1024, 1, m_sysboot_fp);

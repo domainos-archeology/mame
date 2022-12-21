@@ -215,7 +215,7 @@ public:
 	void cpu_space_map(address_map &map);
 	u16 apollo_irq_acknowledge(offs_t offset);
 	u16 apollo_pic_get_vector();
-	void apollo_bus_error();
+	void apollo_bus_error(offs_t fault_addr, u8 rw);
 	DECLARE_READ_LINE_MEMBER( apollo_kbd_is_german );
 	DECLARE_WRITE_LINE_MEMBER( apollo_dma_1_hrq_changed );
 	DECLARE_WRITE_LINE_MEMBER( apollo_dma_2_hrq_changed );
