@@ -51,8 +51,8 @@ license:CC0
 	</element>
 
 	<view name="Apollo (1024x800)">
-		<screen index="0"> <bounds x="0" y="0" width="1024" height="800" /> </screen>
-
+		<screen index="0"> <bounds x="0" y="0" width="1024" height="1024" /> </screen>
+        <!--
 		<element ref="background">     <bounds left="0" right="253" top="800" bottom="844" /> </element>
 		<element name="f1s" ref="f1s"> <bounds left="0" right="60" top="806" bottom="822" /> </element>
 		<element name="f1"  ref="f1"> <bounds left="0" right="60" top="824" bottom="840" /> </element>
@@ -98,7 +98,9 @@ license:CC0
 		<element name="internal_led_4" ref="internal_led"> <bounds left="932" right="944" top="808" bottom="820" /> </element>
 
 		<element name="power_label" ref="power_label"> <bounds left="952" right="984" top="806" bottom="822" /> </element>
-		<element name="power_led" ref="power_led"> <bounds left="990" right="1002" top="808" bottom="820" /> </element>
+        <element name="power_led" ref="power_led"> <bounds left="990" right="1002" top="808" bottom="820" /> </element>
+
+        -->
 	</view>
 
 </mamelayout>

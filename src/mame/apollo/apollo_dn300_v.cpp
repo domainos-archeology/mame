@@ -39,6 +39,10 @@
 #define CR_FILL_MODE 0x0002
 #define CR_ENABLE_DISPLAY 0x0001
 
+// helpers to format a number as binary
+static const char* tb1(uint16_t data) { static char buffer[17]; buffer[16] = 0; for (int i = 0; i < 16; i++) { buffer[15 - i] = (data & (1 << i)) ? 'X' : '.'; } return buffer; }
+static const char* tb2(uint16_t data) { static char buffer[17]; buffer[16] = 0; for (int i = 0; i < 16; i++) { buffer[15 - i] = (data & (1 << i)) ? 'X' : '.'; } return buffer; }
+
 void apollo_dn300_graphics::reg_w(offs_t offset, uint16_t data)
 {
 	static const char *const graphics_reg_write_names[0x08] = {
@@ -146,7 +150,7 @@ uint16_t apollo_dn300_graphics::reg_r(offs_t offset)
 	}
 
 	MLOG2(("reading display reg %02x (%s) = %02x",
-		   offset, graphics_reg_read_names[(offset / 2) & 0x7], value));
+		   offset, graphics_reg_read_names[(offset >> 1) & 0x7], value));
 
 	return value;
 }
@@ -160,186 +164,131 @@ void apollo_dn300_graphics::mem_w(offs_t offset, uint16_t data, uint16_t mem_mas
 {
 	m_image_memory[offset] &= ~mem_mask;
 	m_image_memory[offset] |= data & mem_mask;
-	MLOG2(("writing display memory %04x = %04x. new value = %04x", offset, data&mem_mask, m_image_memory[offset]));
+	//MLOG2(("writing display memory %04x = %04x. new value = %04x  %s", offset, data&mem_mask, m_image_memory[offset], tb1(m_image_memory[offset])));
 	// m_update_pending = 1;
 }
 
 // 64 words per scan line
-#define WORD_INDEX(y, x) ((y)*64 + x / 16)
+#define WORD_INDEX(y, x) ((y)*64 + (x)/16)
 
-#define LOAD_16BITS_AT(y, cursor)                                                                                                       \
-	do                                                                                                                                  \
-	{                                                                                                                                   \
-		if ((cursor) % 16 == 0)                                                                                                         \
-		{                                                                                                                               \
-			if (log)                                                                                                                    \
-			{                                                                                                                           \
-				MLOG2((" source is aligned!"))                                                                                          \
-			}                                                                                                                           \
-			/* we're aligned.  lucky us.  load the whole word. */                                                                       \
-			source_word = m_image_memory[WORD_INDEX(y, cursor)];                                                                        \
-		}                                                                                                                               \
-		else                                                                                                                            \
-		{                                                                                                                               \
-			if (log)                                                                                                                    \
-			{                                                                                                                           \
-				MLOG2((" source is not aligned!"))                                                                                      \
-			}                                                                                                                           \
-			/* we'll need to load two words here. */                                                                                    \
-			uint16_t first_word = m_image_memory[WORD_INDEX(y, cursor)];                                                                \
-			uint16_t second_word = m_image_memory[WORD_INDEX(y, cursor) + 1];                                                           \
-			uint16_t bits_in_first_word = 16 - (cursor) % 16;                                                                           \
-			source_word = (first_word << (16 - bits_in_first_word)) | (second_word >> bits_in_first_word);                              \
-			if (log)                                                                                                                    \
-			{                                                                                                                           \
-				MLOG2((" first word = %04x, second word = %04x, bits_in_first_word = %d", first_word, second_word, bits_in_first_word)) \
-			}                                                                                                                           \
-		}                                                                                                                               \
-	} while (0)
+#define WORD_INDEX_XY(x, y) ((y)*64 + (x)/16)
+#define BIT_INDEX_X(x) (15 - (x % 16))
+
+static uint16_t low_bits_mask(uint32_t num_bits)
+{
+	return (1 << num_bits) - 1;
+
+}
+
+static uint16_t high_bits_mask(uint32_t num_bits)
+{
+	return ~low_bits_mask(16 - num_bits);
+}
 
 void apollo_dn300_graphics::blt()
 {
 	m_sr |= SR_BLT_IN_PROGRESS;
 
-	int lines = 1 + (int16_t)(~(m_dcy | 0xe000));
-	int words = 1 + (int16_t)(~(m_dcx | 0xffc0));
+	int lines = 1 + (int16_t)(~(m_dcy | 0xe000)); // only low 13 bits are used
+	int words = 1 + (int16_t)(~(m_dcx | 0xffc0)); // only low  6 bits are used
 
-	MLOG2(("should perform blt operation "
-		   "CR=%04x (inc_y=%d, inc_x=%d, fill_mode=%d, enable_display=%d) "
-		   "DEB=%04x "
-		   "source_y=%04x "
-		   "source_x=%04x "
-		   "count_y=%04x (%d lines.  WEDY=%d) "
-		   "count_x=%04x (%d words.) "
-		   "dest_y=%04x "
-		   "dest_x=%04x",
-		   m_cr,
+	// words is the number of words involved in the blt; it is _not_ the number of bits.
+
+	// m_deb is the bit index from the left of the last bit; so
+	// to get the number of bits we don't want, we subtract it from 16
+	int deb_sub_bits = 16 - m_deb; // m_deb ? (16 - m_deb) : 0;
+	int bits_per_line =
+			(16 - (m_wsdx % 16)) // number of bits from the first word
+		  + ((words - 1) * 16)   // number of bits from the remaining words
+		  - deb_sub_bits         // minus end word bit index
+		  + 1;                   // and 1, due to 2s complement shenanigans? I think?
+
+	MLOG2(("BLT CR=%04x DCX=%04x DCY=%04x DEB=%04X (inc_y=%d, inc_x=%d, fill_mode=%d, enable_display=%d)\n"
+		   "    src=% 4d, % 4d   dst=% 4d, % 4d   size=% 4d, % 4d (words: %d)",
+		   m_cr, m_dcx, m_dcy, m_deb,
 		   (m_cr & CR_INC_Y) ? 1 : 0,
 		   (m_cr & CR_INC_X) ? 1 : 0,
 		   (m_cr & CR_FILL_MODE) ? 1 : 0,
 		   (m_cr & CR_ENABLE_DISPLAY) ? 1 : 0,
-		   m_deb,
-		   m_wssy,
-		   m_wssx,
-		   m_dcy,
-		   lines,
-		   m_wsdy + lines,
-		   m_dcx,
-		   words,
-		   m_wsdy,
-		   m_wsdx));
+		   m_wssx, m_wssy,
+		   m_wsdx, m_wsdy,
+		   bits_per_line, lines, words));
 
-	int log = 0;
-	if (
-		m_wssy == 0x3e5 && m_wssx == 0x320 // @
-		// m_wssy == 0x3d8 && m_wssx == 0x3f2 // >
-		//m_cr & CR_FILL_MODE
-	)
+	if (!(m_cr & CR_INC_Y) || !(m_cr & CR_INC_X))
 	{
-		log = 1;
-	}
+		// right to left, or bottom to top
+		MLOG2(("blt operation not supported"));
+		abort();
+	}	
 
-	if (m_cr & CR_INC_Y)
+	bool clear_mode = (m_cr & CR_FILL_MODE) != 0;
+
+	// work top to bottom, left to right
+	for (int line = 0; line < lines; line++)
 	{
-		// copy top to bottom
-		if (m_cr & CR_INC_X)
-		{
-			// copy left to right
-			for (int line = 0; line < lines; line++)
-			{
-				int source_cursor = m_wssx;
-				for (int word = 0; word < words; word++)
-				{
-					// express the fetch from the source as a 16 bit mask. we'll let the source fetch read as many
-					// words as it needs to fulfill a 16 bit fetch (and hope we don't run off the end of display memory...)
-					uint16_t mask = 0xffff;
-					int start_bit = 0;
+		int source_x = m_wssx;
+		int source_y = m_wssy + line;
 
-					uint16_t start_mask = 0xffff;
-					uint16_t end_mask = 0xffff;
+		int dst_x = m_wsdx;
+		int dst_y = m_wsdy + line;
 
-					if (word == 0)
-					{
-						// first word, figure out how many bits we need from the starting-x
+		int num_bits_left = bits_per_line;
+		while (num_bits_left > 0) {
+			// assume we need to read the sx, sy word no matter what
+			uint16_t source_word = clear_mode ? 0 : m_image_memory[WORD_INDEX_XY(source_x, source_y)];
+			// the number of bits we're going to copy in this iteration; cap it to
+			// bits we can read from a word from source.
+			uint16_t num_bits = std::min(num_bits_left, 16 - (source_x % 16));
 
-						// for a start_bit = 0x0e, we want our mask to look like: 00000000 00000111
-						start_bit = m_wsdx % 16;
-						if (start_bit > 0)
-						{
-							start_mask = ((1 << (16 - start_bit + 1)) - 1);
-						}
-					}
-					if (word == words - 1) // I'm assuming you can have both the starting bit and DEB constraining the same word...
-					{
-						if (m_deb == 0) {
-							end_mask = 0;
-						} else {
-							// for a DEB of 0x0e (14) we want our mask to look like: 11111111 11111100
-							end_mask = ~((0x8000 >> m_deb) - 1);
-						}
-					}
-					// every word but the start/end is easy - it's a full word with no mask.
+			// align the high bit of source_word with what we're actually writing,
+			// and mask off just the relevant bits
+			source_word <<= (source_x % 16);
+			source_word &= high_bits_mask(num_bits);
 
-					mask = start_mask & end_mask;
+			// number of high order bits we need to skip before we start writing
+			uint16_t bit_skip = dst_x % 16;
 
-					if (log)
-					{
-						MLOG2(("line %d: word %d: start_word mask = %04x, end_word mask = %04x.  mask for dest = %04x",
-							   line,
-							   word,
-							   start_mask,
-							   end_mask,
-							   mask));
-					}
+			// If all the bits we need to write fit within a single destination word, we can take a simpler path.
+			// Otherwise, split the write into two parts.
 
-					// get our source word
-					uint16_t source_word;
-					if (m_cr & CR_FILL_MODE)
-					{
-						source_word = 0x0000;
-					}
-					else
-					{
-						LOAD_16BITS_AT(m_wssy + line, source_cursor);
-						source_cursor += 16 - start_bit;
-					}
+			if (num_bits <= 16 - bit_skip) {
+				uint16_t value = m_image_memory[WORD_INDEX_XY(dst_x, dst_y)];
 
-					if (log)
-					{
-						MLOG2((" source word = %04x", source_word));
-						MLOG2((" shifted right by start_bit of %d = %04x", start_bit, source_word >> (start_bit == 0 ? 0 : start_bit - 1)));
-						MLOG2((" and after masking: %04x", ((source_word >> (start_bit == 0 ? 0 : start_bit - 1)) & mask)));
-						MLOG2((" existing memory word: %04x", m_image_memory[WORD_INDEX(m_wsdy + line, m_wsdx) + word]));
-					}
-					// at this point the source word contains at the higher order bits the data we need.  we need to make sure we shift it to the right
-					// by start_bit so it lands in the right place in the destination word.
-					m_image_memory[WORD_INDEX(m_wsdy + line, m_wsdx) + word] &= ~mask;															// clear our the area we're going to blit
-					m_image_memory[WORD_INDEX(m_wsdy + line, m_wsdx) + word] |= ((source_word >> (start_bit == 0 ? 0 : start_bit - 1)) & mask); // OR in just the bits we need
-					if (log)
-					{
-						MLOG2((" new memory: %04x", m_image_memory[WORD_INDEX(m_wsdy + line, m_wsdx) + word]));
-					}
-				}
+				// zero out the bits we're going to write
+				value &= high_bits_mask(bit_skip) | low_bits_mask(16 - bit_skip - num_bits);
+
+				// write our bits in the appropriate place
+				value |= source_word >> bit_skip;
+
+				m_image_memory[WORD_INDEX_XY(dst_x, dst_y)] = value;
+
+				MLOG2(("BLT 1 %d bits  % 4d,% 4d -> % 4d,% 4d  %s", num_bits, source_x, source_y, dst_x, dst_y, tb1(value)));
+			} else {
+				// we need to split the write across two words.  I have no idea if it's legal
+				// to blit out of bounds, assume it's not and we should crash.
+				uint16_t first_word_bits  = 16 - bit_skip;
+				uint16_t second_word_bits = num_bits - first_word_bits;
+
+				int dst_word  = WORD_INDEX_XY(dst_x, dst_y);
+
+				// pull out the two dest words
+				uint16_t first_word  = m_image_memory[dst_word    ] & high_bits_mask(bit_skip);
+				uint16_t second_word = m_image_memory[dst_word + 1] & low_bits_mask(16 - second_word_bits);
+
+				// now shove our bits in there
+				first_word  |= source_word >> bit_skip;
+				second_word |= source_word << first_word_bits;
+
+				// and write two values
+				m_image_memory[dst_word    ] = first_word;
+				m_image_memory[dst_word + 1] = second_word;
+
+				MLOG2(("BLT 2 %d bits  % 4d,% 4d -> % 4d,% 4d  %s %s", num_bits, source_x, source_y, dst_x, dst_y, tb1(first_word), tb2(second_word)));
 			}
-		}
-		else
-		{
-			// need to copy right to left
-			abort();
-		}
-	}
-	else
-	{
-		// copy bottom to top
-		if (m_cr & CR_INC_X)
-		{
-			// copy left to right
-			abort();
-		}
-		else
-		{
-			// copy right to left
-			abort();
+
+			source_x += num_bits;
+			dst_x += num_bits;
+			num_bits_left -= num_bits;
 		}
 	}
 
