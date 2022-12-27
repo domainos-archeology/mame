@@ -50,6 +50,11 @@ public:
     void status_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
 	uint8_t status_r(offs_t offset, uint8_t mem_mask = ~0);
 
+    void fpu_owner_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
+    uint8_t fpu_owner_r(offs_t offset, uint8_t mem_mask = ~0);
+
+    void set_dump_translations(bool flag) { m_dump_translations = flag; }
+
 protected:
 	// device-level overrides
 	virtual void device_start() override;
@@ -61,11 +66,13 @@ private:
     std::unique_ptr<uint16_t[]> m_pft;
 	std::unique_ptr<uint16_t[]> m_ptt;
     uint16_t m_pid_priv_power;
-    uint16_t m_status;
+    uint8_t m_status;
+    uint8_t m_fpu_owner;
 
     uint8_t m_enabled;
-	uint8_t m_ptt_access_enabled;
-	uint8_t m_asid;
+    uint8_t m_asid;
+
+    bool m_dump_translations;
 };
 
 // device type definition

@@ -9,9 +9,10 @@ DEFINE_DEVICE_TYPE(APOLLO_DN300_MMU, apollo_dn300_mmu_device, "apollo_dn300_mmu"
 apollo_dn300_mmu_device::apollo_dn300_mmu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock):
     device_t(mconfig, APOLLO_DN300_MMU, tag, owner, clock),
     m_cpu(*this, "cpu"),
+	m_status(0),
     m_enabled(0),
-    m_ptt_access_enabled(0),
-    m_asid(0)
+    m_asid(0),
+	m_dump_translations(false)
 {
 }
 
@@ -36,7 +37,6 @@ void apollo_dn300_mmu_device::device_reset()
 {
     SLOG1(("RESET of the mmu"));
     m_enabled = 0;
-    m_ptt_access_enabled = 0;
     m_asid = 0;
 
     m_pft = std::make_unique<uint16_t[]>(8192);
@@ -48,18 +48,18 @@ void apollo_dn300_mmu_device::device_reset()
 
 typedef struct {
 
-    uint link: 12;    // PFT hash thread
-    uint global: 1;   // 1 = Page is global
-    uint used: 1;     // 1 = Page is referenced
-    uint bbmod: 1;    // 1 = Page is modified
-    uint eoc: 1;      // 1 = this PFTE is the end of the hash thread chain
-    uint xsvpn: 4;    // 1 = Excess virtual page number
-    uint x: 1;        // Execute access
-    uint r: 1;        // Read access
-    uint w: 1;        // Write access
-    uint domain: 1;   // DOMAIN (0 or 1).. whatever that means
-    uint elaccess: 1; // Supervisor domain
     uint elsid: 7;    // Address space ID (0-127)
+    uint elaccess: 1; // Supervisor domain
+    uint domain: 1;   // DOMAIN (0 or 1).. whatever that means
+    uint w: 1;        // Write access
+    uint r: 1;        // Read access
+    uint x: 1;        // Execute access
+    uint xsvpn: 4;    // 1 = Excess virtual page number
+    uint eoc: 1;      // 1 = this PFTE is the end of the hash thread chain
+    uint bbmod: 1;    // 1 = Page is modified
+    uint used: 1;     // 1 = Page is referenced
+    uint global: 1;   // 1 = Page is global
+    uint link: 12;    // PFT hash thread
 
 } pfte_s;
 
@@ -95,13 +95,15 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset) {
     int byte_offset_within_page = byte_offset % PAGE_SIZE;
     int ppn = m_ptt[ptt_index] & 0xfff;
 
-	// MLOG1((
-	//  "apollo_dn300_mmu_device::translate(%x) -> PTT index %d, PTTE %x, PPN %x, translated %x",
-	//  byte_offset,
-	//  ptt_index,
-	//  m_ptt[ptt_index],
-	//  ppn,
-	//  (ppn << 10) | byte_offset_within_page));
+	if (m_dump_translations) {
+		MLOG1((
+		"apollo_dn300_mmu_device::translate(%x) -> PTT index %d, PTTE %x, PPN %x, translated %x",
+		byte_offset,
+		ptt_index,
+		m_ptt[ptt_index],
+		ppn,
+		(ppn << 10) | byte_offset_within_page));
+	}
 
 	// we need to do more here with the PFT entry for this page, but for now, just return the physical address
 	return (ppn << 10) | byte_offset_within_page;
@@ -109,9 +111,10 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset) {
 
 void apollo_dn300_mmu_device::ptt_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
-    if (!m_ptt_access_enabled) {
-        return;
-    }
+	if (!(m_status & 0x02)) {
+		// ptt access disabled
+		return;
+	}
 
 	// values exist only on even 1024 byte multiples, so 512 word multiples
 	offs_t ptt_offset = offset;
@@ -164,14 +167,19 @@ void apollo_dn300_mmu_device::pid_priv_power_w(offs_t offset, uint16_t data, uin
     COMBINE_DATA(&m_pid_priv_power);
 
     m_enabled = m_pid_priv_power & 0x01;
-    m_ptt_access_enabled = m_pid_priv_power & 0x02;
     m_asid = m_pid_priv_power >> 8;
 
-    SLOG1(("mmu enabled?  %s  ptt access?  %s",
+	bool ptt_access_enabled = m_pid_priv_power & 0x02;
+    SLOG1(("mmu enabled? %s.  ptt access? %s.",
             m_enabled ? "yes" : "no",
-            m_ptt_access_enabled ? "yes" : "no"));
+            ptt_access_enabled ? "yes" : "no"));
     SLOG1(("asid %d", m_asid));
 
+	if (ptt_access_enabled) {
+		m_status |= 0x02;
+	} else {
+		m_status &= ~0x02;
+	}
 	m_cpu->set_emmu_enable(m_enabled);
 }
 uint16_t apollo_dn300_mmu_device::pid_priv_power_r(offs_t offset, uint16_t mem_mask)
@@ -182,9 +190,21 @@ uint16_t apollo_dn300_mmu_device::pid_priv_power_r(offs_t offset, uint16_t mem_m
 void apollo_dn300_mmu_device::status_w(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
     SLOG1(("MMU STATUS WRITE at offset %02x = %02x & %08x", offset, data, mem_mask));
+	// EH87 says any write to register clears bits 5-7.
+	m_status &= ~(0xe0);
 }
 
 uint8_t apollo_dn300_mmu_device::status_r(offs_t offset, uint8_t mem_mask)
 {
     return m_status;
+}
+
+void apollo_dn300_mmu_device::fpu_owner_w(offs_t offset, uint8_t data, uint8_t mem_mask)
+{
+    SLOG1(("MMU FPU OWNER WRITE at offset %02x = %02x & %08x", offset, data, mem_mask));
+}
+
+uint8_t apollo_dn300_mmu_device::fpu_owner_r(offs_t offset, uint8_t mem_mask)
+{
+    return m_fpu_owner;
 }
