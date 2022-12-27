@@ -12,7 +12,7 @@
 
 #include "emu.h"
 
-#define VERBOSE 0
+#define VERBOSE 1
 
 #include "apollo_dn300_kbd.h"
 #include "speaker.h"
@@ -45,10 +45,10 @@ namespace {
 
 INPUT_PORTS_START( apollo_dn300_kbd )
 	PORT_START( "keyboard1" )
-	PORT_BIT( 0x00000001, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("~ '") PORT_CODE(KEYCODE_TILDE) /* ESC */
+	PORT_BIT( 0x00000001, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("~ `") PORT_CODE(KEYCODE_TILDE) /* ` ~ */
 	PORT_BIT( 0x00000002, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("ESC") PORT_CODE(KEYCODE_ESC) /* ESC */
 	PORT_BIT( 0x00000004, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("1 !") PORT_CODE(KEYCODE_1) /* 1 ! */
-	PORT_BIT( 0x00000008, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("2 \"") PORT_CODE(KEYCODE_2) /* 2 " */
+	PORT_BIT( 0x00000008, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("2 @") PORT_CODE(KEYCODE_2) /* 2 " */
 	PORT_BIT( 0x00000010, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("3 #") PORT_CODE(KEYCODE_3) /* 3 # */
 	PORT_BIT( 0x00000020, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("4 $") PORT_CODE(KEYCODE_4) /* 4 $ */
 	PORT_BIT( 0x00000040, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("5 %") PORT_CODE(KEYCODE_5) /* 5 % */
@@ -646,7 +646,7 @@ int apollo_dn300_kbd_device::push_scancode(uint8_t code, uint8_t repeat)
 #if MAP_APOLLO_KEYS
 
 	uint8_t const numlock = BIT(modifiers,6);
-	
+
 	// FIXME: numlock was ok for MAME with SDL1.2 but never worked for MAME with SDL2
 	// nasty hack: we toggle the numlock state from the numlock Key Up transition (starting with 0 for numlock off)
 	if (code == 0xe6)
@@ -723,7 +723,7 @@ int apollo_dn300_kbd_device::push_scancode(uint8_t code, uint8_t repeat)
 
 	if (key_code != 0)
 	{
-		LOG1(("scan_code = 0x%02x key_code = 0x%04x",code, key_code));
+		LOG1(("scan_code = 0x%02x key_code = 0x%04x, caps/shift/ctrl = %d/%d/%d",code, key_code, caps ? 1 : 0, shift ? 1 : 0, ctrl ? 1 : 0));
 		if (m_mode > KBD_MODE_1_KEYSTATE)
 		{
 			set_mode(KBD_MODE_1_KEYSTATE);
@@ -809,7 +809,7 @@ apollo_dn300_kbd_device::code_entry const apollo_dn300_kbd_device::s_code_table[
 		/* Key   | Keycap         | Down | Up  |Unshifted|Shifted|Control|Caps Lock|Up Trans|Auto  */
 		/* Number| Legend         | Code | Code|Code     | Code  | Code  |Code     | Code   |Repeat*/
 
-		/* B14     ~ ' / ESC   */ { 0x24, 0xA4, 0x60,     0x7E,   0x1E,   0x60,     NOP,     No  },
+		/* B14     ~ '         */ { 0x24, 0xA4, 0x60,     0x7E,   0x1E,   0x60,     NOP,     No  },
 		/* B1      ESC         */ { 0x17, 0x97, 0x1B,     0x1B,   NOP,    0x1B,     NOP,     No  },
 		/* B2      ! 1         */ { 0x18, 0x98, 0x31,     0x21,   NOP,    0x31,     NOP,     No  },
 		/* B3      @ 2         */ { 0x19, 0x99, 0x32,     0x40,   NOP,    0x32,     NOP,     No  },
@@ -824,7 +824,7 @@ apollo_dn300_kbd_device::code_entry const apollo_dn300_kbd_device::s_code_table[
 		/* B12     _ -         */ { 0x22, 0xA2, 0x2D,     0x5F,   NOP,    0x2D,     NOP,     Yes },
 		/* B13     + =         */ { 0x23, 0xA3, 0x3D,     0x2B,   NOP,    0x3D,     NOP,     Yes },
 		/* D14     \\ |        */ { 0x53, 0xD3, 0xC8,     0xC9,   NOP,    0xC8,     NOP,     No  },
-		/* B15     BACKSPACE   */ { 0x25, 0xA5, 0xDE,     0xDE,   NOP,    0xDE,     NOP,     Yes },
+		/* B15     BACKSPACE   */ { 0x25, 0xA5, 0x5E,0x5E/*0xDE,     0xDE*/,   NOP,    0xDE,     NOP,     Yes },
 
 		/* C1      TAB         */ { 0x2C, 0xAC, 0xCA,     0xDA,   0xFA,   0xCA,     NOP,     No  },
 		/* C2      Q           */ { 0x2D, 0xAD, 0x71,     0x51,   0x11,   0x51,     NOP,     No  },
@@ -832,7 +832,7 @@ apollo_dn300_kbd_device::code_entry const apollo_dn300_kbd_device::s_code_table[
 		/* C4      E           */ { 0x2F, 0xAF, 0x65,     0x45,   0x05,   0x45,     NOP,     No  },
 		/* C5      R           */ { 0x30, 0xB0, 0x72,     0x52,   0x12,   0x52,     NOP,     No  },
 		/* C6      T           */ { 0x31, 0xB1, 0x74,     0x54,   0x14,   0x54,     NOP,     No  },
-		/* C7      V           */ { 0x32, 0xB2, 0x79,     0x59,   0x19,   0x59,     NOP,     No  },
+		/* C7      Y           */ { 0x32, 0xB2, 0x79,     0x59,   0x19,   0x59,     NOP,     No  },
 		/* C8      U           */ { 0x33, 0xB3, 0x75,     0x55,   0x15,   0x55,     NOP,     No  },
 		/* C9      I           */ { 0x34, 0xB4, 0x69,     0x49,   0x09,   0x49,     NOP,     No  },
 		/* C10     O           */ { 0x35, 0xB5, 0x6F,     0x4F,   0x0F,   0x4F,     NOP,     No  },
