@@ -69,6 +69,9 @@ private:
 	bool m_write_enabled;
 	bool m_attention_enabled;
 
+	uint16_t m_floppy_status;
+	uint16_t m_floppy_data;
+
 	uint32_t m_read_cursor;
 	char m_read_buffer[2000];
 

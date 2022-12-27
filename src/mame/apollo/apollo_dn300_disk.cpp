@@ -29,7 +29,9 @@ apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig
 	m_sense_byte_1(0),
 	m_sense_byte_2(0),
 	m_write_enabled(false),
-	m_attention_enabled(true)
+	m_attention_enabled(true),
+	m_floppy_status(0),
+	m_floppy_data(0)
 {
 	char* DISK_IMAGE = getenv("DISK_IMAGE");
 	char* SYSBOOT_OVERRIDE_IMAGE = getenv("SYSBOOT_OVERRIDE_IMAGE");
@@ -60,6 +62,7 @@ void apollo_dn300_disk_device::device_reset()
 {
 }
 
+// winchester registers
 #define REG_ANSI_CMD            0x00
 #define REG_ANSI_PARM           0x02
 #define REG_SECTOR              0x06
@@ -73,6 +76,11 @@ void apollo_dn300_disk_device::device_reset()
 #define REG_DRIVE_NUM_OF_STATUS 0x02
 #define REG_STATUS_HIGH         0x06
 #define REG_STATUS_LOW          0x07
+
+// floppy registers
+#define REG_FLOPPY_STATUS       0x10
+#define REG_FLOPPY_DATA    		0x12
+#define REG_FLOPPY_CONTROL 		0x14
 
 // Controller commands
 #define CMD_NOOP              0x00
@@ -178,6 +186,7 @@ void apollo_dn300_disk_device::device_reset()
 void apollo_dn300_disk_device::write(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
 	switch (offset) {
+		// winchester register writes
 		case REG_ANSI_CMD:
 			SLOG1(("DN300_DISK: ANSI_COMMAND write = %02x", data));
 			m_ansi_cmd = data;
@@ -211,6 +220,16 @@ void apollo_dn300_disk_device::write(offs_t offset, uint8_t data, uint8_t mem_ma
 			m_controller_command = data;
 			execute_command();
 			break;
+
+		// floppy register writes
+		case REG_FLOPPY_DATA:
+			SLOG1(("DN300_DISK: FLOPPY_DATA write = %02x", data));
+			m_floppy_data = data;
+			break;
+		case REG_FLOPPY_CONTROL:
+			SLOG1(("DN300_DISK: FLOPPY_CONTROL write = %02x", data));
+			break;
+
 		default:
 			SLOG1(("DN300_DISK: unknown write to offset %02x = %02x & %08x", offset, data, mem_mask));
 			break;
@@ -220,6 +239,7 @@ void apollo_dn300_disk_device::write(offs_t offset, uint8_t data, uint8_t mem_ma
 uint8_t apollo_dn300_disk_device::read(offs_t offset, uint8_t mem_mask)
 {
 	switch (offset) {
+		// winchester register reads
 		case REG_ATTENTION_STATUS:
 			SLOG1(("DN300_DISK: ATTENTION_STATUS read = %02x", m_general_status));
 			// reading this clears some status bits
@@ -234,9 +254,19 @@ uint8_t apollo_dn300_disk_device::read(offs_t offset, uint8_t mem_mask)
 		case REG_STATUS_LOW:
 			SLOG1(("DN300_DISK: STATUS_LOW read = %02x", m_status_low));
 			return m_status_low;
+
+		// floppy register reads
+		case REG_FLOPPY_STATUS:
+			SLOG1(("DN300_DISK: FLOPPY_STATUS read = %02x", m_floppy_status));
+			return m_floppy_status;
+		case REG_FLOPPY_DATA:
+			SLOG1(("DN300_DISK: FLOPPY_DATA read = %02x", m_floppy_data));
+			return m_floppy_data;
+
 		default:
 			SLOG1(("DN300_DISK: unknown read at offset %02x & %08x", offset, mem_mask));
 			return 0;
+
 	}
 }
 
