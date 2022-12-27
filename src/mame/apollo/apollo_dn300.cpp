@@ -175,6 +175,10 @@ static int instruction_hook(device_t &device, offs_t curpc)
 		// dump_curpc = true;
 	} else if (curpc == 0x1b5c) {
 		machine.logerror("HOOK: first instruction after starting dma op!\n");
+	} else if (curpc == 0x27c2) {
+		machine.logerror("HOOK: diagnostic 7\n");
+		// state->m_mmu->set_dump_translations(true);
+		// dump_curpc = true;
 	}
 
 	return 0;
@@ -464,7 +468,8 @@ void apollo_dn300_state::dn300_physical_map(address_map &map)
 
 	map(0x008000, 0x0083ff).rw(m_mmu, FUNC(apollo_dn300_mmu_device::unk_r), FUNC(apollo_dn300_mmu_device::unk_w));
 	map(0x008000, 0x008001).rw(m_mmu, FUNC(apollo_dn300_mmu_device::pid_priv_power_r), FUNC(apollo_dn300_mmu_device::pid_priv_power_w));
-	map(0x008002, 0x008002).rw(m_mmu, FUNC(apollo_dn300_mmu_device::status_r), FUNC(apollo_dn300_mmu_device::status_w));
+	map(0x008002, 0x008002).rw(m_mmu, FUNC(apollo_dn300_mmu_device::fpu_owner_r), FUNC(apollo_dn300_mmu_device::fpu_owner_w));
+	map(0x008003, 0x008003).rw(m_mmu, FUNC(apollo_dn300_mmu_device::status_r), FUNC(apollo_dn300_mmu_device::status_w));
 	map(0x004000, 0x007fff).rw(m_mmu, FUNC(apollo_dn300_mmu_device::pft_r), FUNC(apollo_dn300_mmu_device::pft_w));
 	map(0x700000, 0x7fffff).rw(m_mmu, FUNC(apollo_dn300_mmu_device::ptt_r), FUNC(apollo_dn300_mmu_device::ptt_w));
 
