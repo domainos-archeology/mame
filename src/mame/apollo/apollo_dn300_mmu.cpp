@@ -144,9 +144,9 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset) {
         cur_ppn = pfte_link;
     }
 
-    SLOG1(("about to abort.  we should bus error instead"));
-    SLOG1(("byte_offset = %08x, ptt_index = %d, xsvpn = %d", byte_offset, ptt_index, xsvpn));
-    abort();
+	m_cpu->set_input_line(M68K_LINE_BUSERROR, ASSERT_LINE);
+	m_cpu->set_input_line(M68K_LINE_BUSERROR, CLEAR_LINE);
+	return 0;
 }
 
 void apollo_dn300_mmu_device::ptt_w(offs_t offset, uint16_t data, uint16_t mem_mask)
