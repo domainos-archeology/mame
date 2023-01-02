@@ -190,7 +190,7 @@ static int instruction_hook(device_t &device, offs_t curpc)
 
 void apollo_dn300_state::apollo_bus_error(offs_t fault_addr, u8 rw)
 {
-#if 0
+#if 1
 	// this is how we'll do restartable instructions in the future
 	m_maincpu->set_buserror_details(fault_addr, rw, m_maincpu->get_fc(), true);
 #else
@@ -362,7 +362,7 @@ uint16_t apollo_dn300_state::apollo_unmapped_r(offs_t offset, uint16_t mem_mask)
 {
 	offs_t address = offset * 4;
 
-	m68000_base_device *m68k = m_maincpu;
+	// m68000_base_device *m68k = m_maincpu;
 
 	if ((address & 0xfff00000) == 0xfa800000 && VERBOSE < 2) {
 		// ?
@@ -379,7 +379,7 @@ uint16_t apollo_dn300_state::apollo_unmapped_r(offs_t offset, uint16_t mem_mask)
 	} else if (address == 0x0000ac00 && VERBOSE < 2) {
 		// omit logging for Bus error test address in DN3000 boot prom
 	} else {
-		SLOG1(("unmapped memory dword read from %08x with mask %08x (ir=%04x) (mmu enabled? %s)", address , mem_mask, m68k->state_int(M68K_IR), m_mmu->is_enabled() ? "yes" : "no"));
+		// SLOG1(("unmapped memory dword read from %08x with mask %08x (ir=%04x) (mmu enabled? %s)", address , mem_mask, m68k->state_int(M68K_IR), m_mmu->is_enabled() ? "yes" : "no"));
 	}
 
 	/* unmapped; access causes a bus error */
@@ -389,7 +389,7 @@ uint16_t apollo_dn300_state::apollo_unmapped_r(offs_t offset, uint16_t mem_mask)
 
 void apollo_dn300_state::apollo_unmapped_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
-	SLOG(("unmapped memory dword write to %08x = %04x & %04x", offset * 4, data, mem_mask));
+	// SLOG(("unmapped memory dword write to %08x = %04x & %04x", offset * 4, data, mem_mask));
 
 	/* unmapped; access causes a bus error */
 	apollo_bus_error(offset * 4, 0);
