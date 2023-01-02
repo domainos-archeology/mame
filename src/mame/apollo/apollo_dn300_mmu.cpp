@@ -112,9 +112,10 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset) {
         uint32_t pfte = m_pft[cur_ppn * 2] << 16 | m_pft[cur_ppn * 2 + 1];
 
         int pfte_link =   (pfte >> 0)  & 0xfff;
-        // int pfte_global = (pfte >> 12) & 0x1;
+        int pfte_global = (pfte >> 12) & 0x1;
         int pfte_eoc =    (pfte >> 15) & 0x1;
         int pfte_xsvpn =  (pfte >> 16) & 0xf;
+        int pfte_elsid =    (pfte >> 25) & 0x7f;
 
         if (pfte_eoc) {
             if (seen_eoc) {
@@ -126,13 +127,18 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset) {
         }
 
         if (m_dump_translations) {
-            MLOG1(("    pft_entry for ppn %d, xsvpn %d\n",  cur_ppn, pfte_xsvpn));
+            MLOG1(("    pft_entry for ppn %d, xsvpn %d",  cur_ppn, pfte_xsvpn));
         }
 
-        if (pfte_xsvpn == xsvpn) {
+        if (
+			// ppn and xsvpn match
+			pfte_xsvpn == xsvpn	&& (
+				// the page is either global or the asid matches
+				pfte_global || pfte_elsid == m_asid
+			)) {
             // we found a match.
             if (m_dump_translations) {
-                MLOG1(("    found a match\n"));
+                MLOG1(("    found a match"));
             }
             // update the PTT to point to this PFT entry first so we'll hit it faster next time
             m_ptt[ptt_index] = cur_ppn;
@@ -144,8 +150,55 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset) {
         cur_ppn = pfte_link;
     }
 
-	m_cpu->set_input_line(M68K_LINE_BUSERROR, ASSERT_LINE);
-	m_cpu->set_input_line(M68K_LINE_BUSERROR, CLEAR_LINE);
+	MLOG1(("failed to find mapping for address %08x, asid %d, ppn %d, xsvpn %d", byte_offset, m_asid, ppn, xsvpn));
+	MLOG1(("pft chain:"));
+	cur_ppn = ppn;
+    seen_eoc = false;
+    while (true) {
+        uint32_t pfte = m_pft[cur_ppn * 2] << 16 | m_pft[cur_ppn * 2 + 1];
+
+        int pfte_link =     (pfte >> 0)  & 0xfff;
+        int pfte_global =   (pfte >> 12) & 0x1;
+		// int pfte_used =     (pfte >> 13) & 0x1;
+		// int pfte_bbmod =    (pfte >> 14) & 0x1;
+        int pfte_eoc =      (pfte >> 15) & 0x1;
+        int pfte_xsvpn =    (pfte >> 16) & 0xf;
+        int pfte_x =        (pfte >> 20) & 0x1;
+        int pfte_r =        (pfte >> 21) & 0x1;
+        int pfte_w =        (pfte >> 22) & 0x1;
+        int pfte_DOMAIN =   (pfte >> 23) & 0x1;
+        int pfte_elaccess = (pfte >> 24) & 0x1;
+        int pfte_elsid =    (pfte >> 25) & 0x7f;
+
+
+		if (pfte_eoc) {
+            if (seen_eoc) {
+                // if we're at the eoc twice, we've looped and didn't find a matching xsvpn.
+                // this should be a bus error.
+                break;
+            }
+            seen_eoc = true;
+        }
+
+        MLOG1(("    pft_entry for ppn %d: elsid %d, elaccess %d, DOMAIN %d, wrx = %d%d%d, xsvpn %d, eoc %d, global %d",
+		  cur_ppn,
+		  pfte_elsid,
+		  pfte_elaccess,
+		  pfte_DOMAIN,
+		  pfte_w, pfte_r, pfte_x,
+		  pfte_xsvpn,
+		  pfte_eoc,
+		  pfte_global));
+
+        cur_ppn = pfte_link;
+	}
+
+// #if 1
+// 	m_cpu->set_buserror_details(byte_offset, 1/*wrong.. we don't know if it's r or w*/, m_cpu->get_fc(), true);
+// #else
+// 	m_cpu->set_input_line(M68K_LINE_BUSERROR, ASSERT_LINE);
+// 	m_cpu->set_input_line(M68K_LINE_BUSERROR, CLEAR_LINE);
+// #endif
 	return 0;
 }
 
@@ -208,12 +261,14 @@ void apollo_dn300_mmu_device::pid_priv_power_w(offs_t offset, uint16_t data, uin
 
     m_enabled = m_pid_priv_power & 0x01;
     m_asid = m_pid_priv_power >> 8;
+	m_domain = (m_pid_priv_power >> 2) & 0x01;
 
     bool ptt_access_enabled = m_pid_priv_power & 0x02;
-    SLOG1(("mmu enabled? %s.  ptt access? %s.",
+    SLOG1(("mmu enabled? %s.  asid %d.  domain %d.  ptt access? %s.",
             m_enabled ? "yes" : "no",
+			m_asid,
+			m_domain,
             ptt_access_enabled ? "yes" : "no"));
-    SLOG1(("asid %d", m_asid));
 
     if (ptt_access_enabled) {
         m_status |= 0x02;
@@ -236,6 +291,7 @@ void apollo_dn300_mmu_device::status_w(offs_t offset, uint8_t data, uint8_t mem_
 
 uint8_t apollo_dn300_mmu_device::status_r(offs_t offset, uint8_t mem_mask)
 {
+    SLOG1(("MMU STATUS READ = %02x", m_status));
     return m_status;
 }
 
@@ -246,6 +302,7 @@ void apollo_dn300_mmu_device::fpu_owner_w(offs_t offset, uint8_t data, uint8_t m
 
 uint8_t apollo_dn300_mmu_device::fpu_owner_r(offs_t offset, uint8_t mem_mask)
 {
+    SLOG1(("MMU FPU OWNER = %02x", m_fpu_owner));
     return m_fpu_owner;
 }
 

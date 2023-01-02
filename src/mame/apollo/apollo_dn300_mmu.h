@@ -72,6 +72,7 @@ private:
 
     uint8_t m_enabled;
     uint8_t m_asid;
+	uint8_t m_domain;
 
     bool m_dump_translations;
 };
