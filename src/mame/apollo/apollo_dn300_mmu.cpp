@@ -92,8 +92,10 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset) {
     // through [ n/a | 800000 ]
     // One PPTE every 1024 bytes in table.
     int vpn = byte_offset >> 10;
-    int ptt_index = vpn % NUM_PTTE;
-    int xsvpn = vpn / NUM_PTTE;
+
+	// split up the vpn again on the 10 bit boundary into a ptt index and an "excess vpn" (xsvpn)
+    int ptt_index = vpn & 0x3ff;
+    int xsvpn = vpn >> 10;
 
     int byte_offset_within_page = byte_offset % PAGE_SIZE;
     int ppn = m_ptt[ptt_index] & 0xfff;
