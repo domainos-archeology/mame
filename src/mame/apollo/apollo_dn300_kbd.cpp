@@ -700,6 +700,17 @@ int apollo_dn300_kbd_device::push_scancode(uint8_t code, uint8_t repeat)
 		{
 			key_code = entry.unshifted;
 		}
+
+#if 0
+		if (code == 0) {
+			static uint16_t keycode_for_0 = 0x20;
+			key_code = keycode_for_0++;
+			if (key_code == 0x80) {
+				key_code = 0x20;
+			}
+			LOG1(("tilde hack - emitted key_code = 0x%02x", key_code));
+		}
+#endif
 	}
 	else
 	{
