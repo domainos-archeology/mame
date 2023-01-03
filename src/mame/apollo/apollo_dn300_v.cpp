@@ -323,22 +323,11 @@ void apollo_dn300_graphics::blt()
 		}
 	}
 
-	// I'm making a guess that this interrupt is supposed to
-	// hapen while SR_BLT_IN_PROGRESS is still set so that the
-	// interrupt handler can detect that a blit is in progress.
-	// But this will all happen so fast that there's no way that it'll
-	// be visible to the interrupt handler?
-	if ((m_cr & CR_IRQ_AFTER_BLT) != 0) {
-		// TODO -- hook this up properly so that the "state" driver
-		// owns asserting the right interrupt instead of reaching in to the
-		// cpu directly here
-		auto owner = (apollo_dn300_state*) this->owner();
-		auto cpu = owner->m_maincpu;
-		//m_sr &= ~SR_END_OF_FRAME_IRQ;
-		cpu->set_irq_line(DISPLAY_IRQ, ASSERT_LINE);
-	}
-
 	m_sr &= ~SR_BLT_IN_PROGRESS;
+
+	if ((m_cr & CR_IRQ_AFTER_BLT) != 0) {
+		m_irq_cb(ASSERT_LINE);
+	}
 
 	m_update_flag = 1;
 	m_update_pending = 0;
@@ -409,20 +398,15 @@ void apollo_dn300_graphics::screen_update1(bitmap_rgb32 &bitmap, const rectangle
 
 void apollo_dn300_graphics::vblank_state_changed(screen_device &screen, bool vblank_state)
 {
-	auto owner = (apollo_dn300_state*) this->owner();
-	auto cpu = owner->m_maincpu;
 	// err.. I assume vblank_state == true means we're in vblank? but apollo_v
 	// seems to imply the opposite?
-	// TODO -- hook this up properly so that the "state" driver
-	// owns asserting the right interrupt instead of reaching in to the
-	// cpu directly here
 	if (vblank_state) {
 	    // I'm not sure if this bit should be set even if interrupts
 		// aren't requested, but I don't think it would hurt?
 		if ((m_cr & CR_IRQ_AFTER_FRAME) != 0)
 		{
 			m_sr |= SR_END_OF_FRAME_IRQ;
-			cpu->set_irq_line(DISPLAY_IRQ, ASSERT_LINE);
+			m_irq_cb(ASSERT_LINE);
 		}
 	} else {
 		// the tests sometimes fail because this bit gets unset so fast
@@ -430,8 +414,6 @@ void apollo_dn300_graphics::vblank_state_changed(screen_device &screen, bool vbl
 		// so it can't actually read that this bit is set when it gets
 		// the interrupt.  
 		m_sr &= ~SR_END_OF_FRAME_IRQ;
-		// do I need to clear this?
-		//cpu->set_irq_line(DISPLAY_IRQ, CLEAR_LINE);
 	}
 }
 
@@ -456,12 +438,15 @@ void apollo_dn300_graphics::device_add_mconfig(machine_config &config)
 	m_screen->set_screen_update(FUNC(apollo_dn300_graphics::screen_update));
 }
 
-apollo_dn300_graphics::apollo_dn300_graphics(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) : apollo_dn300_graphics(mconfig, APOLLO_DN300_GRAPHICS, tag, owner, clock)
+apollo_dn300_graphics::apollo_dn300_graphics(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: apollo_dn300_graphics(mconfig, APOLLO_DN300_GRAPHICS, tag, owner, clock)
 {
 }
 
-apollo_dn300_graphics::apollo_dn300_graphics(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock) : device_t(mconfig, type, tag, owner, clock),
-																																				  m_screen(*this, VIDEO_SCREEN_TAG)
+apollo_dn300_graphics::apollo_dn300_graphics(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, type, tag, owner, clock)
+	, m_screen(*this, VIDEO_SCREEN_TAG)
+	, m_irq_cb(*this)
 {
 }
 
@@ -476,6 +461,8 @@ apollo_dn300_graphics::~apollo_dn300_graphics()
 void apollo_dn300_graphics::device_start()
 {
 	MLOG1(("apollo_dn300_graphics::device_start"))
+
+	m_irq_cb.resolve_safe();
 
 	m_cr = 0;
 	m_sr = 0;
