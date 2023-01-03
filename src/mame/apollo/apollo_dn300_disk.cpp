@@ -36,8 +36,6 @@ apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig
     m_sense_byte_2(0),
     m_write_enabled(false),
     m_attention_enabled(true),
-    m_floppy_status(0),
-    m_floppy_data(0),
 	m_disk_fp(NULL),
 	m_sysboot_fp(NULL)
 {
