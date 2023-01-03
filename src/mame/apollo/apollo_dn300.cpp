@@ -412,16 +412,6 @@ uint8_t apollo_dn300_state::apollo_display_r(offs_t offset, uint8_t mem_mask)
 	return 0;
 }
 
-void apollo_dn300_state::apollo_ring_w(offs_t offset, uint8_t data, uint8_t mem_mask)
-{
-	SLOG1(("writing ring at offset %02x = %02x & %08x", offset, data, mem_mask));
-}
-uint8_t apollo_dn300_state::apollo_ring_r(offs_t offset, uint8_t mem_mask)
-{
-	SLOG1(("reading ring at offset %02x & %08x", offset, mem_mask));
-	return 0;
-}
-
 void apollo_dn300_state::apollo_fpu_ctl_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
 	SLOG1(("writing FPU CTL at offset %02x = %02x & %08x", offset, data, mem_mask));
@@ -484,7 +474,7 @@ void apollo_dn300_state::dn300_physical_map(address_map &map)
 
 	map(0x009400, 0x00940f).rw(m_graphics, FUNC(apollo_dn300_graphics::reg_r), FUNC(apollo_dn300_graphics::reg_w));
 
-	map(0x009800, 0x009bff).rw(FUNC(apollo_dn300_state::apollo_ring_r), FUNC(apollo_dn300_state::apollo_ring_w)); // docs call this "ring 2"
+	map(0x009800, 0x009bff).rw(m_ring, FUNC(apollo_dn300_ring_device::read), FUNC(apollo_dn300_ring_device::write)); // docs call this "ring 2"
 	map(0x009c00, 0x009fff).rw(m_disk, FUNC(apollo_dn300_disk_device::read), FUNC(apollo_dn300_disk_device::write));
 
 	map(0x00b000, 0x00b3ff).rw(FUNC(apollo_dn300_state::apollo_fpu_ctl_r), FUNC(apollo_dn300_state::apollo_fpu_ctl_w)); // docs call this "fpu ctl"
@@ -612,6 +602,9 @@ void apollo_dn300_state::dn300(machine_config &config)
 	m_disk->set_cpu(m_maincpu);
 	m_disk->drq_wr_callback().set(m_dmac, FUNC(hd63450_device::drq3_w));
 
+	APOLLO_DN300_RING(config, m_ring, 0);
+	m_ring->set_cpu(m_maincpu);
+
 	/* internal ram */
 	RAM(config, m_ram).set_default_size("1536K").set_extra_options("512K,1M,1536K");
 }
@@ -636,6 +629,9 @@ void apollo_dn300_state::dn320(machine_config &config)
 
 	APOLLO_DN300_DISK(config, m_disk, 0);
 	m_disk->set_cpu(m_maincpu);
+
+	APOLLO_DN300_RING(config, m_ring, 0);
+	m_ring->set_cpu(m_maincpu);
 
 	/* internal ram */
 	RAM(config, m_ram).set_default_size("1536K").set_extra_options("512K,1M,1536K");

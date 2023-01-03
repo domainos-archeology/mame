@@ -732,8 +732,6 @@ void apollo_dn300_state::apollo_dn300(machine_config &config)
 	common(config);
 	SCN2681(config, m_sio, 3.6864_MHz_XTAL);
 	m_sio->irq_cb().set_inputline("maincpu", APOLLO_DN300_IRQ_SIO1);
-	// m_sio->outport_cb().set(FUNC(apollo_dn300_state::sio_output));
-
 
 	APOLLO_DN300_KBD(config, m_keyboard, 0);
 	m_keyboard->tx_cb().set(m_acia, FUNC(acia6850_device::write_rxd));
@@ -786,5 +784,4 @@ MACHINE_RESET_MEMBER(apollo_dn300_state,apollo_dn300)
 	}
 #endif
 	ptm_counter = 0;
-	sio_output_data = 0xff;
 }
