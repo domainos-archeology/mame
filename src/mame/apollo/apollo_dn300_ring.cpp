@@ -34,6 +34,49 @@ apollo_dn300_ring_device::write(offs_t offset, uint8_t data, uint8_t mem_mask)
 uint8_t
 apollo_dn300_ring_device::read(offs_t offset, uint8_t mem_mask)
 {
-    SLOG1(("reading ring at offset %02x & %08x", offset, mem_mask));
+	uint8_t data = 0;
+    SLOG1(("reading ring at offset %02x & %08x = %02x", offset, mem_mask, data));
     return 0;
+}
+
+uint8_t
+apollo_dn300_ring_device::rcv_header_read_byte(offs_t offset)
+{
+	uint8_t data = 0;
+    SLOG1(("ring rcv_header_read_byte offset %02x = %02x", offset, data));
+	return data;
+}
+
+void
+apollo_dn300_ring_device::rcv_header_write_byte(offs_t offset, uint8_t data)
+{
+    SLOG1(("ring rcv_header_write_byte at offset %02x = %02x", offset, data));
+}
+
+uint8_t
+apollo_dn300_ring_device::rcv_data_read_byte(offs_t offset)
+{
+	uint8_t data = 0;
+    SLOG1(("ring rcv_data_read_byte offset %02x = %02x & %08x", offset, data));
+	return data;
+}
+
+void
+apollo_dn300_ring_device::rcv_data_write_byte(offs_t offset, uint8_t data)
+{
+    SLOG1(("ring rcv_data_write_byte at offset %02x = %02x", offset, data));
+}
+
+uint8_t
+apollo_dn300_ring_device::transmit_read_byte(offs_t offset)
+{
+	uint8_t data = 0;
+    SLOG1(("ring transmit_read_byte offset %02x = %02x & %08x", offset, data));
+	return data;
+}
+
+void
+apollo_dn300_ring_device::transmit_write_byte(offs_t offset, uint8_t data)
+{
+    SLOG1(("ring transmit_write_byte at offset %02x = %02x", offset, data));
 }

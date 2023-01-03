@@ -514,15 +514,14 @@ void apollo_dn300_state::common(machine_config &config)
 	m_dmac->set_burst_clocks(attotime::from_usec(2), attotime::from_nsec(450), attotime::from_nsec(450), attotime::from_nsec(50));
 	m_dmac->irq_callback().set(FUNC(apollo_dn300_state::dma_irq));
 	m_dmac->dma_end().set(FUNC(apollo_dn300_state::dma_end));
-	// m_dmac->dma_read<APOLLO_DN300_DMA_RING_RCVHEADER>().set(FUNC(apollo_dn300_ring::rcv_header_read_byte));
-	// m_dmac->dma_write<APOLLO_DN300_DMA_RING_RCVHEADER>().set(FUNC(apollo_dn300_ring::rcv_header_write_byte));
-	// m_dmac->dma_read<APOLLO_DN300_DMA_RING_RCVDATA>().set(FUNC(apollo_dn300_ring::rcv_data_read_byte));
-	// m_dmac->dma_write<APOLLO_DN300_DMA_RING_RCVDATA>().set(FUNC(apollo_dn300_ring::rcv_data_write_byte));
-	// m_dmac->dma_read<APOLLO_DN300_DMA_RING_XMIT>().set(FUNC(apollo_dn300_ring::transmit_read_byte));
-	// m_dmac->dma_write<APOLLO_DN300_DMA_RING_XMIT>().set(FUNC(apollo_dn300_ring::transmit_write_byte));
+	m_dmac->dma_read<APOLLO_DN300_DMA_RING_RCVHEADER>().set(m_ring, FUNC(apollo_dn300_ring_device::rcv_header_read_byte));
+	m_dmac->dma_write<APOLLO_DN300_DMA_RING_RCVHEADER>().set(m_ring, FUNC(apollo_dn300_ring_device::rcv_header_write_byte));
+	m_dmac->dma_read<APOLLO_DN300_DMA_RING_RCVDATA>().set(m_ring, FUNC(apollo_dn300_ring_device::rcv_data_read_byte));
+	m_dmac->dma_write<APOLLO_DN300_DMA_RING_RCVDATA>().set(m_ring, FUNC(apollo_dn300_ring_device::rcv_data_write_byte));
+	m_dmac->dma_read<APOLLO_DN300_DMA_RING_XMIT>().set(m_ring, FUNC(apollo_dn300_ring_device::transmit_read_byte));
+	m_dmac->dma_write<APOLLO_DN300_DMA_RING_XMIT>().set(m_ring, FUNC(apollo_dn300_ring_device::transmit_write_byte));
 	m_dmac->dma_read<APOLLO_DN300_DMA_DISK>().set(m_disk, FUNC(apollo_dn300_disk_device::read_byte));
 	m_dmac->dma_write<APOLLO_DN300_DMA_DISK>().set(m_disk, FUNC(apollo_dn300_disk_device::write_byte));
-
 
 	APOLLO_DN300_NI(config, m_node_id, 0);
 }

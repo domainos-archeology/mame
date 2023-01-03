@@ -32,8 +32,16 @@ public:
 	void write(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
     uint8_t read(offs_t offset, uint8_t mem_mask = ~0);
 
-	uint8_t read_byte(offs_t offset);
-	void write_byte(offs_t offset, uint8_t data);
+	// our dmac interface
+	uint8_t rcv_header_read_byte(offs_t offset);
+	void rcv_header_write_byte(offs_t offset, uint8_t data);
+
+	uint8_t rcv_data_read_byte(offs_t offset);
+	void rcv_data_write_byte(offs_t offset, uint8_t data);
+
+	uint8_t transmit_read_byte(offs_t offset);
+	void transmit_write_byte(offs_t offset, uint8_t data);
+
 protected:
 	// device-level overrides
 	virtual void device_start() override;
