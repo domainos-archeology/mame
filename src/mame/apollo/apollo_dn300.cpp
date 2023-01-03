@@ -202,6 +202,7 @@ void apollo_dn300_state::apollo_bus_error(offs_t fault_addr, u8 rw)
 
 void apollo_dn300_state::cpu_space_map(address_map &map)
 {
+	map(0xfffff0, 0xffffff).m(m_maincpu, FUNC(m68000_base_device::autovectors_map));
 	map(0x100400, 0x1004ff).r(FUNC(apollo_dn300_state::apollo_irq_acknowledge));
 }
 
