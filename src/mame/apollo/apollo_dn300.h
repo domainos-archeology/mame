@@ -25,6 +25,7 @@
 #include "machine/hd63450.h"
 #include "machine/bankdev.h"
 #include "machine/clock.h"
+#include "machine/upd765.h"
 #include "machine/mc146818.h"
 #include "machine/mc68681.h"
 #include "machine/6850acia.h"
@@ -97,6 +98,7 @@ void apollo_dn300_set_cache_status_register(device_t *device,uint8_t mask, uint8
 #define APOLLO_DN300_SCREEN_TAG "apollo_dn300_screen"
 #define APOLLO_DN300_KBD_TAG  "keyboard"
 #define APOLLO_DN300_MMU_TAG "apollo_dn300_mmu"
+#define APOLLO_DN300_FLOPPY_TAG "apollo_dn300_floppy"
 #define APOLLO_DN300_DISK_TAG "apollo_dn300_disk"
 #define APOLLO_DN300_RING_TAG "apollo_dn300_ring"
 
@@ -139,6 +141,7 @@ public:
 		m_graphics(*this, APOLLO_DN300_SCREEN_TAG),
 		m_keyboard(*this, APOLLO_DN300_KBD_TAG),
 		m_mmu(*this, APOLLO_DN300_MMU_TAG),
+		m_fdc(*this, APOLLO_DN300_FLOPPY_TAG),
 		m_disk(*this, APOLLO_DN300_DISK_TAG),
 		m_ring(*this, APOLLO_DN300_RING_TAG),
 		m_internal_leds(*this, "internal_led_%u", 1U)
@@ -170,6 +173,7 @@ public:
 	required_device<apollo_dn300_graphics> m_graphics;
 	optional_device<apollo_dn300_kbd_device> m_keyboard;
 	required_device<apollo_dn300_mmu_device> m_mmu;
+	required_device<upd765a_device> m_fdc;
 	required_device<apollo_dn300_disk_device> m_disk;
 	required_device<apollo_dn300_ring_device> m_ring;
 	output_finder<4> m_internal_leds;
