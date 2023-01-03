@@ -394,108 +394,6 @@ void apollo_dn300_state::select_dma_channel(int channel, bool state)
 #endif
 }
 
-#ifdef notyet
-
-//##########################################################################
-// machine/apollo_dn300_pic.c - APOLLO_DN300 DS3500 PIC 8259 controllers
-//##########################################################################
-
-#undef VERBOSE
-#define VERBOSE 0
-
-void apollo_dn300_state::apollo_pic_set_irq_line(int irq, int state)
-{
-	switch (irq) {
-	case 0: m_pic8259_master->ir0_w(state); break;
-	case 1: m_pic8259_master->ir1_w(state); break;
-	case 2: m_pic8259_master->ir2_w(state); break;
-	case 3: m_pic8259_master->ir3_w(state); break;
-	case 4: m_pic8259_master->ir4_w(state); break;
-	case 5: m_pic8259_master->ir5_w(state); break;
-	case 6: m_pic8259_master->ir6_w(state); break;
-	case 7: m_pic8259_master->ir7_w(state); break;
-
-	case 8:  m_pic8259_slave->ir0_w(state); break;
-	case 9:  m_pic8259_slave->ir1_w(state); break;
-	case 10: m_pic8259_slave->ir2_w(state); break;
-	case 11: m_pic8259_slave->ir3_w(state); break;
-	case 12: m_pic8259_slave->ir4_w(state); break;
-	case 13: m_pic8259_slave->ir5_w(state); break;
-	case 14: m_pic8259_slave->ir6_w(state); break;
-	case 15: m_pic8259_slave->ir7_w(state); break;
-	}
-}
-
-u16 apollo_dn300_state::apollo_pic_get_vector()
-{
-	uint32_t vector = m_pic8259_master->acknowledge();
-	if ((vector & 0x0f) == APOLLO_DN300_IRQ_PIC_SLAVE) {
-		vector = m_pic8259_slave->acknowledge();
-	}
-
-	if (!machine().side_effects_disabled()) {
-		// don't log ptm interrupts
-		if (vector != APOLLO_DN300_IRQ_VECTOR+APOLLO_DN300_IRQ_PTM) {
-			MLOG1(("apollo_dn300_pic_acknowledge: irq=%d vector=%x", vector & 0x0f, vector));
-		}
-
-#ifdef notyet
-		if (apollo_dn300_is_dn3000()) {
-			apollo_dn300_csr_set_status_register(APOLLO_DN300_CSR_SR_INTERRUPT_PENDING, 0);
-		} else {
-			// clear bit Interrupt Pending in Cache Status Register
-			apollo_dn300_set_cache_status_register(this,0x10, 0x00);
-		}
-#endif
-	}
-	return vector;
-}
-
-/*************************************************************
- * pic8259 configuration
- *************************************************************/
-
-uint8_t apollo_dn300_state::apollo_pic8259_get_slave_ack(offs_t offset)
-{
-		MLOG1(("apollo_dn300_pic8259_get_slave_ack: offset=%x", offset));
-
-		return offset == 3 ? m_pic8259_slave->acknowledge() : 0;
-}
-
-WRITE_LINE_MEMBER( apollo_dn300_state::apollo_pic8259_master_set_int_line ) {
-	static int interrupt_line = -1;
-	if (state != interrupt_line) {
-		device_t *device = m_pic8259_master;
-		DLOG1(("apollo_dn300_pic8259_master_set_int_line: %x", state));
-	}
-	interrupt_line = state;
-
-#ifdef notyet
-	if (apollo_dn300_is_dn3000()) {
-		apollo_dn300_csr_set_status_register(APOLLO_DN300_CSR_SR_INTERRUPT_PENDING,
-				state ? APOLLO_DN300_CSR_SR_INTERRUPT_PENDING : 0);
-	} else {
-		// set bit Interrupt Pending in Cache Status Register
-		apollo_dn300_set_cache_status_register(this,0x10, state ? 0x10 : 0x00);
-	}
-#endif
-
-	m_maincpu->set_input_line(M68K_IRQ_6,state ? ASSERT_LINE : CLEAR_LINE);
-}
-
-WRITE_LINE_MEMBER( apollo_dn300_state::apollo_pic8259_slave_set_int_line ) {
-	static int interrupt_line = -1;
-	if (state != interrupt_line) {
-		device_t *device = m_pic8259_slave;
-		DLOG1(("apollo_dn300_pic8259_slave_set_int_line: %x", state));
-		interrupt_line = state;
-#ifdef notyet
-		apollo_dn300_pic_set_irq_line(3, state);
-#endif
-	}
-}
-#endif
-
 //##########################################################################
 // machine/apollo_dn300_ptm.c - APOLLO_DN300 DS3500 Programmable Timer 6840
 //##########################################################################
@@ -569,128 +467,6 @@ WRITE_LINE_MEMBER(apollo_dn300_state::apollo_rtc_irq_function)
 	apollo_dn300_pic_set_irq_line(APOLLO_DN300_IRQ_RTC, state);
 }
 #endif
-
-//##########################################################################
-// machine/apollo_dn300_sio.c - DN3000/DS3500 SIO at 0x8400/0x10400
-//##########################################################################
-
-#undef VERBOSE
-#define VERBOSE 2
-
-apollo_dn300_sio::apollo_dn300_sio(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
-	duart_base_device(mconfig, APOLLO_DN300_SIO, tag, owner, clock),
-	m_csrb(0)
-{
-}
-
-void apollo_dn300_sio::device_reset()
-{
-	uint8_t input_data = apollo_dn300_get_ram_config_byte();
-	ip0_w((input_data & 0x01) ? ASSERT_LINE : CLEAR_LINE);
-	ip1_w((input_data & 0x02) ? ASSERT_LINE : CLEAR_LINE);
-	ip2_w((input_data & 0x04) ? ASSERT_LINE : CLEAR_LINE);
-	ip3_w((input_data & 0x08) ? ASSERT_LINE : CLEAR_LINE);
-	ip4_w((input_data & 0x10) ? ASSERT_LINE : CLEAR_LINE);
-	ip5_w((input_data & 0x20) ? ASSERT_LINE : CLEAR_LINE);
-	ip6_w((input_data & 0x40) ? ASSERT_LINE : CLEAR_LINE);
-}
-
-uint8_t apollo_dn300_sio::read(offs_t offset)
-{
-	static int last_read8_offset[2] = { -1, -1 };
-	static int last_read8_value[2] = { -1, -1 };
-
-	static const char * const duart68681_reg_read_names[0x10] = { "MRA", "SRA",
-			"BRG Test", "RHRA", "IPCR", "ISR", "CTU", "CTL", "MRB", "SRB",
-			"1X/16X Test", "RHRB", "IVR", "Input Ports", "Start Counter",
-			"Stop Counter" };
-
-	int data = duart_base_device::read(offset/2);
-
-	switch (offset / 2)
-	{
-	case 0x0b: /* RHRB */
-		if (m_csrb == 0x77 && data == 0xfe)
-		{
-			// special fix for the MD ROM baudrate recognition
-			// fix data only if CR is entered while baudrate is set to 2000 Baud
-
-			// Receive and transmit clock in diserial.c are not precise enough
-			// to support the baudrate recognition done in the Apollo_dn300 MD ROM
-			// use 0xff instead of 0xfe to set the baudrate recognition for 9600 Bd
-			// (to prevent that the MD selftest or SK command will hang in Service mode)
-			data = 0xff;
-		}
-		break;
-	}
-
-	// omit logging if sio is being polled from the boot rom
-	if ((offset != last_read8_offset[1] || data != last_read8_value[1]) && \
-		(offset != last_read8_offset[0] || data != last_read8_value[0]))
-	{
-		last_read8_offset[0] = last_read8_offset[1];
-		last_read8_value[0] = last_read8_value[1];
-		last_read8_offset[1] = offset;
-		last_read8_value[1] = data;
-		CLOG2(("reading SCN2681 reg %02x (%s) returned %02x",
-				offset, duart68681_reg_read_names[(offset/2) & 15], data));
-	}
-
-	return data;
-}
-
-void apollo_dn300_sio::write(offs_t offset, uint8_t data)
-{
-	static const char * const duart68681_reg_write_names[0x10] = { "MRA",
-			"CSRA", "CRA", "THRA", "ACR", "IMR", "CRUR", "CTLR", "MRB", "CSRB",
-			"CRB", "THRB", "IVR", "OPCR", "Set OP Bits", "Reset OP Bits" };
-
-	CLOG2(("writing SCN2681 reg %02x (%s) with %02x",
-			offset, duart68681_reg_write_names[(offset/2) & 15], data));
-
-	switch (offset / 2) {
-	case 0x09: /* CSRB */
-		// remember CSRB to handle MD selftest or SK command
-		m_csrb = data;
-		break;
-#if 1
-	case 0x0b: /* THRB */
-		// tee output of SIO1 to stdout
-		::putchar(data);
-		break;
-#endif
-	}
-	duart_base_device::write(offset/2, data);
-}
-
-// device type definition
-DEFINE_DEVICE_TYPE(APOLLO_DN300_SIO, apollo_dn300_sio, "apollo_dn300_sio", "DN300 SIO (SCN2681)")
-
-WRITE_LINE_MEMBER(apollo_dn300_state::sio_irq_handler)
-{
-	// apollo_dn300_pic_set_irq_line(APOLLO_DN300_IRQ_SIO1, state);
-}
-
-void apollo_dn300_state::sio_output(uint8_t data)
-{
-	CLOG2(("apollo_dn300_sio - sio_output %02x", data));
-
-	if ((data & 0x80) != (sio_output_data & 0x80))
-	{
-		// apollo_dn300_pic_set_irq_line(APOLLO_DN300_IRQ_DIAG, (data & 0x80) ? 1 : 0);
-	}
-
-	// The counter/timer on the SIO chip is used for the RAM refresh count.
-	// This is set up in the timer mode to produce a square wave output on output OP3.
-	// The period of the output is 15 microseconds.
-
-	if ((data & 0x08) != (sio_output_data & 0x08))
-	{
-		m_sio->ip0_w((data & 0x08) ? ASSERT_LINE : CLEAR_LINE);
-	}
-
-	sio_output_data = data;
-}
 
 //##########################################################################
 // machine/apollo_dn300_ni.c - APOLLO_DN300 DS3500 node ID
@@ -954,46 +730,14 @@ void apollo_dn300_state::common(machine_config &config)
 void apollo_dn300_state::apollo_dn300(machine_config &config)
 {
 	common(config);
-	APOLLO_DN300_SIO(config, m_sio, 3.6864_MHz_XTAL);
-	m_sio->irq_cb().set(FUNC(apollo_dn300_state::sio_irq_handler));
-	m_sio->outport_cb().set(FUNC(apollo_dn300_state::sio_output));
+	SCN2681(config, m_sio, 3.6864_MHz_XTAL);
+	m_sio->irq_cb().set_inputline("maincpu", APOLLO_DN300_IRQ_SIO1);
+	// m_sio->outport_cb().set(FUNC(apollo_dn300_state::sio_output));
 
 
 	APOLLO_DN300_KBD(config, m_keyboard, 0);
 	m_keyboard->tx_cb().set(m_acia, FUNC(acia6850_device::write_rxd));
 	m_acia->txd_handler().set(m_keyboard, FUNC(apollo_dn300_kbd_device::write_txd));
-
-#ifdef notyet
-	rs232_port_device &rs232(RS232_PORT(config, KBD_TAG, default_rs232_devices, nullptr));
-	rs232.rxd_handler().set(UART_TAG, FUNC(acia6850_device::write_rxd));
-	rs232.cts_handler().set(UART_TAG, FUNC(acia6850_device::write_cts));
-#endif
-
-#ifdef notyet
-	m_sio->a_tx_cb().set(m_keyboard, FUNC(apollo_dn300_kbd_device::rx_w));
-#endif
-}
-
-static DEVICE_INPUT_DEFAULTS_START( apollo_dn300_terminal )
-	DEVICE_INPUT_DEFAULTS( "RS232_TXBAUD", 0xff, RS232_BAUD_9600 )
-	DEVICE_INPUT_DEFAULTS( "RS232_RXBAUD", 0xff, RS232_BAUD_9600 )
-	DEVICE_INPUT_DEFAULTS( "RS232_DATABITS", 0xff, RS232_DATABITS_8 )
-	DEVICE_INPUT_DEFAULTS( "RS232_PARITY", 0xff, RS232_PARITY_NONE )
-	DEVICE_INPUT_DEFAULTS( "RS232_STOPBITS", 0xff, RS232_STOPBITS_1 )
-DEVICE_INPUT_DEFAULTS_END
-
-// for headless machines using a serial console
-void apollo_dn300_state::apollo_dn300_terminal(machine_config &config)
-{
-	common(config);
-	APOLLO_DN300_SIO(config, m_sio, 3.6864_MHz_XTAL);
-	m_sio->irq_cb().set(FUNC(apollo_dn300_state::sio_irq_handler));
-	m_sio->outport_cb().set(FUNC(apollo_dn300_state::sio_output));
-	m_sio->b_tx_cb().set("rs232", FUNC(rs232_port_device::write_txd));
-
-	rs232_port_device &rs232(RS232_PORT(config, "rs232", default_rs232_devices, "terminal"));
-	rs232.rxd_handler().set(m_sio, FUNC(apollo_dn300_sio::rx_b_w));
-	rs232.set_option_device_input_defaults("terminal", DEVICE_INPUT_DEFAULTS_NAME(apollo_dn300_terminal));
 }
 
 void apollo_dn300_state::init_apollo()

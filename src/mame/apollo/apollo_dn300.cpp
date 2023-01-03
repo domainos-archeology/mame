@@ -473,7 +473,7 @@ void apollo_dn300_state::dn300_physical_map(address_map &map)
 	map(0x008005, 0x008005).rw(FUNC(apollo_dn300_state::apollo_dn300_mcsr_control_register_r), FUNC(apollo_dn300_state::apollo_dn300_mcsr_control_register_w));
 	map(0x008006, 0x008007).rw(FUNC(apollo_dn300_state::apollo_dn300_mcsr_status_register_r), FUNC(apollo_dn300_state::apollo_dn300_mcsr_status_register_w));
 
-	map(0x008400, 0x00841f).rw(m_sio, FUNC(apollo_dn300_sio::read), FUNC(apollo_dn300_sio::write));
+	map(0x008400, 0x00841f).rw(m_sio, FUNC(scn2681_device::read), FUNC(scn2681_device::write));
 	map(0x008420, 0x008421).rw(m_acia, FUNC(acia6850_device::status_r), FUNC(acia6850_device::control_w));
 	map(0x008422, 0x008423).rw(m_acia, FUNC(acia6850_device::data_r), FUNC(acia6850_device::data_w));
 

@@ -107,7 +107,6 @@ void apollo_dn300_set_cache_status_register(device_t *device,uint8_t mask, uint8
 #define APOLLO_DN300_IRQ_PARITY_ERROR 7
 
 // forward declaration
-class apollo_dn300_sio;
 class apollo_dn300_ni;
 class apollo_dn300_graphics;
 class apollo_dn300_kbd_device;
@@ -123,8 +122,6 @@ public:
 		m_ram(*this, RAM_TAG),
 		m_messram_ptr(*this, RAM_TAG),
 		m_dmac(*this, APOLLO_DN300_DMA_TAG),
-		// m_pic8259_master(*this, APOLLO_DN300_PIC1_TAG),
-		// m_pic8259_slave(*this, APOLLO_DN300_PIC2_TAG),
 		m_ptm(*this, APOLLO_DN300_PTM_TAG),
 		m_sio(*this, APOLLO_DN300_SIO_TAG),
 		m_acia(*this, APOLLO_DN300_ACIA_TAG),
@@ -156,7 +153,7 @@ public:
 
 	required_device<hd63450_device> m_dmac;
 	required_device<ptm6840_device> m_ptm;
-	required_device<apollo_dn300_sio> m_sio;
+	required_device<scn2681_device> m_sio;
 	required_device<acia6850_device> m_acia;
 	optional_device<mc146818_device> m_rtc;
 	required_device<apollo_dn300_ni> m_node_id;
@@ -225,13 +222,9 @@ public:
 	DECLARE_READ_LINE_MEMBER( apollo_kbd_is_german );
 	DECLARE_WRITE_LINE_MEMBER( apollo_dma_1_hrq_changed );
 	DECLARE_WRITE_LINE_MEMBER( apollo_dma_2_hrq_changed );
-	DECLARE_WRITE_LINE_MEMBER( apollo_pic8259_master_set_int_line );
-	DECLARE_WRITE_LINE_MEMBER( apollo_pic8259_slave_set_int_line );
-	DECLARE_WRITE_LINE_MEMBER( sio_irq_handler );
 	void sio_output(uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER( apollo_ptm_irq_function );
 	DECLARE_WRITE_LINE_MEMBER( apollo_ptm_timer_tick );
-	uint8_t apollo_pic8259_get_slave_ack(offs_t offset);
 	DECLARE_WRITE_LINE_MEMBER( apollo_rtc_irq_function );
 
 	DECLARE_WRITE_LINE_MEMBER( dma_irq );
@@ -268,7 +261,6 @@ public:
 
 	void common(machine_config &config);
 	void apollo_dn300(machine_config &config);
-	void apollo_dn300_terminal(machine_config &config);
 
 	void dn300_physical_map(address_map &map);
 
@@ -315,25 +307,6 @@ INPUT_PORTS_EXTERN(apollo_dn300_config);
 uint8_t apollo_dn300_mcsr_get_control_register(void);
 uint16_t apollo_dn300_mcsr_get_status_register(void);
 void apollo_dn300_mcsr_set_status_register(uint16_t mask, uint16_t data);
-
-/*----------- machine/apollo_dn300_sio.cpp -----------*/
-
-class apollo_dn300_sio: public duart_base_device
-{
-public:
-	apollo_dn300_sio(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-
-	virtual uint8_t read(offs_t offset) override;
-	virtual void write(offs_t offset, uint8_t data) override;
-
-protected:
-	virtual void device_reset() override;
-
-private:
-	uint8_t m_csrb;
-};
-
-DECLARE_DEVICE_TYPE(APOLLO_DN300_SIO, apollo_dn300_sio)
 
 /*----------- machine/apollo_dn300_ni.cpp -----------*/
 
