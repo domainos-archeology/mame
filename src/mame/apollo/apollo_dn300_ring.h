@@ -29,8 +29,7 @@ public:
 		m_cpu.set_tag(std::forward<T>(cputag));
 	}
 
-	void write(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
-    uint8_t read(offs_t offset, uint8_t mem_mask = ~0);
+    void map(address_map &map);
 
 	// our dmac interface
 	uint8_t rcv_header_read_byte(offs_t offset);
@@ -47,7 +46,36 @@ protected:
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
+	void xmit_command_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
+    uint16_t xmit_status_r(offs_t offset, uint16_t mem_mask = ~0);
+
+	void rcv_command_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
+    uint16_t rcv_status_r(offs_t offset, uint16_t mem_mask = ~0);
+
+	void tmask_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
+    uint8_t tmask_r(offs_t offset, uint8_t mem_mask = ~0);
+
+	void diag_command_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
+    uint16_t diag_status_r(offs_t offset, uint16_t mem_mask = ~0);
+
+	void ring_id_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
+    uint16_t ring_id_r(offs_t offset, uint16_t mem_mask = ~0);
+
+    uint8_t id_r(offs_t offset, uint8_t mem_mask = ~0);
+
 private:
+	uint16_t m_xmit_status;
+	uint16_t m_xmit_command;
+	uint16_t m_rcv_status;
+	uint16_t m_rcv_command;
+	uint8_t m_tmask;
+	uint16_t m_diag_status;
+	uint16_t m_diag_command;
+	uint16_t m_ring_id_msb;
+	uint16_t m_ring_id_lsb;
+	// 4 bytes of id, msb first
+	uint8_t m_id[4];
+
     required_device<cpu_device> m_cpu;
 };
 

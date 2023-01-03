@@ -358,7 +358,9 @@ uint16_t apollo_dn300_state::apollo_unmapped_r(offs_t offset, uint16_t mem_mask)
 {
 	offs_t address = offset * 4;
 
-	// m68000_base_device *m68k = m_maincpu;
+	m68000_musashi_device *m68k = m_maincpu;
+	SLOG1(("unmapped memory dword read from %08x with mask %08x (ir=%04x) (mmu enabled? %s)", address , mem_mask, m68k->state_int(M68K_IR), m_mmu->is_enabled() ? "yes" : "no"));
+
 
 	if ((address & 0xfff00000) == 0xfa800000 && VERBOSE < 2) {
 		// ?
@@ -375,6 +377,7 @@ uint16_t apollo_dn300_state::apollo_unmapped_r(offs_t offset, uint16_t mem_mask)
 	} else if (address == 0x0000ac00 && VERBOSE < 2) {
 		// omit logging for Bus error test address in DN3000 boot prom
 	} else {
+		// m68000_musashi_device *m68k = m_maincpu;
 		// SLOG1(("unmapped memory dword read from %08x with mask %08x (ir=%04x) (mmu enabled? %s)", address , mem_mask, m68k->state_int(M68K_IR), m_mmu->is_enabled() ? "yes" : "no"));
 	}
 
@@ -474,7 +477,7 @@ void apollo_dn300_state::dn300_physical_map(address_map &map)
 
 	map(0x009400, 0x00940f).rw(m_graphics, FUNC(apollo_dn300_graphics::reg_r), FUNC(apollo_dn300_graphics::reg_w));
 
-	map(0x009800, 0x009bff).rw(m_ring, FUNC(apollo_dn300_ring_device::read), FUNC(apollo_dn300_ring_device::write)); // docs call this "ring 2"
+	map(0x009800, 0x009bff).m(m_ring, FUNC(apollo_dn300_ring_device::map));
     map(0x009c00, 0x009fff).m(m_disk, FUNC(apollo_dn300_disk_device::map));
 
 	map(0x00b000, 0x00b3ff).rw(FUNC(apollo_dn300_state::apollo_fpu_ctl_r), FUNC(apollo_dn300_state::apollo_fpu_ctl_w)); // docs call this "fpu ctl"
