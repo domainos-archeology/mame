@@ -108,6 +108,12 @@ void apollo_dn300_set_cache_status_register(device_t *device,uint8_t mask, uint8
 #define APOLLO_DN300_IRQ_PTM 6
 #define APOLLO_DN300_IRQ_PARITY_ERROR 7
 
+// channels for our DMAC
+#define APOLLO_DN300_DMA_RING_RCVHEADER 0
+#define APOLLO_DN300_DMA_RING_RCVDATA 1
+#define APOLLO_DN300_DMA_RING_XMIT 2
+#define APOLLO_DN300_DMA_DISK 3
+
 // forward declaration
 class apollo_dn300_ni;
 class apollo_dn300_graphics;
@@ -188,18 +194,6 @@ public:
 	void apollo_dn300_mcsr_control_register_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
 	uint8_t apollo_dn300_mcsr_control_register_r(offs_t offset, uint8_t mem_mask = ~0);
 
-	void apollo_dma_1_w(offs_t offset, uint8_t data);
-	uint8_t apollo_dma_1_r(offs_t offset);
-	void apollo_dma_2_w(offs_t offset, uint8_t data);
-	uint8_t apollo_dma_2_r(offs_t offset);
-	void apollo_dma_page_register_w(offs_t offset, uint8_t data);
-	uint8_t apollo_dma_page_register_r(offs_t offset);
-	void apollo_address_translation_map_w(offs_t offset, uint16_t data);
-	uint16_t apollo_address_translation_map_r(offs_t offset);
-	uint8_t apollo_dma_read_byte(offs_t offset);
-	void apollo_dma_write_byte(offs_t offset, uint8_t data);
-	uint8_t apollo_dma_read_word(offs_t offset);
-	void apollo_dma_write_word(offs_t offset, uint8_t data);
 	void apollo_rtc_w(offs_t offset, uint8_t data);
 	uint8_t apollo_rtc_r(offs_t offset);
 	void cache_control_register_w(offs_t offset, uint8_t data);
@@ -222,41 +216,12 @@ public:
 	u16 apollo_pic_get_vector();
 	void apollo_bus_error(offs_t fault_addr, u8 rw);
 	DECLARE_READ_LINE_MEMBER( apollo_kbd_is_german );
-	DECLARE_WRITE_LINE_MEMBER( apollo_dma_1_hrq_changed );
-	DECLARE_WRITE_LINE_MEMBER( apollo_dma_2_hrq_changed );
 	DECLARE_WRITE_LINE_MEMBER( apollo_ptm_irq_function );
 	DECLARE_WRITE_LINE_MEMBER( apollo_ptm_timer_tick );
 	DECLARE_WRITE_LINE_MEMBER( apollo_rtc_irq_function );
 
 	DECLARE_WRITE_LINE_MEMBER( dma_irq );
 	void dma_end(offs_t offset, uint8_t data);
-
-
-	uint8_t pc_dma8237_0_dack_r();
-	uint8_t pc_dma8237_1_dack_r();
-	uint8_t pc_dma8237_2_dack_r();
-	uint8_t pc_dma8237_3_dack_r();
-	uint8_t pc_dma8237_5_dack_r();
-	uint8_t pc_dma8237_6_dack_r();
-	uint8_t pc_dma8237_7_dack_r();
-	void pc_dma8237_0_dack_w(uint8_t data);
-	void pc_dma8237_1_dack_w(uint8_t data);
-	void pc_dma8237_2_dack_w(uint8_t data);
-	void pc_dma8237_3_dack_w(uint8_t data);
-	void pc_dma8237_5_dack_w(uint8_t data);
-	void pc_dma8237_6_dack_w(uint8_t data);
-	void pc_dma8237_7_dack_w(uint8_t data);
-	DECLARE_WRITE_LINE_MEMBER(pc_dack0_w);
-	DECLARE_WRITE_LINE_MEMBER(pc_dack1_w);
-	DECLARE_WRITE_LINE_MEMBER(pc_dack2_w);
-	DECLARE_WRITE_LINE_MEMBER(pc_dack3_w);
-	DECLARE_WRITE_LINE_MEMBER(pc_dack4_w);
-	DECLARE_WRITE_LINE_MEMBER(pc_dack5_w);
-	DECLARE_WRITE_LINE_MEMBER(pc_dack6_w);
-	DECLARE_WRITE_LINE_MEMBER(pc_dack7_w);
-
-	void apollo_pic_set_irq_line(int irq, int state);
-	void select_dma_channel(int channel, bool state);
 
 	DECLARE_WRITE_LINE_MEMBER(apollo_reset_instr_callback);
 
