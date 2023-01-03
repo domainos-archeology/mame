@@ -98,6 +98,13 @@ void apollo_dn300_set_cache_status_register(device_t *device,uint8_t mask, uint8
 #define APOLLO_DN300_MMU_TAG "apollo_dn300_mmu"
 #define APOLLO_DN300_DISK_TAG "apollo_dn300_disk"
 
+#define APOLLO_DN300_IRQ_SIO1 1
+#define APOLLO_DN300_IRQ_KBD 2
+#define APOLLO_DN300_IRQ_RING 3
+#define APOLLO_DN300_IRQ_DISPLAY 4
+#define APOLLO_DN300_IRQ_DISK 5
+#define APOLLO_DN300_IRQ_PTM 6
+#define APOLLO_DN300_IRQ_PARITY_ERROR 7
 
 // forward declaration
 class apollo_dn300_sio;
@@ -392,6 +399,8 @@ public:
 
 	int is_mono() { return 1; }
 
+	auto irq_callback() { return m_irq_cb.bind(); }
+
 protected:
 	required_device<screen_device> m_screen;
 
@@ -410,6 +419,7 @@ protected:
     void vblank_state_changed(screen_device &screen, bool vblank_state);
 
 protected:
+	devcb_write_line m_irq_cb;
 
 	uint16_t m_n_planes = 0U;
 	uint16_t m_width = 0U;

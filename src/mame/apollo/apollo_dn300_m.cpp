@@ -11,22 +11,6 @@
 
 #include "softlist.h"
 
-#define APOLLO_DN300_IRQ_VECTOR 0xa0
-#define APOLLO_DN300_IRQ_PTM 0
-#define APOLLO_DN300_IRQ_SIO1 1
-#define APOLLO_DN300_IRQ_PIC_SLAVE 3
-#define APOLLO_DN300_IRQ_CTAPE 5
-#define APOLLO_DN300_IRQ_FDC 6
-#define APOLLO_DN300_IRQ_RTC 8 // DN3000 only
-#define APOLLO_DN300_IRQ_SIO2 8 // DN3500
-#define APOLLO_DN300_IRQ_ETH2 9
-#define APOLLO_DN300_IRQ_ETH1 10
-#define APOLLO_DN300_IRQ_DIAG 13
-#define APOLLO_DN300_IRQ_WIN1 14
-
-#define APOLLO_DN300_DMA_ETH1 6
-#define APOLLO_DN300_DMA_ETH2 3
-
 //##########################################################################
 // machine/apollo_dn300_config.c - APOLLO_DN300 DS3500 configuration
 //##########################################################################
@@ -933,7 +917,8 @@ void apollo_dn300_state::common(machine_config &config)
 
 	PTM6840(config, m_ptm, 0);
 	m_ptm->set_external_clocks(250000, 125000, 62500);
-	m_ptm->irq_callback().set(FUNC(apollo_dn300_state::apollo_ptm_irq_function));
+	m_ptm->irq_callback().set_inputline("maincpu", APOLLO_DN300_IRQ_PTM);
+	//m_ptm->irq_callback().set(FUNC(apollo_dn300_state::apollo_ptm_irq_function));
 
 	clock_device &ptmclock(CLOCK(config, "ptmclock", 250000));
 	ptmclock.signal_handler().set(FUNC(apollo_dn300_state::apollo_ptm_timer_tick));

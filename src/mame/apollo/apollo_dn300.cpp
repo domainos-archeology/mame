@@ -202,21 +202,17 @@ void apollo_dn300_state::apollo_bus_error(offs_t fault_addr, u8 rw)
 
 void apollo_dn300_state::cpu_space_map(address_map &map)
 {
-	map(0x100400, 0x1004ff).r(FUNC(apollo_dn300_state::apollo_irq_acknowledge));
+	map(0xfffff0, 0xffffff).r(FUNC(apollo_dn300_state::apollo_irq_acknowledge));
 }
 
 u16 apollo_dn300_state::apollo_irq_acknowledge(offs_t offset)
 {
-	m_maincpu->set_input_line(offset+1, CLEAR_LINE);
-
-	MLOG2(("apollo_irq_acknowledge: interrupt level=%d", offset+1));
-
-#ifdef notyet
-	if (offset+1 == 6)
-		return apollo_pic_get_vector();
-	else
-#endif
-		return m68000_base_device::autovector(offset+1);
+	MLOG2(("apollo_irq_acknowledge: interrupt level=%d", offset));
+	// the previous non-dn300 code does this; but I don't think this is correct.
+	// there's no PIC, and with this getting cleared, I get TBLT errors about
+	// BLT interrupt misses.
+	//m_maincpu->set_input_line(offset, CLEAR_LINE);
+	return m68000_base_device::autovector(offset);
 }
 
 WRITE_LINE_MEMBER( apollo_dn300_state::dma_irq )
@@ -604,7 +600,9 @@ void apollo_dn300_state::dn300(machine_config &config)
 	config.set_maximum_quantum(attotime::from_hz(60));
 
 	apollo_dn300(config);
+
 	APOLLO_DN300_GRAPHICS(config, m_graphics, 0);
+	m_graphics->irq_callback().set_inputline("maincpu", M68K_IRQ_4);
 
 	APOLLO_DN300_MMU(config, m_mmu, 0);
 	m_mmu->set_cpu(m_maincpu);
@@ -628,7 +626,9 @@ void apollo_dn300_state::dn320(machine_config &config)
 	config.set_maximum_quantum(attotime::from_hz(60));
 
 	apollo_dn300(config);
+
 	APOLLO_DN300_GRAPHICS(config, m_graphics, 0);
+	m_graphics->irq_callback().set_inputline("maincpu", M68K_IRQ_4);
 
 	APOLLO_DN300_MMU(config, m_mmu, 0);
 	m_mmu->set_cpu(m_maincpu);

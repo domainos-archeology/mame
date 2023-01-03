@@ -5,6 +5,7 @@
  *  Created on: April 25, 2013
  *      Author: Hans Ostermeyer
  *              Chris Toshok
+ *              Vladimir Vukicevic
  *
  *  see also:
  *  - http://www.bitsavers.org/pdf/apollo/002398-04_Domain_Engineering_Handbook_Rev4_Jan87.pdf (page 12-16 ...)
@@ -21,10 +22,13 @@
 #include "apollo.lh"
 #include "apollo_dn300.lh"
 
+// if VERBOSE is set to 3, the display will update after every blt
 #undef VERBOSE
-#define VERBOSE 0
+#define VERBOSE 1
 
 #define VIDEO_SCREEN_TAG "screen"
+
+#define DISPLAY_IRQ 4
 
 // status register
 #define SR_BLT_IN_PROGRESS 0x8000
@@ -42,6 +46,7 @@
 // helpers to format a number as binary
 static const char* tb1(uint16_t data) { static char buffer[17]; buffer[16] = 0; for (int i = 0; i < 16; i++) { buffer[15 - i] = (data & (1 << i)) ? 'X' : '.'; } return buffer; }
 static const char* tb2(uint16_t data) { static char buffer[17]; buffer[16] = 0; for (int i = 0; i < 16; i++) { buffer[15 - i] = (data & (1 << i)) ? 'X' : '.'; } return buffer; }
+static const char* tb3(uint16_t data) { static char buffer[17]; buffer[16] = 0; for (int i = 0; i < 16; i++) { buffer[15 - i] = (data & (1 << i)) ? 'X' : '.'; } return buffer; }
 
 void apollo_dn300_graphics::reg_w(offs_t offset, uint16_t data)
 {
@@ -57,8 +62,7 @@ void apollo_dn300_graphics::reg_w(offs_t offset, uint16_t data)
 
 	int reg = offset;
 
-	MLOG2(("writing display reg %02x (%s) with %02x",
-		   offset, graphics_reg_write_names[reg], data));
+	//MLOG2(("writing display reg %02x (%s) with %02x", offset, graphics_reg_write_names[reg], data));
 
 	// XXX actually do the write
 
@@ -149,8 +153,7 @@ uint16_t apollo_dn300_graphics::reg_r(offs_t offset)
 		abort();
 	}
 
-	MLOG2(("reading display reg %02x (%s) = %02x",
-		   offset, graphics_reg_read_names[(offset >> 1) & 0x7], value));
+	//MLOG2(("reading display reg %02x (%s) = %02x", offset, graphics_reg_read_names[(offset >> 1) & 0x7], value));
 
 	return value;
 }
@@ -196,32 +199,56 @@ void apollo_dn300_graphics::blt()
 
 	// m_deb is the bit index from the left of the last bit; so
 	// to get the number of bits we don't want, we subtract it from 16
-	int deb_sub_bits = 16 - m_deb; // m_deb ? (16 - m_deb) : 0;
+	int deb_sub_bits = 16 - (m_deb & 0xf);
 	int bits_per_line =
 			(16 - (m_wsdx % 16)) // number of bits from the first word
 		  + ((words - 1) * 16)   // number of bits from the remaining words
 		  - deb_sub_bits         // minus end word bit index
-		  + 1;                   // and 1, due to 2s complement shenanigans? I think?
+		  + 1;                   // and 1, due to 2s complement shenanigans? I think? Or due to "inclusive" numbering?
 
-	MLOG2(("BLT CR=%04x DCX=%04x DCY=%04x DEB=%04X (inc_y=%d, inc_x=%d, fill_mode=%d, enable_display=%d)\n"
-		   "    src=% 4d, % 4d   dst=% 4d, % 4d   size=% 4d, % 4d (words: %d)",
-		   m_cr, m_dcx, m_dcy, m_deb,
-		   (m_cr & CR_INC_Y) ? 1 : 0,
-		   (m_cr & CR_INC_X) ? 1 : 0,
-		   (m_cr & CR_FILL_MODE) ? 1 : 0,
-		   (m_cr & CR_ENABLE_DISPLAY) ? 1 : 0,
-		   m_wssx, m_wssy,
-		   m_wsdx, m_wsdy,
-		   bits_per_line, lines, words));
+	// helper to know if we're displaying a ROM character so that we can skip various logging things
+	bool is_rom_char = bits_per_line == 7 && lines == 13 && m_wssx > 500;
 
-	if (!(m_cr & CR_INC_Y) || !(m_cr & CR_INC_X))
-	{
-		// right to left, or bottom to top
-		MLOG2(("blt operation not supported"));
-		abort();
-	}	
+	if (VERBOSE > 2 || !is_rom_char) {
+		MLOG1(("BLT s=% 4d, % 4d  d=% 4d, % 4d sz=% 4d, % 4d (w: %d) -- "
+			"CR=%04x DCX=%04x DCY=%04x DEB=%04X (%s, %s, %s, %s)",
+			m_wssx, m_wssy,
+			m_wsdx, m_wsdy,
+			bits_per_line, lines, words,
+			m_cr, m_dcx, m_dcy, m_deb,
+			(m_cr & CR_INC_Y) ? "+Y" : "-Y",
+			(m_cr & CR_INC_X) ? "+X" : "-X",
+			(m_cr & CR_FILL_MODE) ? "clear" : "copy",
+			(m_cr & CR_ENABLE_DISPLAY) ? "en" : ""
+			));
+	}
+
+	bool inc_x = (m_cr & CR_INC_X) != 0;
+	bool inc_y = (m_cr & CR_INC_Y) != 0;
+
+	// rearrange so that we always go top to bottom, left to right
+	// TODO -- we need to blit in the right direction to handle overlapping regions properly.
+	// we can cheat and make a copy of the source buffer if that's the case.
+	if (!inc_x) {
+		m_wssx -= bits_per_line;
+		m_wsdx -= bits_per_line;
+	}
+
+	if (!inc_y) {
+		m_wssy -= lines;
+		m_wsdy -= lines;
+	}
 
 	bool clear_mode = (m_cr & CR_FILL_MODE) != 0;
+
+	// some helpers to figure out if we want to log some bits below for debugging
+	bool debug_log_bits = true;
+	if (clear_mode)
+		debug_log_bits = false;
+	if (bits_per_line == 7 && lines == 13 && m_wssx > 500)
+		debug_log_bits = false;
+	if (lines > 20)
+		debug_log_bits = false;
 
 	// work top to bottom, left to right
 	for (int line = 0; line < lines; line++)
@@ -262,7 +289,9 @@ void apollo_dn300_graphics::blt()
 
 				m_image_memory[WORD_INDEX_XY(dst_x, dst_y)] = value;
 
-				MLOG2(("BLT 1 %d bits  % 4d,% 4d -> % 4d,% 4d  %s", num_bits, source_x, source_y, dst_x, dst_y, tb1(value)));
+				if (debug_log_bits && value != 0) {
+					MLOG2(("BLT 1 %d [% 4d] bits  % 4d,% 4d -> % 4d,% 4d s: %s d: %s", num_bits, num_bits_left, source_x, source_y, dst_x, dst_y, tb2(source_word), tb1(value)));
+				}
 			} else {
 				// we need to split the write across two words.  I have no idea if it's legal
 				// to blit out of bounds, assume it's not and we should crash.
@@ -283,7 +312,9 @@ void apollo_dn300_graphics::blt()
 				m_image_memory[dst_word    ] = first_word;
 				m_image_memory[dst_word + 1] = second_word;
 
-				MLOG2(("BLT 2 %d bits  % 4d,% 4d -> % 4d,% 4d  %s %s", num_bits, source_x, source_y, dst_x, dst_y, tb1(first_word), tb2(second_word)));
+				if (debug_log_bits && (first_word != 0 || second_word != 0)) {
+					MLOG2(("BLT 2 %d [% 4d] bits  % 4d,% 4d -> % 4d,% 4d s: %s d: %s %s", num_bits, num_bits_left, source_x, source_y, dst_x, dst_y, tb3(source_word), tb1(first_word), tb2(second_word)));
+				}
 			}
 
 			source_x += num_bits;
@@ -294,8 +325,17 @@ void apollo_dn300_graphics::blt()
 
 	m_sr &= ~SR_BLT_IN_PROGRESS;
 
+	if ((m_cr & CR_IRQ_AFTER_BLT) != 0) {
+		m_irq_cb(ASSERT_LINE);
+	}
+
 	m_update_flag = 1;
 	m_update_pending = 0;
+
+	if (VERBOSE > 3 || machine().debug_flags & DEBUG_FLAG_ENABLED)
+	{
+		machine().video().frame_update(true);
+	}
 }
 
 uint32_t apollo_dn300_graphics::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
@@ -315,7 +355,6 @@ uint32_t apollo_dn300_graphics::screen_update(screen_device &screen, bitmap_rgb3
 
 void apollo_dn300_graphics::screen_update1(bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	MLOG1(("in screen_update1"));
 	uint16_t const *source_ptr = m_image_memory.get();
 
 	// if ((m_cr & CR_ENABLE_DISPLAY) == 0)
@@ -359,6 +398,23 @@ void apollo_dn300_graphics::screen_update1(bitmap_rgb32 &bitmap, const rectangle
 
 void apollo_dn300_graphics::vblank_state_changed(screen_device &screen, bool vblank_state)
 {
+	// err.. I assume vblank_state == true means we're in vblank? but apollo_v
+	// seems to imply the opposite?
+	if (vblank_state) {
+	    // I'm not sure if this bit should be set even if interrupts
+		// aren't requested, but I don't think it would hurt?
+		if ((m_cr & CR_IRQ_AFTER_FRAME) != 0)
+		{
+			m_sr |= SR_END_OF_FRAME_IRQ;
+			m_irq_cb(ASSERT_LINE);
+		}
+	} else {
+		// the tests sometimes fail because this bit gets unset so fast
+		// because our vblank period is much faster than the CPU;
+		// so it can't actually read that this bit is set when it gets
+		// the interrupt.  
+		m_sr &= ~SR_END_OF_FRAME_IRQ;
+	}
 }
 
 void apollo_dn300_graphics::register_vblank_callback()
@@ -382,12 +438,15 @@ void apollo_dn300_graphics::device_add_mconfig(machine_config &config)
 	m_screen->set_screen_update(FUNC(apollo_dn300_graphics::screen_update));
 }
 
-apollo_dn300_graphics::apollo_dn300_graphics(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) : apollo_dn300_graphics(mconfig, APOLLO_DN300_GRAPHICS, tag, owner, clock)
+apollo_dn300_graphics::apollo_dn300_graphics(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: apollo_dn300_graphics(mconfig, APOLLO_DN300_GRAPHICS, tag, owner, clock)
 {
 }
 
-apollo_dn300_graphics::apollo_dn300_graphics(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock) : device_t(mconfig, type, tag, owner, clock),
-																																				  m_screen(*this, VIDEO_SCREEN_TAG)
+apollo_dn300_graphics::apollo_dn300_graphics(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, type, tag, owner, clock)
+	, m_screen(*this, VIDEO_SCREEN_TAG)
+	, m_irq_cb(*this)
 {
 }
 
@@ -402,6 +461,8 @@ apollo_dn300_graphics::~apollo_dn300_graphics()
 void apollo_dn300_graphics::device_start()
 {
 	MLOG1(("apollo_dn300_graphics::device_start"))
+
+	m_irq_cb.resolve_safe();
 
 	m_cr = 0;
 	m_sr = 0;
