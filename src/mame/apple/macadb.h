@@ -20,6 +20,10 @@ public:
 	macadb_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	void set_mcu_mode(bool bMCUMode) { m_bIsMCUMode = bMCUMode; }
+	// TODO: the IIgs microcontroller programs hate how we generate SRQs, and they already
+	// do round-robin polling so no data will be missed.  This lets us turn off SRQs for that case.
+	// We should see if we can make them happier, or just work on LLE ADB devices...
+	void set_iigs_mode(bool bIIGSMode) { m_bIsIIGSMode = bIIGSMode; }
 
 	auto via_clock_callback() { return write_via_clock.bind(); }
 	auto via_data_callback() { return write_via_data.bind(); }
@@ -27,7 +31,7 @@ public:
 	auto adb_irq_callback() { return write_adb_irq.bind(); }
 
 	required_ioport m_mouse0, m_mouse1, m_mouse2;
-	required_ioport_array<6> m_keys;
+	required_ioport_array<8> m_keys;
 	devcb_write_line write_via_clock, write_via_data, write_adb_data, write_adb_irq;
 
 	DECLARE_WRITE_LINE_MEMBER(adb_data_w);
@@ -44,14 +48,14 @@ protected:
 	virtual void device_reset() override;
 
 private:
-	bool m_bIsMCUMode;
+	bool m_bIsMCUMode, m_bIsIIGSMode;
 
 	uint64_t m_last_adb_time;
 
 	emu_timer *m_adb_timer;
 
 	/* keyboard matrix to detect transition */
-	int m_key_matrix[7];
+	u16 m_key_matrix[9];
 
 	// ADB HLE state
 	int32_t m_adb_state, m_adb_waiting_cmd, m_adb_datasize, m_adb_buffer[257];

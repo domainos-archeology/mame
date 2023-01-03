@@ -120,7 +120,7 @@ void gt913_sound_device::sound_stream_update(sound_stream& stream, std::vector<r
 	}
 }
 
-void gt913_sound_device::rom_bank_updated()
+void gt913_sound_device::rom_bank_pre_change()
 {
 	m_stream->update();
 }
@@ -316,7 +316,7 @@ void gt913_sound_device::command_w(u16 data)
 	}
 	else if (voicecmd == 0x6007)
 	{
-	//	logerror("voice %u volume %u rate %u\n", voicenum, (m_data[0] >> 8), m_data[0] & 0xff);
+	//  logerror("voice %u volume %u rate %u\n", voicenum, (m_data[0] >> 8), m_data[0] & 0xff);
 
 		voice.m_volume_data = m_data[0];
 		voice.m_volume_target = (m_data[0] & 0x7f00) << 16;

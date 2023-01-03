@@ -62,7 +62,7 @@ protected:
 	virtual void device_reset() override;
 
 private:
-    required_device<m68000_base_device> m_cpu;
+    required_device<m68000_musashi_device> m_cpu;
 
     std::unique_ptr<uint16_t[]> m_pft;
 	std::unique_ptr<uint16_t[]> m_ptt;

@@ -1475,6 +1475,18 @@ if (MACHINES["GT913"]~=null) then
 	}
 end
 
+--------------------------------------------------
+--
+--@src/devices/machine/generic_spi_flash.h,MACHINES["GENERIC_SPI_FLASH"] = true
+--------------------------------------------------
+
+if (MACHINES["GENERIC_SPI_FLASH"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/machine/generic_spi_flash.cpp",
+		MAME_DIR .. "src/devices/machine/generic_spi_flash.h",
+	}
+end
+
 ---------------------------------------------------
 --
 --@src/devices/machine/hd63450.h,MACHINES["HD63450"] = true
@@ -2383,6 +2395,18 @@ if (MACHINES["MCF5206E"]~=null) then
 	files {
 		MAME_DIR .. "src/devices/machine/mcf5206e.cpp",
 		MAME_DIR .. "src/devices/machine/mcf5206e.h",
+	}
+end
+
+---------------------------------------------------
+--
+--@src/devices/machine/mdcr.h,MACHINES["MDCR"] = true
+---------------------------------------------------
+
+if (MACHINES["MDCR"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/machine/mdcr.cpp",
+		MAME_DIR .. "src/devices/machine/mdcr.h",
 	}
 end
 
@@ -4356,39 +4380,6 @@ end
 
 ---------------------------------------------------
 --
---@src/devices/machine/appldriv.h,MACHINES["APPLE_DRIVE"] = true
----------------------------------------------------
-if (MACHINES["APPLE_DRIVE"]~=null) then
-	files {
-		MAME_DIR .. "src/devices/machine/appldriv.cpp",
-		MAME_DIR .. "src/devices/machine/appldriv.h",
-	}
-end
-
----------------------------------------------------
---
---@src/devices/machine/applefdc.h,MACHINES["APPLE_FDC"] = true
----------------------------------------------------
-if (MACHINES["APPLE_FDC"]~=null) then
-	files {
-		MAME_DIR .. "src/devices/machine/applefdc.cpp",
-		MAME_DIR .. "src/devices/machine/applefdc.h",
-	}
-end
-
----------------------------------------------------
---
---@src/devices/machine/sonydriv.h,MACHINES["SONY_DRIVE"] = true
----------------------------------------------------
-if (MACHINES["SONY_DRIVE"]~=null) then
-	files {
-		MAME_DIR .. "src/devices/machine/sonydriv.cpp",
-		MAME_DIR .. "src/devices/machine/sonydriv.h",
-	}
-end
-
----------------------------------------------------
---
 --@src/devices/machine/scnxx562.h,MACHINES["SCNXX562"] = true
 ---------------------------------------------------
 if (MACHINES["SCNXX562"]~=null) then
@@ -5108,5 +5099,17 @@ if (MACHINES["AM9516"]~=null) then
 	files {
 		MAME_DIR .. "src/devices/machine/am9516.cpp",
 		MAME_DIR .. "src/devices/machine/am9516.h",
+	}
+end
+
+---------------------------------------------------
+--
+--@src/devices/machine/micomxe1a.h,MACHINES["MICOMXE1A"] = true
+---------------------------------------------------
+
+if (MACHINES["MICOMXE1A"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/machine/micomxe1a.cpp",
+		MAME_DIR .. "src/devices/machine/micomxe1a.h",
 	}
 end

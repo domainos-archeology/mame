@@ -1028,9 +1028,10 @@ private:
 		}
 	}
 
-	static bool include_clones_default(std::string const &name)
+	static bool include_clones_default(std::string_view name)
 	{
-		return !core_stricmp(name.c_str(), "category.ini") || !core_stricmp(name.c_str(), "alltime.ini");
+		using namespace std::literals;
+		return util::streqlower(name, "category.ini"sv) || util::streqlower(name, "alltime.ini"sv);
 	}
 
 	unsigned m_ini, m_group;
@@ -1950,7 +1951,6 @@ extern const char UI_VERSION_TAG[];
 const char UI_VERSION_TAG[] = "# UI INFO ";
 
 // Globals
-uint8_t ui_globals::rpanel = 0;
 uint8_t ui_globals::curdats_view = 0;
 uint8_t ui_globals::cur_sw_dats_total = 0;
 uint8_t ui_globals::curdats_total = 0;

@@ -63,7 +63,7 @@
 std::string apollo_dn300_cpu_context(running_machine &machine);
 
 // enable/disable the FPU
-void apollo_dn300_set_cpu_has_fpu(m68000_base_device *device, int onoff);
+void apollo_dn300_set_cpu_has_fpu(m68000_musashi_device *device, int onoff);
 
 // check for excessive logging
 void apollo_dn300_check_log();
@@ -144,14 +144,13 @@ public:
 	void init_dn320();
 	void init_apollo();
 
-	inline uint16_t getD1() { return m_maincpu->REG_D()[1]; }
 protected:
 	virtual void machine_start() override;
 	virtual void machine_reset() override;
 
 // private:
 public:
-	required_device<m68000_base_device> m_maincpu;
+	required_device<m68000_musashi_device> m_maincpu;
 	required_device<ram_device> m_ram;
 	required_shared_ptr<uint16_t> m_messram_ptr;
 

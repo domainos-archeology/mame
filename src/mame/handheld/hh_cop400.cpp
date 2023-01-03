@@ -1866,12 +1866,15 @@ class bship82_state : public hh_cop400_state
 {
 public:
 	bship82_state(const machine_config &mconfig, device_type type, const char *tag) :
-		hh_cop400_state(mconfig, type, tag)
+		hh_cop400_state(mconfig, type, tag),
+		m_dac(*this, "dac")
 	{ }
 
 	void bship82(machine_config &config);
 
 private:
+	required_device<dac_3bit_r2r_device> m_dac;
+
 	void write_d(u8 data);
 	void write_g(u8 data);
 	u8 read_l();
@@ -1889,9 +1892,9 @@ void bship82_state::write_d(u8 data)
 
 void bship82_state::write_g(u8 data)
 {
-	// G0-G2: speaker out via 3.9K, 2.2K, 1.0K resistor
+	// G0-G2: speaker out via 3.9K, 2.2K, 1.0K resistors
 	// G3: enable speaker
-	m_speaker->level_w((data & 8) ? (data & 7) : 0);
+	m_dac->write((data & 8) ? (data & 7) : 0);
 }
 
 u8 bship82_state::read_l()
@@ -1993,10 +1996,7 @@ void bship82_state::bship82(machine_config &config)
 
 	// sound hardware
 	SPEAKER(config, "mono").front_center();
-	SPEAKER_SOUND(config, m_speaker);
-	static const double speaker_levels[8] = { 0.0, 1.0/7.0, 2.0/7.0, 3.0/7.0, 4.0/7.0, 5.0/7.0, 6.0/7.0, 1.0 };
-	m_speaker->set_levels(8, speaker_levels);
-	m_speaker->add_route(ALL_OUTPUTS, "mono", 0.25);
+	DAC_3BIT_R2R(config, m_dac).add_route(ALL_OUTPUTS, "mono", 0.25);
 }
 
 // roms
@@ -2149,7 +2149,7 @@ ROM_END
 
 /***************************************************************************
 
-  National Semiconductor Cops Pocket Assistant (CPA)
+  National Semiconductor COPS Pocket Assistant (CPA)
   * COP444 MCU label COP444L-JXY/N
   * 8-digit 7seg display, 1-bit sound
 
@@ -2450,7 +2450,7 @@ void vidchal_state::vidchal(machine_config &config)
 
 	// sound hardware
 	SPEAKER(config, "mono").front_center();
-	DAC_4BIT_BINARY_WEIGHTED(config, "dac").add_route(ALL_OUTPUTS, "mono", 0.125);
+	DAC_4BIT_R2R(config, "dac").add_route(ALL_OUTPUTS, "mono", 0.25);
 }
 
 // roms
@@ -2496,7 +2496,7 @@ CONS( 1981, lightfgt,   0,         0, lightfgt,   lightfgt,   lightfgt_state,  e
 CONS( 1982, bship82,    bship,     0, bship82,    bship82,    bship82_state,   empty_init, "Milton Bradley", "Electronic Battleship (1982 version)", MACHINE_SUPPORTS_SAVE | MACHINE_CLICKABLE_ARTWORK ) // ***
 
 CONS( 1979, qkracer,    0,         0, qkracer,    qkracer,    qkracer_state,   empty_init, "National Semiconductor", "QuizKid Racer (COP420 version)", MACHINE_SUPPORTS_SAVE | MACHINE_NO_SOUND_HW )
-COMP( 1982, copspa,     0,         0, mdallas,    copspa,     mdallas_state,   empty_init, "National Semiconductor", "Cops Pocket Assistant", MACHINE_SUPPORTS_SAVE )
+COMP( 1982, copspa,     0,         0, mdallas,    copspa,     mdallas_state,   empty_init, "National Semiconductor", "COPS Pocket Assistant", MACHINE_SUPPORTS_SAVE )
 
 COMP( 1984, solution,   0,         0, scat,       solution,   scat_state,      empty_init, "SCAT", "The Solution", MACHINE_SUPPORTS_SAVE | MACHINE_NO_SOUND_HW )
 

@@ -28,7 +28,7 @@
 
 #include "apollo_dn300.h"
 
-#include "cpu/m68000/m68000.h"
+#include "cpu/m68000/m68010.h"
 #include "machine/6850acia.h"
 
 #include "debugger.h"
@@ -95,7 +95,7 @@ std::string apollo_dn300_cpu_context(running_machine &machine) {
  apollo_dn300_set_cpu_has_fpu - enable/disable the FPU
  -------------------------------------------------*/
 
-void apollo_dn300_set_cpu_has_fpu(m68000_base_device *device, int onoff)
+void apollo_dn300_set_cpu_has_fpu(m68000_musashi_device *device, int onoff)
 {
 	if (device == nullptr)
 	{
@@ -164,7 +164,7 @@ static int instruction_hook(device_t &device, offs_t curpc)
 	}
 
 	if (curpc == 0x0844) {
-		machine.logerror("HOOK: _putc_internal called, character = '%c'\n", state->getD1());
+		// machine.logerror("HOOK: _putc_internal called, character = '%c'\n", state->getD1());
 	} else if (curpc == 0x112a) {
 		machine.logerror("HOOK: first instruction after mmu enabled!\n");
 	} else if (curpc == 0x1b56) {
@@ -517,7 +517,7 @@ void apollo_dn300_state::machine_reset()
 	}
 
 	if (machine().debug_flags & DEBUG_FLAG_ENABLED) {
-		m_maincpu->debug()->set_instruction_hook(instruction_hook);
+		// m_maincpu->debug()->set_instruction_hook(instruction_hook);
 	}
 }
 
@@ -555,7 +555,7 @@ void apollo_dn300_state::init_dn300()
 //  MLOG1(("driver_init_dn3500"));
 
 	/* hook the RESET line, which resets a slew of other components */
-	m_maincpu->set_reset_callback(*this, FUNC(apollo_dn300_state::apollo_reset_instr_callback));
+	// m_maincpu->set_reset_callback(*this, FUNC(apollo_dn300_state::apollo_reset_instr_callback));
 
 	ram_base_address = DN300_RAM_BASE;
 	ram_end_address = DN300_RAM_END;

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!--
 Super Shuffle (Louth Coin)
-license:CC0
+license:CC0-1.0
 -->
 <mamelayout version="2">
 	<element name="matrixlamp">
@@ -48,7 +48,7 @@ license:CC0
 		<text string="Pear">        <bounds x="0" y="360" width="100" height="20"/> <color red="0.0" green="0.0" blue="0.0"/> </text>
 		<text string="Bar">         <bounds x="0" y="380" width="100" height="20"/> <color red="0.0" green="0.0" blue="0.0"/> </text>
 		<text string="Plum">        <bounds x="0" y="0" width="100" height="20"/> <color red="0.0" green="0.0" blue="0.0"/> </text>
-		<text string="Louth Coin">	<bounds x="0" y="20" width="100" height="20"/> <color red="0.0" green="0.0" blue="0.0"/> </text>
+		<text string="Louth Coin">  <bounds x="0" y="20" width="100" height="20"/> <color red="0.0" green="0.0" blue="0.0"/> </text>
 	</element>
 	<element name="Reel 2">
 		<rect> <bounds x="0" y="0" width="100" height="400"/> <color alpha="0.0"/> </rect>
