@@ -82,10 +82,10 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset) {
     // from Domain Engineering Handbook:
     // PAGE TRANSLATION TABLE ENTRY (PTTE)
     // (type "ppn_t" in base.ins.pas)
-    // 15                 0
-    // +------------------+
-    // | XXXXPPPPPPPPPPPP |
-    // +------------------+
+    // 15                    0
+    // +---------------------+
+    // | XXXX PPPP PPPP PPPP |
+    // +---------------------+
     // P..P - Physical page number (PPN)
     // XXX  - Junk - ignore
     // Page Translation Table at [ n/a | 700000]
