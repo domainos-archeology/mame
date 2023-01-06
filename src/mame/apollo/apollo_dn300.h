@@ -229,8 +229,6 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( apollo_pic8259_slave_set_int_line );
 	DECLARE_WRITE_LINE_MEMBER( sio_irq_handler );
 	void sio_output(uint8_t data);
-	DECLARE_WRITE_LINE_MEMBER( apollo_ptm_irq_function );
-	DECLARE_WRITE_LINE_MEMBER( apollo_ptm_timer_tick );
 	uint8_t apollo_pic8259_get_slave_ack(offs_t offset);
 	DECLARE_WRITE_LINE_MEMBER( apollo_rtc_irq_function );
 

@@ -497,42 +497,6 @@ WRITE_LINE_MEMBER( apollo_dn300_state::apollo_pic8259_slave_set_int_line ) {
 #endif
 
 //##########################################################################
-// machine/apollo_dn300_ptm.c - APOLLO_DN300 DS3500 Programmable Timer 6840
-//##########################################################################
-
-#undef VERBOSE
-#define VERBOSE 0
-
-WRITE_LINE_MEMBER(apollo_dn300_state::apollo_ptm_timer_tick)
-{
-	if ((state) && (m_ptm->started()))
-	{
-		ptm_counter++;
-		m_ptm->set_c1( 1);
-		m_ptm->set_c1( 0);
-		m_ptm->set_c2(ptm_counter & 1);
-
-		if ((ptm_counter & 1) == 0)
-		{
-			m_ptm->set_c3((ptm_counter >> 1) & 1);
-		}
-	}
-}
-
-WRITE_LINE_MEMBER(apollo_dn300_state::apollo_ptm_irq_function)
-{
-#ifdef notyet
-	apollo_dn300_pic_set_irq_line(APOLLO_DN300_IRQ_PTM, state);
-#endif
-}
-
-//  Timer 1's input is a 250-kHz (4-microsecond period) signal.
-//  Timer 2's input is a 125-kHz (8-microsecond period) signal.
-//  Timer 3's input is a 62.5-kHz (16-microsecond period) signal.
-//  The Timer 3 input may be prescaled to make the effective input signal have a 128-microsecond period.
-
-
-//##########################################################################
 // machine/apollo_dn300_rtc.c - APOLLO_DN300 DS3500 RTC MC146818
 //##########################################################################
 
@@ -918,10 +882,6 @@ void apollo_dn300_state::common(machine_config &config)
 	PTM6840(config, m_ptm, 0);
 	m_ptm->set_external_clocks(250000, 125000, 62500);
 	m_ptm->irq_callback().set_inputline("maincpu", APOLLO_DN300_IRQ_PTM);
-	//m_ptm->irq_callback().set(FUNC(apollo_dn300_state::apollo_ptm_irq_function));
-
-	clock_device &ptmclock(CLOCK(config, "ptmclock", 250000));
-	ptmclock.signal_handler().set(FUNC(apollo_dn300_state::apollo_ptm_timer_tick));
 
 	// no clue what this clock rate should be.  but we need a clock to pulse rxc/txc
 	ACIA6850(config, m_acia, 0);
