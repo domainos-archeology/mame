@@ -8,7 +8,7 @@ DEFINE_DEVICE_TYPE(APOLLO_DN300_MMU, apollo_dn300_mmu_device, APOLLO_DN300_MMU_T
 
 apollo_dn300_mmu_device::apollo_dn300_mmu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock):
     device_t(mconfig, APOLLO_DN300_MMU, tag, owner, clock),
-    m_cpu(*this, "cpu"),
+    m_cpu(*this, MAINCPU),
     m_status(0),
     m_enabled(0),
     m_asid(0),

@@ -493,7 +493,7 @@ void apollo_dn300_state::common(machine_config &config)
 
 	PTM6840(config, m_ptm, 0);
 	m_ptm->set_external_clocks(250000, 125000, 62500);
-	m_ptm->irq_callback().set_inputline("maincpu", APOLLO_DN300_IRQ_PTM);
+	m_ptm->irq_callback().set_inputline(MAINCPU, APOLLO_DN300_IRQ_PTM);
 	//m_ptm->irq_callback().set(FUNC(apollo_dn300_state::apollo_ptm_irq_function));
 
 	clock_device &ptmclock(CLOCK(config, "ptmclock", 250000));
@@ -530,7 +530,7 @@ void apollo_dn300_state::apollo_dn300(machine_config &config)
 {
 	common(config);
 	SCN2681(config, m_sio, 3.6864_MHz_XTAL);
-	m_sio->irq_cb().set_inputline("maincpu", APOLLO_DN300_IRQ_SIO1);
+	m_sio->irq_cb().set_inputline(MAINCPU, APOLLO_DN300_IRQ_SIO1);
 
 	APOLLO_DN300_KBD(config, m_keyboard, 0);
 	m_keyboard->tx_cb().set(m_acia, FUNC(acia6850_device::write_rxd));

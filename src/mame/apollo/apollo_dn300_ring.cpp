@@ -123,7 +123,7 @@ DEFINE_DEVICE_TYPE(APOLLO_DN300_RING, apollo_dn300_ring_device, APOLLO_DN300_RIN
 
 apollo_dn300_ring_device::apollo_dn300_ring_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock):
     device_t(mconfig, APOLLO_DN300_RING, tag, owner, clock),
-    m_cpu(*this, "cpu")
+    m_cpu(*this, MAINCPU)
 {
 }
 

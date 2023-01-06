@@ -357,7 +357,9 @@ void apollo_dn300_state::ram_with_parity_w(offs_t offset, uint16_t data, uint16_
 uint16_t apollo_dn300_state::apollo_unmapped_r(offs_t offset, uint16_t mem_mask)
 {
 	offs_t address = offset * 4;
-
+	if (mem_mask == 0xff) {
+		address += 1;
+	}
 	m68000_musashi_device *m68k = m_maincpu;
 	SLOG1(("unmapped memory dword read from %08x with mask %08x (ir=%04x) (mmu enabled? %s)", address , mem_mask, m68k->state_int(M68K_IR), m_mmu->is_enabled() ? "yes" : "no"));
 
@@ -388,10 +390,15 @@ uint16_t apollo_dn300_state::apollo_unmapped_r(offs_t offset, uint16_t mem_mask)
 
 void apollo_dn300_state::apollo_unmapped_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
-	// SLOG(("unmapped memory dword write to %08x = %04x & %04x", offset * 4, data, mem_mask));
+	offs_t address = offset * 4;
+	if (mem_mask == 0xff) {
+		address += 1;
+	}
+
+	SLOG(("unmapped memory dword write to %08x = %04x & %04x", offset*4, data, mem_mask));
 
 	/* unmapped; access causes a bus error */
-	apollo_bus_error(offset * 4, 0);
+	apollo_bus_error(address, 0);
 }
 
 void apollo_dn300_state::apollo_timers_w(offs_t offset, uint16_t data, uint16_t mem_mask)
@@ -595,7 +602,7 @@ void apollo_dn300_state::dn300(machine_config &config)
 	apollo_dn300(config);
 
 	APOLLO_DN300_GRAPHICS(config, m_graphics, 0);
-	m_graphics->irq_callback().set_inputline("maincpu", M68K_IRQ_4);
+	m_graphics->irq_callback().set_inputline(MAINCPU, M68K_IRQ_4);
 
 	APOLLO_DN300_MMU(config, m_mmu, 0);
 	m_mmu->set_cpu(m_maincpu);
@@ -628,7 +635,7 @@ void apollo_dn300_state::dn320(machine_config &config)
 	apollo_dn300(config);
 
 	APOLLO_DN300_GRAPHICS(config, m_graphics, 0);
-	m_graphics->irq_callback().set_inputline("maincpu", M68K_IRQ_4);
+	m_graphics->irq_callback().set_inputline(MAINCPU, M68K_IRQ_4);
 
 	APOLLO_DN300_MMU(config, m_mmu, 0);
 	m_mmu->set_cpu(m_maincpu);

@@ -17,7 +17,7 @@ DEFINE_DEVICE_TYPE(APOLLO_DN300_DISK, apollo_dn300_disk_device, APOLLO_DN300_DIS
 apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock):
     device_t(mconfig, APOLLO_DN300_DISK, tag, owner, clock),
     drq_cb(*this),
-    m_cpu(*this, "cpu"),
+    m_cpu(*this, MAINCPU),
 	m_fdc(*this, APOLLO_DN300_FLOPPY_TAG),
     m_ansi_cmd(0),
     m_ansi_parm(0),
