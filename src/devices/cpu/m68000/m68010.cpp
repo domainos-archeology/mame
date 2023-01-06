@@ -35,9 +35,9 @@ bool m68010emmu_device::memory_translate(int space, int intention, offs_t &addre
 {
 	/* only applies to the program address space and only does something if the MMU's enabled */
 	{
-		if ((space == AS_PROGRAM) && (m_hmmu_enabled))
+		if ((space == AS_PROGRAM) && (m_emmu_enabled))
 		{
-			address = hmmu_translate_addr(address);
+			address = emmu_translate_addr(address);
 		}
 	}
 	return true;
