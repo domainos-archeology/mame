@@ -17,6 +17,7 @@
 #include "apollo_dn300_kbd.h"
 #include "apollo_dn300_mmu.h"
 #include "apollo_dn300_disk.h"
+#include "apollo_dn300_ring.h"
 
 #include "cpu/m68000/m68000.h"
 
@@ -24,6 +25,7 @@
 #include "machine/hd63450.h"
 #include "machine/bankdev.h"
 #include "machine/clock.h"
+#include "machine/upd765.h"
 #include "machine/mc146818.h"
 #include "machine/mc68681.h"
 #include "machine/6850acia.h"
@@ -96,7 +98,9 @@ void apollo_dn300_set_cache_status_register(device_t *device,uint8_t mask, uint8
 #define APOLLO_DN300_SCREEN_TAG "apollo_dn300_screen"
 #define APOLLO_DN300_KBD_TAG  "keyboard"
 #define APOLLO_DN300_MMU_TAG "apollo_dn300_mmu"
+#define APOLLO_DN300_FLOPPY_TAG "apollo_dn300_floppy"
 #define APOLLO_DN300_DISK_TAG "apollo_dn300_disk"
+#define APOLLO_DN300_RING_TAG "apollo_dn300_ring"
 
 #define APOLLO_DN300_IRQ_SIO1 1
 #define APOLLO_DN300_IRQ_KBD 2
@@ -106,13 +110,19 @@ void apollo_dn300_set_cache_status_register(device_t *device,uint8_t mask, uint8
 #define APOLLO_DN300_IRQ_PTM 6
 #define APOLLO_DN300_IRQ_PARITY_ERROR 7
 
+// channels for our DMAC
+#define APOLLO_DN300_DMA_RING_RCVHEADER 0
+#define APOLLO_DN300_DMA_RING_RCVDATA 1
+#define APOLLO_DN300_DMA_RING_XMIT 2
+#define APOLLO_DN300_DMA_DISK 3
+
 // forward declaration
-class apollo_dn300_sio;
 class apollo_dn300_ni;
 class apollo_dn300_graphics;
 class apollo_dn300_kbd_device;
 class apollo_dn300_mmu_device;
 class apollo_dn300_disk_device;
+class apollo_dn300_ring_device;
 
 class apollo_dn300_state : public driver_device
 {
@@ -123,8 +133,6 @@ public:
 		m_ram(*this, RAM_TAG),
 		m_messram_ptr(*this, RAM_TAG),
 		m_dmac(*this, APOLLO_DN300_DMA_TAG),
-		// m_pic8259_master(*this, APOLLO_DN300_PIC1_TAG),
-		// m_pic8259_slave(*this, APOLLO_DN300_PIC2_TAG),
 		m_ptm(*this, APOLLO_DN300_PTM_TAG),
 		m_sio(*this, APOLLO_DN300_SIO_TAG),
 		m_acia(*this, APOLLO_DN300_ACIA_TAG),
@@ -133,7 +141,9 @@ public:
 		m_graphics(*this, APOLLO_DN300_SCREEN_TAG),
 		m_keyboard(*this, APOLLO_DN300_KBD_TAG),
 		m_mmu(*this, APOLLO_DN300_MMU_TAG),
+		m_fdc(*this, APOLLO_DN300_FLOPPY_TAG),
 		m_disk(*this, APOLLO_DN300_DISK_TAG),
+		m_ring(*this, APOLLO_DN300_RING_TAG),
 		m_internal_leds(*this, "internal_led_%u", 1U)
 	{ }
 
@@ -156,14 +166,16 @@ public:
 
 	required_device<hd63450_device> m_dmac;
 	required_device<ptm6840_device> m_ptm;
-	required_device<apollo_dn300_sio> m_sio;
+	required_device<scn2681_device> m_sio;
 	required_device<acia6850_device> m_acia;
 	optional_device<mc146818_device> m_rtc;
 	required_device<apollo_dn300_ni> m_node_id;
 	required_device<apollo_dn300_graphics> m_graphics;
 	optional_device<apollo_dn300_kbd_device> m_keyboard;
 	required_device<apollo_dn300_mmu_device> m_mmu;
+	required_device<upd765a_device> m_fdc;
 	required_device<apollo_dn300_disk_device> m_disk;
+	required_device<apollo_dn300_ring_device> m_ring;
 	output_finder<4> m_internal_leds;
 
 	void apollo_timers_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
@@ -171,9 +183,6 @@ public:
 
 	void apollo_display_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
 	uint8_t apollo_display_r(offs_t offset, uint8_t mem_mask = ~0);
-
-	void apollo_ring_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
-	uint8_t apollo_ring_r(offs_t offset, uint8_t mem_mask = ~0);
 
 	void apollo_fpu_ctl_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	uint16_t apollo_fpu_ctl_r(offs_t offset, uint16_t mem_mask = ~0);
@@ -189,18 +198,6 @@ public:
 	void apollo_dn300_mcsr_control_register_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
 	uint8_t apollo_dn300_mcsr_control_register_r(offs_t offset, uint8_t mem_mask = ~0);
 
-	void apollo_dma_1_w(offs_t offset, uint8_t data);
-	uint8_t apollo_dma_1_r(offs_t offset);
-	void apollo_dma_2_w(offs_t offset, uint8_t data);
-	uint8_t apollo_dma_2_r(offs_t offset);
-	void apollo_dma_page_register_w(offs_t offset, uint8_t data);
-	uint8_t apollo_dma_page_register_r(offs_t offset);
-	void apollo_address_translation_map_w(offs_t offset, uint16_t data);
-	uint16_t apollo_address_translation_map_r(offs_t offset);
-	uint8_t apollo_dma_read_byte(offs_t offset);
-	void apollo_dma_write_byte(offs_t offset, uint8_t data);
-	uint8_t apollo_dma_read_word(offs_t offset);
-	void apollo_dma_write_word(offs_t offset, uint8_t data);
 	void apollo_rtc_w(offs_t offset, uint8_t data);
 	uint8_t apollo_rtc_r(offs_t offset);
 	void cache_control_register_w(offs_t offset, uint8_t data);
@@ -223,55 +220,19 @@ public:
 	u16 apollo_pic_get_vector();
 	void apollo_bus_error(offs_t fault_addr, u8 rw);
 	DECLARE_READ_LINE_MEMBER( apollo_kbd_is_german );
-	DECLARE_WRITE_LINE_MEMBER( apollo_dma_1_hrq_changed );
-	DECLARE_WRITE_LINE_MEMBER( apollo_dma_2_hrq_changed );
-	DECLARE_WRITE_LINE_MEMBER( apollo_pic8259_master_set_int_line );
-	DECLARE_WRITE_LINE_MEMBER( apollo_pic8259_slave_set_int_line );
-	DECLARE_WRITE_LINE_MEMBER( sio_irq_handler );
-	void sio_output(uint8_t data);
-	uint8_t apollo_pic8259_get_slave_ack(offs_t offset);
 	DECLARE_WRITE_LINE_MEMBER( apollo_rtc_irq_function );
 
 	DECLARE_WRITE_LINE_MEMBER( dma_irq );
 	void dma_end(offs_t offset, uint8_t data);
 
-
-	uint8_t pc_dma8237_0_dack_r();
-	uint8_t pc_dma8237_1_dack_r();
-	uint8_t pc_dma8237_2_dack_r();
-	uint8_t pc_dma8237_3_dack_r();
-	uint8_t pc_dma8237_5_dack_r();
-	uint8_t pc_dma8237_6_dack_r();
-	uint8_t pc_dma8237_7_dack_r();
-	void pc_dma8237_0_dack_w(uint8_t data);
-	void pc_dma8237_1_dack_w(uint8_t data);
-	void pc_dma8237_2_dack_w(uint8_t data);
-	void pc_dma8237_3_dack_w(uint8_t data);
-	void pc_dma8237_5_dack_w(uint8_t data);
-	void pc_dma8237_6_dack_w(uint8_t data);
-	void pc_dma8237_7_dack_w(uint8_t data);
-	DECLARE_WRITE_LINE_MEMBER(pc_dack0_w);
-	DECLARE_WRITE_LINE_MEMBER(pc_dack1_w);
-	DECLARE_WRITE_LINE_MEMBER(pc_dack2_w);
-	DECLARE_WRITE_LINE_MEMBER(pc_dack3_w);
-	DECLARE_WRITE_LINE_MEMBER(pc_dack4_w);
-	DECLARE_WRITE_LINE_MEMBER(pc_dack5_w);
-	DECLARE_WRITE_LINE_MEMBER(pc_dack6_w);
-	DECLARE_WRITE_LINE_MEMBER(pc_dack7_w);
-
-	void apollo_pic_set_irq_line(int irq, int state);
-	void select_dma_channel(int channel, bool state);
-
 	DECLARE_WRITE_LINE_MEMBER(apollo_reset_instr_callback);
 
 	void common(machine_config &config);
 	void apollo_dn300(machine_config &config);
-	void apollo_dn300_terminal(machine_config &config);
 
 	void dn300_physical_map(address_map &map);
 
 	uint32_t ptm_counter;
-	uint8_t sio_output_data;
 	int m_dma_channel;
 	bool m_cur_eop;
 };
@@ -313,25 +274,6 @@ INPUT_PORTS_EXTERN(apollo_dn300_config);
 uint8_t apollo_dn300_mcsr_get_control_register(void);
 uint16_t apollo_dn300_mcsr_get_status_register(void);
 void apollo_dn300_mcsr_set_status_register(uint16_t mask, uint16_t data);
-
-/*----------- machine/apollo_dn300_sio.cpp -----------*/
-
-class apollo_dn300_sio: public duart_base_device
-{
-public:
-	apollo_dn300_sio(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-
-	virtual uint8_t read(offs_t offset) override;
-	virtual void write(offs_t offset, uint8_t data) override;
-
-protected:
-	virtual void device_reset() override;
-
-private:
-	uint8_t m_csrb;
-};
-
-DECLARE_DEVICE_TYPE(APOLLO_DN300_SIO, apollo_dn300_sio)
 
 /*----------- machine/apollo_dn300_ni.cpp -----------*/
 

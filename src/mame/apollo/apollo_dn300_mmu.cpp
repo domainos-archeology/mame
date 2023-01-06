@@ -4,11 +4,11 @@
 #define VERBOSE 2
 #include "apollo_dn300.h"
 
-DEFINE_DEVICE_TYPE(APOLLO_DN300_MMU, apollo_dn300_mmu_device, "apollo_dn300_mmu", "Apollo DN300 Custom MMU")
+DEFINE_DEVICE_TYPE(APOLLO_DN300_MMU, apollo_dn300_mmu_device, APOLLO_DN300_MMU_TAG, "Apollo DN300 Custom MMU")
 
 apollo_dn300_mmu_device::apollo_dn300_mmu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock):
     device_t(mconfig, APOLLO_DN300_MMU, tag, owner, clock),
-    m_cpu(*this, "cpu"),
+    m_cpu(*this, MAINCPU),
     m_status(0),
     m_enabled(0),
     m_asid(0),
@@ -82,18 +82,20 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset) {
     // from Domain Engineering Handbook:
     // PAGE TRANSLATION TABLE ENTRY (PTTE)
     // (type "ppn_t" in base.ins.pas)
-    // 15                 0
-    // +------------------+
-    // | XXXXPPPPPPPPPPPP |
-    // +------------------+
+    // 15                    0
+    // +---------------------+
+    // | XXXX PPPP PPPP PPPP |
+    // +---------------------+
     // P..P - Physical page number (PPN)
     // XXX  - Junk - ignore
     // Page Translation Table at [ n/a | 700000]
     // through [ n/a | 800000 ]
     // One PPTE every 1024 bytes in table.
     int vpn = byte_offset >> 10;
-    int ptt_index = vpn % NUM_PTTE;
-    int xsvpn = vpn / NUM_PTTE;
+
+	// split up the vpn again on the 10 bit boundary into a ptt index and an "excess vpn" (xsvpn)
+    int ptt_index = vpn & 0x3ff;
+    int xsvpn = vpn >> 10;
 
     int byte_offset_within_page = byte_offset % PAGE_SIZE;
     int ppn = m_ptt[ptt_index] & 0xfff;

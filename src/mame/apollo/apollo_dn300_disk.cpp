@@ -2,17 +2,23 @@
 // see http://bitsavers.org/pdf/priam/Priam_Device_Level_Interface_Jun83.pdf
 // and http://www.bitsavers.org/pdf/apollo/002398-04_Domain_Engineering_Handbook_Rev4_Jan87.pdf
 
+// the drive controller looks to be entirely custom for the hard drive (probably
+// a thin layer over it, with the driver doing most of the work).
+//
+// for the floppy drive, however, it uses a standard chip - NEC765ac
+
 #include "emu.h"
 
 #define VERBOSE 2
 #include "apollo_dn300.h"
 
-DEFINE_DEVICE_TYPE(APOLLO_DN300_DISK, apollo_dn300_disk_device, "apollo_dn300_disk", "Apollo DN300 Winchester/Floppy controller")
+DEFINE_DEVICE_TYPE(APOLLO_DN300_DISK, apollo_dn300_disk_device, APOLLO_DN300_DISK_TAG, "Apollo DN300 Winchester/Floppy controller")
 
 apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock):
     device_t(mconfig, APOLLO_DN300_DISK, tag, owner, clock),
     drq_cb(*this),
-    m_cpu(*this, "cpu"),
+    m_cpu(*this, MAINCPU),
+	m_fdc(*this, APOLLO_DN300_FLOPPY_TAG),
     m_ansi_cmd(0),
     m_ansi_parm(0),
     m_sector(0),
@@ -30,8 +36,6 @@ apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig
     m_sense_byte_2(0),
     m_write_enabled(false),
     m_attention_enabled(true),
-    m_floppy_status(0),
-    m_floppy_data(0),
 	m_disk_fp(NULL),
 	m_sysboot_fp(NULL)
 {
@@ -51,6 +55,7 @@ apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig
     if (m_sysboot_fp == NULL) {
         logerror("couldn't open sysboot\n");
     }
+
 }
 
 void apollo_dn300_disk_device::device_start()
@@ -185,28 +190,71 @@ void apollo_dn300_disk_device::device_reset()
 #define STATUS_LOW_STATUS_TIMEOUT               0x04
 #define STATUS_LOW_DMA_PARITY_ERROR             0x02
 
-void apollo_dn300_disk_device::write(offs_t offset, uint8_t data, uint8_t mem_mask)
+void
+apollo_dn300_disk_device::map(address_map &map)
+{
+	map(0x00, 0x0F).rw(FUNC(apollo_dn300_disk_device::wdc_read), FUNC(apollo_dn300_disk_device::wdc_write));
+	map(0x10, 0x11).r(FUNC(apollo_dn300_disk_device::fdc_msr_r));
+	map(0x12, 0x13).rw(FUNC(apollo_dn300_disk_device::fdc_fifo_r), FUNC(apollo_dn300_disk_device::fdc_fifo_w));
+	map(0x14, 0x15).w(FUNC(apollo_dn300_disk_device::fdc_dsr_w));
+
+	// calendar stuff goes here eventually
+}
+
+
+void
+apollo_dn300_disk_device::fdc_dsr_w(offs_t, uint8_t data, uint8_t mem_mask)
+{
+    SLOG1(("DN300_DISK: fdc_dsr_w = %02x & %02x", data, mem_mask));
+	m_fdc->dsr_w(data&mem_mask);
+}
+
+uint8_t
+apollo_dn300_disk_device::fdc_msr_r(offs_t offset, uint8_t mem_mask)
+{
+	uint8_t data = m_fdc->msr_r() & mem_mask;
+    SLOG1(("DN300_DISK: fdc_msr_r = %02x", data));
+	return data;
+}
+
+void
+apollo_dn300_disk_device::fdc_fifo_w(offs_t, uint8_t data, uint8_t mem_mask)
+{
+    SLOG1(("DN300_DISK: fdc_fifo_w = %02x & %02x", data, mem_mask));
+	m_fdc->fifo_w(data&mem_mask);
+}
+
+uint8_t
+apollo_dn300_disk_device::fdc_fifo_r(offs_t, uint8_t mem_mask)
+{
+	uint8_t data = m_fdc->fifo_r() & mem_mask;
+	SLOG1(("DN300_DISK: fdc_fifo_r = %02x", data));
+	return data;
+}
+
+
+void apollo_dn300_disk_device::wdc_write(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
     switch (offset) {
         // winchester register writes
         case REG_ANSI_CMD:
-            SLOG1(("DN300_DISK: ANSI_COMMAND write = %02x", data));
+            SLOG1(("DN300_DISK: wdc ANSI_COMMAND write = %02x", data));
             m_ansi_cmd = data;
             break;
         case REG_ANSI_PARM:
-            SLOG1(("DN300_DISK: ANSI_PARM write = %02x", data));
+            SLOG1(("DN300_DISK: wdc ANSI_PARM write = %02x", data));
             m_ansi_parm = data;
             break;
         case REG_SECTOR:
-            SLOG1(("DN300_DISK: SECTOR write = %02x", data));
+            SLOG1(("DN300_DISK: wdc SECTOR write = %02x", data));
             m_sector = data;
             break;
         case REG_CYLINDER_HIGH:
-            SLOG1(("DN300_DISK: CYLINDER_HIGH write = %02x", data));
+            SLOG1(("DN300_DISK: wdc CYLINDER_HIGH write = %02x", data));
             m_cylinder_high = data;
             break;
         case REG_CYLINDER_LOW:
-            SLOG1(("DN300_DISK: CYLINDER_LOW write = %02x", data));
+            SLOG1(("DN300_DISK: wdc CYLINDER_LOW write = %02x", data));
             m_cylinder_low = data;
             break;
         case REG_HEAD:
@@ -214,61 +262,43 @@ void apollo_dn300_disk_device::write(offs_t offset, uint8_t data, uint8_t mem_ma
             m_head = data;
             break;
         case REG_INTERRUPT_CONTROL:
-            SLOG1(("DN300_DISK: INTERRUPT_CONTROL write = %02x", data));
+            SLOG1(("DN300_DISK: wdc INTERRUPT_CONTROL write = %02x", data));
             m_interrupt_control = data;
             break;
         case REG_CONTROLLER_COMMAND:
-            SLOG1(("DN300_DISK: CONTROLLER_COMMAND write = %02x", data));
+            SLOG1(("DN300_DISK: wdc CONTROLLER_COMMAND write = %02x", data));
             m_controller_command = data;
             execute_command();
             break;
 
-        // floppy register writes
-        case REG_FLOPPY_DATA:
-            SLOG1(("DN300_DISK: FLOPPY_DATA write = %02x", data));
-            m_floppy_data = data;
-            break;
-        case REG_FLOPPY_CONTROL:
-            SLOG1(("DN300_DISK: FLOPPY_CONTROL write = %02x", data));
-            break;
-
         default:
-            SLOG1(("DN300_DISK: unknown write to offset %02x = %02x & %08x", offset, data, mem_mask));
+            SLOG1(("DN300_DISK: unknown wdc write to offset %02x = %02x & %08x", offset, data, mem_mask));
             break;
     }
 }
 
-uint8_t apollo_dn300_disk_device::read(offs_t offset, uint8_t mem_mask)
+uint8_t apollo_dn300_disk_device::wdc_read(offs_t offset, uint8_t mem_mask)
 {
     switch (offset) {
         // winchester register reads
         case REG_ATTENTION_STATUS:
-            SLOG1(("DN300_DISK: ATTENTION_STATUS read = %02x", m_general_status));
+            SLOG1(("DN300_DISK: wdc ATTENTION_STATUS read = %02x", m_general_status));
             // reading this clears some status bits
             m_status_high &= ~STATUS_HIGH_DRIVE_ATTENTION;
             return m_general_status;
         case REG_ANSI_PARM:
-            SLOG1(("DN300_DISK: ANSI_PARM read = %02x", m_ansi_parm));
+            SLOG1(("DN300_DISK: wdc ANSI_PARM read = %02x", m_ansi_parm));
             return m_ansi_parm;
         case REG_STATUS_HIGH:
-            SLOG1(("DN300_DISK: STATUS_HIGH read = %02x & %02x", m_status_high, mem_mask));
+            SLOG1(("DN300_DISK: wdc STATUS_HIGH read = %02x & %02x", m_status_high, mem_mask));
             return m_status_high;
         case REG_STATUS_LOW:
-            SLOG1(("DN300_DISK: STATUS_LOW read = %02x", m_status_low));
+            SLOG1(("DN300_DISK: wdc STATUS_LOW read = %02x", m_status_low));
             return m_status_low;
 
-        // floppy register reads
-        case REG_FLOPPY_STATUS:
-            SLOG1(("DN300_DISK: FLOPPY_STATUS read = %02x", m_floppy_status));
-            return m_floppy_status;
-        case REG_FLOPPY_DATA:
-            SLOG1(("DN300_DISK: FLOPPY_DATA read = %02x", m_floppy_data));
-            return m_floppy_data;
-
         default:
-            SLOG1(("DN300_DISK: unknown read at offset %02x & %08x", offset, mem_mask));
+            SLOG1(("DN300_DISK: unknown wdc read at offset %02x & %08x", offset, mem_mask));
             return 0;
-
     }
 }
 

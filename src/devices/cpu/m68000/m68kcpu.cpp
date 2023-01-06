@@ -1594,6 +1594,7 @@ void m68000_musashi_device::init32mmu(address_space &space, address_space &ospac
 	};
 }
 
+/* interface for 16-bit data bus with external MMU */
 void m68000_musashi_device::init16emmu(address_space &space, address_space &ospace)
 {
 	m_space = &space;
