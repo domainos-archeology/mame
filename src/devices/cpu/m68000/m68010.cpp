@@ -13,12 +13,6 @@ std::unique_ptr<util::disasm_interface> m68010_device::create_disassembler()
 	return std::make_unique<m68k_disassembler>(m68k_disassembler::TYPE_68010);
 }
 
-std::unique_ptr<util::disasm_interface> m68010emmu_device::create_disassembler()
-{
-	return std::make_unique<m68k_disassembler>(m68k_disassembler::TYPE_68010);
-}
-
-
 m68010_device::m68010_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock)
 	: m68000_musashi_device(mconfig, tag, owner, clock, M68010, 16,24)
 {
@@ -28,6 +22,11 @@ void m68010_device::device_start()
 {
 	m68000_musashi_device::device_start();
 	init_cpu_m68010();
+}
+
+std::unique_ptr<util::disasm_interface> m68010emmu_device::create_disassembler()
+{
+	return std::make_unique<m68k_disassembler>(m68k_disassembler::TYPE_68010);
 }
 
 
