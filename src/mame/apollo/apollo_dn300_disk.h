@@ -44,6 +44,10 @@ public:
 	void fdc_fifo_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
 	uint8_t fdc_fifo_r(offs_t offset, uint8_t mem_mask = ~0);
 
+	void calendar_ctrl_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
+	void calendar_data_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
+	uint8_t calendar_data_r(offs_t offset, uint8_t mem_mask = ~0);
+
 	auto drq_wr_callback() { return drq_cb.bind(); }
 
 	uint8_t read_byte(offs_t offset);
@@ -87,6 +91,9 @@ private:
 
 	uint32_t m_read_cursor;
 	char m_read_buffer[2000];
+
+	uint8 m_calendar_ctrl;
+	uint8 m_calendar_data;
 
 	FILE *m_disk_fp;
 	FILE *m_sysboot_fp;

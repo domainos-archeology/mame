@@ -198,9 +198,30 @@ apollo_dn300_disk_device::map(address_map &map)
 	map(0x12, 0x13).rw(FUNC(apollo_dn300_disk_device::fdc_fifo_r), FUNC(apollo_dn300_disk_device::fdc_fifo_w));
 	map(0x14, 0x15).w(FUNC(apollo_dn300_disk_device::fdc_dsr_w));
 
+	map(0x20, 0x21).w(FUNC(apollo_dn300_disk_device::calendar_ctrl_w));
+	map(0x22,0x23).w(FUNC(apollo_dn300_disk_device::calendar_data_w));
+	map(0x24,0x25).r(FUNC(apollo_dn300_disk_device::calendar_data_r));
 	// calendar stuff goes here eventually
 }
 
+
+void
+apollo_dn300_disk_device::calendar_ctrl_w(offs_t, uint8_t data, uint8_t mem_mask)
+{
+	COMBINE_DATA(&m_calendar_ctrl);
+}
+
+void
+apollo_dn300_disk_device::calendar_data_w(offs_t, uint8_t data, uint8_t mem_mask)
+{
+	COMBINE_DATA(&m_calendar_data);
+}
+
+uint8_t
+apollo_dn300_disk_device::calendar_data_r(offs_t, uint8_t mem_mask)
+{
+	return m_calendar_data & mem_mask;
+}
 
 void
 apollo_dn300_disk_device::fdc_dsr_w(offs_t, uint8_t data, uint8_t mem_mask)

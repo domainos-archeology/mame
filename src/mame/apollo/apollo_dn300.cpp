@@ -190,14 +190,11 @@ static int instruction_hook(device_t &device, offs_t curpc)
 
 void apollo_dn300_state::apollo_bus_error(offs_t fault_addr, u8 rw)
 {
-#if 1
-	// this is how we'll do restartable instructions in the future
-	m_maincpu->set_buserror_details(fault_addr, rw, m_maincpu->get_fc(), true);
-#else
-	// the old-style bus error
+	SLOG1(("apollo_bus_error: fault_addr = %08x, rw = %d", fault_addr, rw));
+
+	// a non-restartable bus error
 	m_maincpu->set_input_line(M68K_LINE_BUSERROR, ASSERT_LINE);
 	m_maincpu->set_input_line(M68K_LINE_BUSERROR, CLEAR_LINE);
-#endif
 }
 
 void apollo_dn300_state::cpu_space_map(address_map &map)
@@ -360,8 +357,8 @@ uint16_t apollo_dn300_state::apollo_unmapped_r(offs_t offset, uint16_t mem_mask)
 	if (mem_mask == 0xff) {
 		address += 1;
 	}
-	m68000_musashi_device *m68k = m_maincpu;
-	SLOG1(("unmapped memory dword read from %08x with mask %08x (ir=%04x) (mmu enabled? %s)", address , mem_mask, m68k->state_int(M68K_IR), m_mmu->is_enabled() ? "yes" : "no"));
+	// m68000_musashi_device *m68k = m_maincpu;
+	// SLOG1(("unmapped memory dword read from %08x with mask %08x (ir=%04x) (mmu enabled? %s)", address , mem_mask, m68k->state_int(M68K_IR), m_mmu->is_enabled() ? "yes" : "no"));
 
 
 	if ((address & 0xfff00000) == 0xfa800000 && VERBOSE < 2) {
@@ -395,7 +392,7 @@ void apollo_dn300_state::apollo_unmapped_w(offs_t offset, uint16_t data, uint16_
 		address += 1;
 	}
 
-	SLOG(("unmapped memory dword write to %08x = %04x & %04x", offset*4, data, mem_mask));
+	// SLOG(("unmapped memory dword write to %08x = %04x & %04x", offset*4, data, mem_mask));
 
 	/* unmapped; access causes a bus error */
 	apollo_bus_error(address, 0);
