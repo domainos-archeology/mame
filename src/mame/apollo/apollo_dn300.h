@@ -220,8 +220,6 @@ public:
 	u16 apollo_pic_get_vector();
 	void apollo_bus_error(offs_t fault_addr, u8 rw);
 	DECLARE_READ_LINE_MEMBER( apollo_kbd_is_german );
-	DECLARE_WRITE_LINE_MEMBER( apollo_ptm_irq_function );
-	DECLARE_WRITE_LINE_MEMBER( apollo_ptm_timer_tick );
 	DECLARE_WRITE_LINE_MEMBER( apollo_rtc_irq_function );
 
 	DECLARE_WRITE_LINE_MEMBER( dma_irq );

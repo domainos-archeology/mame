@@ -403,12 +403,20 @@ void apollo_dn300_state::apollo_unmapped_w(offs_t offset, uint16_t data, uint16_
 
 void apollo_dn300_state::apollo_timers_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
-	SLOG1(("writing timers at offset %02x = %02x & %08x", offset, data, mem_mask));
+	// note: 16-bit offset gets used directly, as the LSB of each 16-bit word is
+	// what is actually sent to the PTM in the appropriate same-offset register
+	// we could assert(mem_mask == 0x00ff)
+
+	//SLOG1(("writing timers at offset %02x = %02x & %08x", offset, data, mem_mask));
 	m_ptm->write(offset, data);
 }
 uint16_t apollo_dn300_state::apollo_timers_r(offs_t offset, uint16_t mem_mask)
 {
-	SLOG1(("reading timers at offset %02x & %08x", offset, mem_mask));
+	// note: 16-bit offset gets used directly, as the LSB of each 16-bit word is
+	// what is actually sent to the PTM in the appropriate same-offset register
+	// we could assert(mem_mask == 0x00ff)
+
+	//SLOG1(("reading timers at offset %02x & %08x", offset, mem_mask));
 	return m_ptm->read(offset);
 }
 
@@ -477,7 +485,7 @@ void apollo_dn300_state::dn300_physical_map(address_map &map)
 	map(0x008420, 0x008421).rw(m_acia, FUNC(acia6850_device::status_r), FUNC(acia6850_device::control_w));
 	map(0x008422, 0x008423).rw(m_acia, FUNC(acia6850_device::data_r), FUNC(acia6850_device::data_w));
 
-	map(0x008800, 0x008bff).rw(m_ptm, FUNC(ptm6840_device::read), FUNC(ptm6840_device::write));
+	map(0x008800, 0x008bff).rw(FUNC(apollo_dn300_state::apollo_timers_r), FUNC(apollo_dn300_state::apollo_timers_w));
 
 	map(0x009000, 0x0093ff).rw(m_dmac, FUNC(hd63450_device::read), FUNC(hd63450_device::write)); // docs make it seem like this is just 0x9000 - 0x90ff
 	map(0x009400, 0x0097ff).rw(FUNC(apollo_dn300_state::apollo_display_r), FUNC(apollo_dn300_state::apollo_display_w)); // docs call this "display 1"
