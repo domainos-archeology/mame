@@ -534,7 +534,9 @@ public:
 				auto window = GET_FOCUS_WINDOW(&sdlevent.motion);
 
 				if (window != nullptr && window->xy_to_render_target(sdlevent.motion.x, sdlevent.motion.y, &cx, &cy))
+				{
 					machine().ui_input().push_mouse_move_event(window->target(), cx, cy);
+				}
 			}
 			break;
 
@@ -1062,7 +1064,7 @@ public:
 			devinfo->sdl_state.hapdevice = SDL_HapticOpenFromJoystick(joy);
 			if (serial)
 				devinfo->sdl_state.serial = serial;
-
+#if 0
 			osd_printf_verbose("Joystick: %s [GUID %s] Vendor ID %04X, Product ID %04X, Revision %04X, Serial %s\n",
 					name ? name : "<nullptr>",
 					guid_str,
@@ -1070,6 +1072,7 @@ public:
 					SDL_JoystickGetProduct(joy),
 					SDL_JoystickGetProductVersion(joy),
 					serial ? serial : "<nullptr>");
+#endif
 			osd_printf_verbose("Joystick:   ...  %d axes, %d buttons %d hats %d balls\n",
 					SDL_JoystickNumAxes(joy),
 					SDL_JoystickNumButtons(joy),

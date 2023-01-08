@@ -332,7 +332,7 @@ void apollo_dn300_graphics::blt()
 	m_update_flag = 1;
 	m_update_pending = 0;
 
-	if (VERBOSE > 3 || machine().debug_flags & DEBUG_FLAG_ENABLED)
+	if (VERBOSE > 3)
 	{
 		machine().video().frame_update(true);
 	}

@@ -337,7 +337,7 @@ void debugger_cpu::start_hook(device_t *device, bool stop_on_vblank)
 			}
 		}
 		// check for debug keypresses
-		if (m_machine.ui_input().pressed(IPT_UI_DEBUG_BREAK))
+		if (m_machine.ui_input().pressed(IPT_UI_DEBUG_BREAK) && false)
 		{
 			visiblecpu->debug()->ignore(false);
 			visiblecpu->debug()->halt_on_next_instruction("User-initiated break\n");

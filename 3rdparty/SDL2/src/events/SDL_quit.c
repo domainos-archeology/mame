@@ -91,7 +91,7 @@ SDL_QuitInit_Internal(void)
 int
 SDL_QuitInit(void)
 {
-    if (!SDL_GetHintBoolean(SDL_HINT_NO_SIGNAL_HANDLERS, SDL_FALSE)) {
+    if (0 && !SDL_GetHintBoolean(SDL_HINT_NO_SIGNAL_HANDLERS, SDL_FALSE)) {
         return SDL_QuitInit_Internal();
     }
     return 0;
@@ -127,8 +127,8 @@ SDL_QuitQuit_Internal(void)
 void
 SDL_QuitQuit(void)
 {
-    if (!disable_signals) {
-        SDL_QuitQuit_Internal();
+    if (0 && !disable_signals) {
+       SDL_QuitQuit_Internal();
     }
 }
 
