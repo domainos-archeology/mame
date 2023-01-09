@@ -490,11 +490,12 @@ void apollo_dn300_state::apollo_dn300(machine_config &config)
 {
 	common(config);
 	SCN2681(config, m_sio, 3.6864_MHz_XTAL);
-	m_sio->irq_cb().set_inputline(MAINCPU, APOLLO_DN300_IRQ_SIO1);
+	//m_sio->irq_cb().set_inputline(MAINCPU, APOLLO_DN300_IRQ_SIO1);
 
 	APOLLO_DN300_KBD(config, m_keyboard, 0);
 	m_keyboard->tx_cb().set(m_acia, FUNC(acia6850_device::write_rxd));
 	m_acia->txd_handler().set(m_keyboard, FUNC(apollo_dn300_kbd_device::write_txd));
+	m_acia->irq_handler().set_inputline(MAINCPU, APOLLO_DN300_IRQ_KBD);
 }
 
 void apollo_dn300_state::init_apollo()
