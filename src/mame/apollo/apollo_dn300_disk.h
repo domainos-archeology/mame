@@ -66,28 +66,28 @@ private:
     required_device<cpu_device> m_cpu;
 	required_device<upd765a_device> m_fdc;
 
-	uint8_t m_ansi_cmd;
-	uint8_t m_ansi_parm;
-	uint8_t m_sector;
-	uint8_t m_cylinder_high;
-	uint8_t m_cylinder_low;
-	uint8_t m_head;
-	uint8_t m_interrupt_control;
+	uint8_t m_wdc_ansi_cmd;
+	uint8_t m_wdc_ansi_parm;
+	uint8_t m_wdc_sector;
+	uint8_t m_wdc_cylinder_high;
+	uint8_t m_wdc_cylinder_low;
+	uint8_t m_wdc_head;
+	uint8_t m_wdc_interrupt_control;
 	uint8_t m_controller_command;
 
 	void execute_command();
 	void execute_ansi_command();
 
 	// our current state
-	uint8_t m_status_high;
-	uint8_t m_status_low;
-	uint8_t m_selected_head;
-	uint8_t m_selected_drive;
-	uint8_t m_general_status;
-	uint8_t m_sense_byte_1;
-	uint8_t m_sense_byte_2;
-	bool m_write_enabled;
-	bool m_attention_enabled;
+	uint8_t m_wdc_status_high;
+	uint8_t m_wdc_status_low;
+	uint8_t m_wdc_selected_head;
+	uint8_t m_wdc_selected_drive;
+	uint8_t m_wdc_general_status;
+	uint8_t m_wdc_sense_byte_1;
+	uint8_t m_wdc_sense_byte_2;
+	bool m_wdc_write_enabled;
+	bool m_wdc_attention_enabled;
 
 	uint32_t m_read_cursor;
 	char m_read_buffer[2000];

@@ -19,23 +19,23 @@ apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig
     drq_cb(*this),
     m_cpu(*this, MAINCPU),
 	m_fdc(*this, APOLLO_DN300_FLOPPY_TAG),
-    m_ansi_cmd(0),
-    m_ansi_parm(0),
-    m_sector(0),
-    m_cylinder_high(0),
-    m_cylinder_low(0),
-    m_head(0),
-    m_interrupt_control(0),
+    m_wdc_ansi_cmd(0),
+    m_wdc_ansi_parm(0),
+    m_wdc_sector(0),
+    m_wdc_cylinder_high(0),
+    m_wdc_cylinder_low(0),
+    m_wdc_head(0),
+    m_wdc_interrupt_control(0),
     m_controller_command(0),
-    m_status_high(0),
-    m_status_low(0),
-    m_selected_head(0),
-    m_selected_drive(0),
-    m_general_status(0),
-    m_sense_byte_1(0),
-    m_sense_byte_2(0),
-    m_write_enabled(false),
-    m_attention_enabled(true),
+    m_wdc_status_high(0),
+    m_wdc_status_low(0),
+    m_wdc_selected_head(0),
+    m_wdc_selected_drive(0),
+    m_wdc_general_status(0),
+    m_wdc_sense_byte_1(0),
+    m_wdc_sense_byte_2(0),
+    m_wdc_write_enabled(false),
+    m_wdc_attention_enabled(true),
 	m_disk_fp(NULL),
 	m_sysboot_fp(NULL)
 {
@@ -149,46 +149,46 @@ void apollo_dn300_disk_device::device_reset()
 #define ANSI_CMD_LOAD_TEST_BYTE             0x6F
 
 // general status bits
-#define GS_NOT_READY         0x01
-#define GS_CONTROL_BUS_ERROR 0x02
-#define GS_ILLEGAL_COMMAND   0x04
-#define GS_ILLEGAL_PARAMETER 0x08
-#define GS_SENSE_BYTE_1      0x10
-#define GS_SENSE_BYTE_2      0x20
-#define GS_BUSY_EXECUTING    0x40
-#define GS_NORMAL_COMPLETE   0x80
+#define WDC_GS_NOT_READY         0x01
+#define WDC_GS_CONTROL_BUS_ERROR 0x02
+#define WDC_GS_ILLEGAL_COMMAND   0x04
+#define WDC_GS_ILLEGAL_PARAMETER 0x08
+#define WDC_GS_SENSE_BYTE_1      0x10
+#define WDC_GS_SENSE_BYTE_2      0x20
+#define WDC_GS_BUSY_EXECUTING    0x40
+#define WDC_GS_NORMAL_COMPLETE   0x80
 
 // sense byte 1 bits
-#define SB1_SEEK_ERROR     0x01
-#define SB1_RW_FAULT       0x02
-#define SB1_POWER_FAULT    0x04
+#define WDC_SB1_SEEK_ERROR     0x01
+#define WDC_SB1_RW_FAULT       0x02
+#define WDC_SB1_POWER_FAULT    0x04
 // nothing on bit 3
-#define SB1_SPEED_ERROR    0x10
-#define SB1_COMMAND_REJECT 0x20
+#define WDC_SB1_SPEED_ERROR    0x10
+#define WDC_SB1_COMMAND_REJECT 0x20
 
 // sense byte 2 bits
-#define SB2_INITIAL_STATE    0x01
-#define SB2_READY_TRANSITION 0x02
+#define WDC_SB2_INITIAL_STATE    0x01
+#define WDC_SB2_READY_TRANSITION 0x02
 // nothing on bit 2-4
-#define SB2_DEVICE_ATTR_TABLE_MODIFIED 0x20
-#define SB2_POSITIONED_WITHIN_WRITE_PROTECTED_AREA 0x40
+#define WDC_SB2_DEVICE_ATTR_TABLE_MODIFIED 0x20
+#define WDC_SB2_POSITIONED_WITHIN_WRITE_PROTECTED_AREA 0x40
 
 // controller status word
 // high byte:
-#define STATUS_HIGH_CONTROLLER_BUSY             0x80
-#define STATUS_HIGH_DRIVE_BUSY                  0x40
-#define STATUS_HIGH_DRIVE_ATTENTION             0x20
-#define STATUS_HIGH_STATUS_AVAILABLE_INTERRUPT  0x10
-#define STATUS_HIGH_END_OF_OP_INTERRUPT         0x08
-#define STATUS_HIGH_FLOPPY_INTERRUPTING         0x04
+#define CONTROLLER_STATUS_HIGH_CONTROLLER_BUSY             0x80
+#define CONTROLLER_STATUS_HIGH_DRIVE_BUSY                  0x40
+#define CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION             0x20
+#define CONTROLLER_STATUS_HIGH_STATUS_AVAILABLE_INTERRUPT  0x10
+#define CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT         0x08
+#define CONTROLLER_STATUS_HIGH_FLOPPY_INTERRUPTING         0x04
 // low byte:
-#define STATUS_LOW_TIMEOUT                      0x80
-#define STATUS_LOW_OVERRUN                      0x40
-#define STATUS_LOW_CRC_ERROR                    0x20
-#define STATUS_LOW_BUS_PARITY_ERROR             0x10
-#define STATUS_LOW_ILLEGAL_CONFIG               0x08
-#define STATUS_LOW_STATUS_TIMEOUT               0x04
-#define STATUS_LOW_DMA_PARITY_ERROR             0x02
+#define CONTROLLER_STATUS_LOW_TIMEOUT                      0x80
+#define CONTROLLER_STATUS_LOW_OVERRUN                      0x40
+#define CONTROLLER_STATUS_LOW_CRC_ERROR                    0x20
+#define CONTROLLER_STATUS_LOW_BUS_PARITY_ERROR             0x10
+#define CONTROLLER_STATUS_LOW_ILLEGAL_CONFIG               0x08
+#define CONTROLLER_STATUS_LOW_STATUS_TIMEOUT               0x04
+#define CONTROLLER_STATUS_LOW_DMA_PARITY_ERROR             0x02
 
 void
 apollo_dn300_disk_device::map(address_map &map)
@@ -260,31 +260,31 @@ void apollo_dn300_disk_device::wdc_write(offs_t offset, uint8_t data, uint8_t me
         // winchester register writes
         case WDC_REG_ANSI_CMD:
             SLOG1(("DN300_DISK: wdc ANSI_COMMAND write = %02x", data));
-            m_ansi_cmd = data;
+            m_wdc_ansi_cmd = data;
             break;
         case WDC_REG_ANSI_PARM:
             SLOG1(("DN300_DISK: wdc ANSI_PARM write = %02x", data));
-            m_ansi_parm = data;
+            m_wdc_ansi_parm = data;
             break;
         case WDC_REG_SECTOR:
             SLOG1(("DN300_DISK: wdc SECTOR write = %02x", data));
-            m_sector = data;
+            m_wdc_sector = data;
             break;
         case WDC_REG_CYLINDER_HIGH:
             SLOG1(("DN300_DISK: wdc CYLINDER_HIGH write = %02x", data));
-            m_cylinder_high = data;
+            m_wdc_cylinder_high = data;
             break;
         case WDC_REG_CYLINDER_LOW:
             SLOG1(("DN300_DISK: wdc CYLINDER_LOW write = %02x", data));
-            m_cylinder_low = data;
+            m_wdc_cylinder_low = data;
             break;
         case WDC_REG_HEAD:
             SLOG1(("DN300_DISK: HEAD write = %02x", data));
-            m_head = data;
+            m_wdc_head = data;
             break;
         case WDC_REG_INTERRUPT_CONTROL:
             SLOG1(("DN300_DISK: wdc INTERRUPT_CONTROL write = %02x", data));
-            m_interrupt_control = data;
+            m_wdc_interrupt_control = data;
             break;
         case WDC_REG_CONTROLLER_COMMAND:
             SLOG1(("DN300_DISK: wdc CONTROLLER_COMMAND write = %02x", data));
@@ -303,19 +303,19 @@ uint8_t apollo_dn300_disk_device::wdc_read(offs_t offset, uint8_t mem_mask)
     switch (offset) {
         // winchester register reads
         case WDC_REG_ATTENTION_STATUS:
-            SLOG1(("DN300_DISK: wdc ATTENTION_STATUS read = %02x", m_general_status));
+            SLOG1(("DN300_DISK: wdc ATTENTION_STATUS read = %02x", m_wdc_general_status));
             // reading this clears some status bits
-            m_status_high &= ~STATUS_HIGH_DRIVE_ATTENTION;
-            return m_general_status;
+            m_wdc_status_high &= ~CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
+            return m_wdc_general_status;
         case WDC_REG_ANSI_PARM:
-            SLOG1(("DN300_DISK: wdc ANSI_PARM read = %02x", m_ansi_parm));
-            return m_ansi_parm;
+            SLOG1(("DN300_DISK: wdc ANSI_PARM read = %02x", m_wdc_ansi_parm));
+            return m_wdc_ansi_parm;
         case WDC_REG_STATUS_HIGH:
-            SLOG1(("DN300_DISK: wdc STATUS_HIGH read = %02x & %02x", m_status_high, mem_mask));
-            return m_status_high;
+            SLOG1(("DN300_DISK: wdc STATUS_HIGH read = %02x & %02x", m_wdc_status_high, mem_mask));
+            return m_wdc_status_high;
         case WDC_REG_STATUS_LOW:
-            SLOG1(("DN300_DISK: wdc STATUS_LOW read = %02x", m_status_low));
-            return m_status_low;
+            SLOG1(("DN300_DISK: wdc STATUS_LOW read = %02x", m_wdc_status_low));
+            return m_wdc_status_low;
 
         default:
             SLOG1(("DN300_DISK: unknown wdc read at offset %02x & %08x", offset, mem_mask));
@@ -327,8 +327,8 @@ uint8_t apollo_dn300_disk_device::wdc_read(offs_t offset, uint8_t mem_mask)
 void apollo_dn300_disk_device::execute_command()
 {
     // clear the status bits that clear on command
-    m_status_high &= ~0x08;
-    m_status_low &= ~0xfa;
+    m_wdc_status_high &= ~0x08;
+    m_wdc_status_low &= ~0xfa;
 
     SLOG1(("execute_command: %02x", m_controller_command))
     switch (m_controller_command) {
@@ -336,21 +336,21 @@ void apollo_dn300_disk_device::execute_command()
             break;
 
         case WDC_CONTROLLER_CMD_READ_RECORD: {
-            int cylinder = (m_cylinder_high << 8) | m_cylinder_low;
+            int cylinder = (m_wdc_cylinder_high << 8) | m_wdc_cylinder_low;
             // 15/18 here match the values in the dn3500 disk image.
             // 15 = the drive's number of heads (and == TracksPerCylinder)
-            int track = cylinder * 15 + m_head;
+            int track = cylinder * 15 + m_wdc_head;
             // 18 = SectorsPerTrack
             int sector_offset = track * 18;
-            int sector = sector_offset + m_sector;
-            SLOG1(("CMD_READ_RECORD for sector %d on cylinder %d and head %d", m_sector, cylinder, m_head));
+            int sector = sector_offset + m_wdc_sector;
+            SLOG1(("CMD_READ_RECORD for sector %d on cylinder %d and head %d", m_wdc_sector, cylinder, m_wdc_head));
             SLOG1(("linearized as logical sector address %d\n", sector));
             SLOG1(("reading header from disk image"));
             fseek(m_disk_fp, 1056 * sector, SEEK_SET);
             fread(m_read_buffer, 32, 1, m_disk_fp);
-            if (track == 0 && (m_sector >= 2 && m_sector <= 11 && m_sysboot_fp)) {
+            if (track == 0 && (m_wdc_sector >= 2 && m_wdc_sector <= 11 && m_sysboot_fp)) {
                 SLOG1(("reading data from sysboot override"));
-                fseek(m_sysboot_fp, 1024 * (m_sector-2), SEEK_SET);
+                fseek(m_sysboot_fp, 1024 * (m_wdc_sector-2), SEEK_SET);
                 memset(&m_read_buffer[32], 0, 1024); // just in case we get a short read.
                 fread(&m_read_buffer[32], 1024, 1, m_sysboot_fp);
             } else {
@@ -370,7 +370,7 @@ void apollo_dn300_disk_device::execute_command()
                 PULSE_DRQ();
             }
 
-            m_status_high |= STATUS_HIGH_END_OF_OP_INTERRUPT;
+            m_wdc_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
             break;
         }
         case WDC_CONTROLLER_CMD_WRITE_RECORD:
@@ -382,7 +382,7 @@ void apollo_dn300_disk_device::execute_command()
             break;
 
         case WDC_CONTROLLER_CMD_SEEK:
-            SLOG1(("CMD_SEEK to cylinder %02x%02x", m_cylinder_high, m_cylinder_low))
+            SLOG1(("CMD_SEEK to cylinder %02x%02x", m_wdc_cylinder_high, m_wdc_cylinder_low))
             // Guessing this is equivalent to the ansi seek command?
 
             // This command shall cause the selected device to seek to the
@@ -398,15 +398,15 @@ void apollo_dn300_disk_device::execute_command()
             // device shall clear the Busy Executing bit in the General Status
             // Byte and set the Attention Condition.
 
-            m_general_status |= GS_BUSY_EXECUTING;
+            m_wdc_general_status |= WDC_GS_BUSY_EXECUTING;
 
             // if this were an async emulator we'd return here,
             // but instead we jump immediately to steps performed after the
             // operation is done:
 
-            m_general_status &= ~GS_BUSY_EXECUTING;
-            if (m_attention_enabled) {
-                m_status_high |= STATUS_HIGH_DRIVE_ATTENTION;
+            m_wdc_general_status &= ~WDC_GS_BUSY_EXECUTING;
+            if (m_wdc_attention_enabled) {
+                m_wdc_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
             }
 
             break;
@@ -416,7 +416,7 @@ void apollo_dn300_disk_device::execute_command()
             break;
 
         case WDC_CONTROLLER_CMD_EXEC_DRIVE_SELECT:
-            m_selected_drive = m_ansi_parm;
+            m_wdc_selected_drive = m_wdc_ansi_parm;
             break;
 
         case WDC_CONTROLLER_CMD_EXEC_ATTENTION:
@@ -437,16 +437,16 @@ void apollo_dn300_disk_device::execute_command()
             // address out.side the head address range of the device.
             // Devices shall be initialized with moving head zero selected.
 
-            m_general_status |= GS_BUSY_EXECUTING;
+            m_wdc_general_status |= WDC_GS_BUSY_EXECUTING;
 
             // if this were an async emulator we'd return here,
             // but instead we jump immediately to steps performed after the
             // operation is done:
-            m_selected_head = m_head;
+            m_wdc_selected_head = m_wdc_head;
 
-            m_general_status &= ~GS_BUSY_EXECUTING;
-            if (m_attention_enabled) {
-                m_status_high |= STATUS_HIGH_DRIVE_ATTENTION;
+            m_wdc_general_status &= ~WDC_GS_BUSY_EXECUTING;
+            if (m_wdc_attention_enabled) {
+                m_wdc_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
             }
 
             break;
@@ -459,14 +459,14 @@ void apollo_dn300_disk_device::execute_command()
 
 void apollo_dn300_disk_device::execute_ansi_command()
 {
-    switch (m_ansi_cmd) {
+    switch (m_wdc_ansi_cmd) {
         case ANSI_CMD_REPORT_ILLEGAL_COMMAND:
             // This command shall force the Illegal Command Bit to be set in the
             // General Status Byte (see Section 4.4). The General Status Byte,
             // with the Illegal Command Bit equal to one, is returned to the host
             // by the Parameter Byte of the command sequence.
-            m_general_status |= GS_ILLEGAL_COMMAND;
-            m_ansi_parm = m_general_status;
+            m_wdc_general_status |= WDC_GS_ILLEGAL_COMMAND;
+            m_wdc_ansi_parm = m_wdc_general_status;
             break;
 
         case ANSI_CMD_CLEAR_FAULT:
@@ -480,19 +480,19 @@ void apollo_dn300_disk_device::execute_ansi_command()
             // caused by the fault condition, again only if the fault condition no
             // longer exists.
 
-            m_general_status &= ~(
-                GS_CONTROL_BUS_ERROR |
-                GS_ILLEGAL_COMMAND |
-                GS_ILLEGAL_PARAMETER
+            m_wdc_general_status &= ~(
+                WDC_GS_CONTROL_BUS_ERROR |
+                WDC_GS_ILLEGAL_COMMAND |
+                WDC_GS_ILLEGAL_PARAMETER
             );
-            m_sense_byte_1 &= ~(
-                SB1_SEEK_ERROR |
-                SB1_RW_FAULT |
-                SB1_POWER_FAULT |
-                SB1_COMMAND_REJECT
+            m_wdc_sense_byte_1 &= ~(
+                WDC_SB1_SEEK_ERROR |
+                WDC_SB1_RW_FAULT |
+                WDC_SB1_POWER_FAULT |
+                WDC_SB1_COMMAND_REJECT
             );
 
-            m_ansi_parm = m_general_status;
+            m_wdc_ansi_parm = m_wdc_general_status;
             break;
 
         case ANSI_CMD_CLEAR_ATTENTION:
@@ -505,14 +505,14 @@ void apollo_dn300_disk_device::execute_ansi_command()
             // however, the condition is reset and the error reoccurs, the
             // Attention Condition shall be set again.
 
-            m_general_status &= ~GS_NORMAL_COMPLETE;
-            m_sense_byte_2 &= ~(
-                SB2_INITIAL_STATE |
-                SB2_READY_TRANSITION |
-                SB2_DEVICE_ATTR_TABLE_MODIFIED
+            m_wdc_general_status &= ~WDC_GS_NORMAL_COMPLETE;
+            m_wdc_sense_byte_2 &= ~(
+                WDC_SB2_INITIAL_STATE |
+                WDC_SB2_READY_TRANSITION |
+                WDC_SB2_DEVICE_ATTR_TABLE_MODIFIED
             );
 
-            m_ansi_parm = m_general_status;
+            m_wdc_ansi_parm = m_wdc_general_status;
             break;
 
         case ANSI_CMD_SEEK:
@@ -541,7 +541,7 @@ void apollo_dn300_disk_device::execute_ansi_command()
             // cylinder zero the device shall clear the Busy Executing bit in the
             // General Status byte and set the Attention Condition.
 
-            m_general_status |= GS_BUSY_EXECUTING;
+            m_wdc_general_status |= WDC_GS_BUSY_EXECUTING;
 
             // if this were an async emulator we'd return here:
             //
@@ -551,25 +551,25 @@ void apollo_dn300_disk_device::execute_ansi_command()
             // but instead we jump immediately to steps performed after the
             // operation is done:
 
-            m_general_status &= ~GS_BUSY_EXECUTING;
-            if (m_attention_enabled) {
-                m_status_high |= STATUS_HIGH_DRIVE_ATTENTION;
+            m_wdc_general_status &= ~WDC_GS_BUSY_EXECUTING;
+            if (m_wdc_attention_enabled) {
+                m_wdc_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
             }
 
-            m_ansi_parm = m_general_status;
+            m_wdc_ansi_parm = m_wdc_general_status;
             break;
 
         case ANSI_CMD_REPORT_SENSE_BYTE_2:
             // The command shall cause the selected device to return Sense Byte 2
             // by the Parameter Byte of the command sequence. No other action
             // shall be taken in the device.
-            m_ansi_parm = m_sense_byte_2;
+            m_wdc_ansi_parm = m_wdc_sense_byte_2;
             break;
         case ANSI_CMD_REPORT_SENSE_BYTE_1:
             // This command shall cause the selected device to return Sense Byte 1
             // by the Parameter Byte of the command sequence. No other action
             // shall be taken in the device.
-            m_ansi_parm = m_sense_byte_1;
+            m_wdc_ansi_parm = m_wdc_sense_byte_1;
             break;
         case ANSI_CMD_REPORT_GENERAL_STATUS:
             // This command shall cause the selected device to return the general
@@ -577,7 +577,7 @@ void apollo_dn300_disk_device::execute_ansi_command()
             // command shall not perform any other function in the device and acts
             // as a "no-op" in order to allow the host to monitor the device's
             // General Status Byte without changing any device condition.
-            m_ansi_parm = m_general_status;
+            m_wdc_ansi_parm = m_wdc_general_status;
             break;
 
         case ANSI_CMD_REPORT_ATTRIBUTE:
@@ -596,10 +596,10 @@ void apollo_dn300_disk_device::execute_ansi_command()
             // The General Status Byte shall be transferred to the host by the
             // Parameter Byte of the command sequence.
 
-            m_general_status |= GS_NORMAL_COMPLETE; // is this right?
-            m_status_high |= STATUS_HIGH_DRIVE_ATTENTION;
+            m_wdc_general_status |= WDC_GS_NORMAL_COMPLETE; // is this right?
+            m_wdc_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
 
-            m_ansi_parm = m_general_status;
+            m_wdc_ansi_parm = m_wdc_general_status;
             break;
 
         case ANSI_CMD_SELECTIVE_RESET:
@@ -714,7 +714,7 @@ void apollo_dn300_disk_device::execute_ansi_command()
             // the Attention In Strobe Signal (see Signal 3.2.3.2).
             // Devices shall be initilized with the Attention circuitry enabled.
             //
-            m_attention_enabled = (m_ansi_parm & 0x80) ? false : true;
+            m_wdc_attention_enabled = (m_wdc_ansi_parm & 0x80) ? false : true;
             break;
 
         case ANSI_CMD_WRITE_CONTROL:
@@ -736,7 +736,7 @@ void apollo_dn300_disk_device::execute_ansi_command()
             // A Write Control Command execute during a write operation is a
             // violation of protocol.
             //
-            m_write_enabled = (m_ansi_parm & 0x80) != 0;
+            m_wdc_write_enabled = (m_wdc_ansi_parm & 0x80) != 0;
             break;
 
         case ANSI_CMD_LOAD_CYL_ADDR_HIGH:
@@ -837,7 +837,7 @@ void apollo_dn300_disk_device::execute_ansi_command()
             // of Sense Byte 1.
             // See vendor specification for initial state of the Spin Control.
 
-            m_general_status |= GS_BUSY_EXECUTING;
+            m_wdc_general_status |= WDC_GS_BUSY_EXECUTING;
 
             // if this were an async emulator we'd return here:
             //
@@ -847,16 +847,16 @@ void apollo_dn300_disk_device::execute_ansi_command()
             // but instead we jump immediately to steps performed after the
             // operation is done:
 
-            m_general_status &= ~GS_BUSY_EXECUTING;
-            if (m_attention_enabled) {
-                m_general_status |= GS_NORMAL_COMPLETE;
-                m_status_high |= STATUS_HIGH_DRIVE_ATTENTION;
+            m_wdc_general_status &= ~WDC_GS_BUSY_EXECUTING;
+            if (m_wdc_attention_enabled) {
+                m_wdc_general_status |= WDC_GS_NORMAL_COMPLETE;
+                m_wdc_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
             }
 
-            m_ansi_parm = m_general_status;
+            m_wdc_ansi_parm = m_wdc_general_status;
             break;
         default:
-            SLOG1(("unknown ANSI command %02x", m_ansi_cmd));
+            SLOG1(("unknown ANSI command %02x", m_wdc_ansi_cmd));
             break;
     }
 }
