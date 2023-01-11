@@ -70,35 +70,35 @@ void apollo_dn300_disk_device::device_reset()
 }
 
 // winchester registers
-#define REG_ANSI_CMD            0x00
-#define REG_ANSI_PARM           0x02
-#define REG_SECTOR              0x06
-#define REG_CYLINDER_HIGH       0x08
-#define REG_CYLINDER_LOW        0x09
-#define REG_HEAD                0x0a
-#define REG_INTERRUPT_CONTROL   0x0c
-#define REG_CONTROLLER_COMMAND  0x0e
+#define WDC_REG_ANSI_CMD            0x00
+#define WDC_REG_ANSI_PARM           0x02
+#define WDC_REG_SECTOR              0x06
+#define WDC_REG_CYLINDER_HIGH       0x08
+#define WDC_REG_CYLINDER_LOW        0x09
+#define WDC_REG_HEAD                0x0a
+#define WDC_REG_INTERRUPT_CONTROL   0x0c
+#define WDC_REG_CONTROLLER_COMMAND  0x0e
 
-#define REG_ATTENTION_STATUS    0x00
-#define REG_DRIVE_NUM_OF_STATUS 0x02
-#define REG_STATUS_HIGH         0x06
-#define REG_STATUS_LOW          0x07
+#define WDC_REG_ATTENTION_STATUS    0x00
+#define WDC_REG_DRIVE_NUM_OF_STATUS 0x02
+#define WDC_REG_STATUS_HIGH         0x06
+#define WDC_REG_STATUS_LOW          0x07
 
 // floppy registers
-#define REG_FLOPPY_STATUS       0x10
-#define REG_FLOPPY_DATA    		0x12
-#define REG_FLOPPY_CONTROL 		0x14
+#define FDC_REG_FLOPPY_STATUS       0x10
+#define FDC_REG_FLOPPY_DATA    		0x12
+#define FDC_REG_FLOPPY_CONTROL 		0x14
 
 // Controller commands
-#define CMD_NOOP              0x00
-#define CMD_READ_RECORD       0x01
-#define CMD_WRITE_RECORD      0x02
-#define CMD_FORMAT_TRACK      0x03
-#define CMD_SEEK              0x04
-#define CMD_EXEC_ANSI_CMD     0x05
-#define CMD_EXEC_DRIVE_SELECT 0x06
-#define CMD_EXEC_ATTENTION    0x07
-#define CMD_SELECT_HEAD       0x08
+#define WDC_CONTROLLER_CMD_NOOP              0x00
+#define WDC_CONTROLLER_CMD_READ_RECORD       0x01
+#define WDC_CONTROLLER_CMD_WRITE_RECORD      0x02
+#define WDC_CONTROLLER_CMD_FORMAT_TRACK      0x03
+#define WDC_CONTROLLER_CMD_SEEK              0x04
+#define WDC_CONTROLLER_CMD_EXEC_ANSI_CMD     0x05
+#define WDC_CONTROLLER_CMD_EXEC_DRIVE_SELECT 0x06
+#define WDC_CONTROLLER_CMD_EXEC_ATTENTION    0x07
+#define WDC_CONTROLLER_CMD_SELECT_HEAD       0x08
 
 // ANSI commands
 #define ANSI_CMD_REPORT_ILLEGAL_COMMAND     0x00
@@ -258,35 +258,35 @@ void apollo_dn300_disk_device::wdc_write(offs_t offset, uint8_t data, uint8_t me
 {
     switch (offset) {
         // winchester register writes
-        case REG_ANSI_CMD:
+        case WDC_REG_ANSI_CMD:
             SLOG1(("DN300_DISK: wdc ANSI_COMMAND write = %02x", data));
             m_ansi_cmd = data;
             break;
-        case REG_ANSI_PARM:
+        case WDC_REG_ANSI_PARM:
             SLOG1(("DN300_DISK: wdc ANSI_PARM write = %02x", data));
             m_ansi_parm = data;
             break;
-        case REG_SECTOR:
+        case WDC_REG_SECTOR:
             SLOG1(("DN300_DISK: wdc SECTOR write = %02x", data));
             m_sector = data;
             break;
-        case REG_CYLINDER_HIGH:
+        case WDC_REG_CYLINDER_HIGH:
             SLOG1(("DN300_DISK: wdc CYLINDER_HIGH write = %02x", data));
             m_cylinder_high = data;
             break;
-        case REG_CYLINDER_LOW:
+        case WDC_REG_CYLINDER_LOW:
             SLOG1(("DN300_DISK: wdc CYLINDER_LOW write = %02x", data));
             m_cylinder_low = data;
             break;
-        case REG_HEAD:
+        case WDC_REG_HEAD:
             SLOG1(("DN300_DISK: HEAD write = %02x", data));
             m_head = data;
             break;
-        case REG_INTERRUPT_CONTROL:
+        case WDC_REG_INTERRUPT_CONTROL:
             SLOG1(("DN300_DISK: wdc INTERRUPT_CONTROL write = %02x", data));
             m_interrupt_control = data;
             break;
-        case REG_CONTROLLER_COMMAND:
+        case WDC_REG_CONTROLLER_COMMAND:
             SLOG1(("DN300_DISK: wdc CONTROLLER_COMMAND write = %02x", data));
             m_controller_command = data;
             execute_command();
@@ -302,18 +302,18 @@ uint8_t apollo_dn300_disk_device::wdc_read(offs_t offset, uint8_t mem_mask)
 {
     switch (offset) {
         // winchester register reads
-        case REG_ATTENTION_STATUS:
+        case WDC_REG_ATTENTION_STATUS:
             SLOG1(("DN300_DISK: wdc ATTENTION_STATUS read = %02x", m_general_status));
             // reading this clears some status bits
             m_status_high &= ~STATUS_HIGH_DRIVE_ATTENTION;
             return m_general_status;
-        case REG_ANSI_PARM:
+        case WDC_REG_ANSI_PARM:
             SLOG1(("DN300_DISK: wdc ANSI_PARM read = %02x", m_ansi_parm));
             return m_ansi_parm;
-        case REG_STATUS_HIGH:
+        case WDC_REG_STATUS_HIGH:
             SLOG1(("DN300_DISK: wdc STATUS_HIGH read = %02x & %02x", m_status_high, mem_mask));
             return m_status_high;
-        case REG_STATUS_LOW:
+        case WDC_REG_STATUS_LOW:
             SLOG1(("DN300_DISK: wdc STATUS_LOW read = %02x", m_status_low));
             return m_status_low;
 
@@ -332,10 +332,10 @@ void apollo_dn300_disk_device::execute_command()
 
     SLOG1(("execute_command: %02x", m_controller_command))
     switch (m_controller_command) {
-        case CMD_NOOP:
+        case WDC_CONTROLLER_CMD_NOOP:
             break;
 
-        case CMD_READ_RECORD: {
+        case WDC_CONTROLLER_CMD_READ_RECORD: {
             int cylinder = (m_cylinder_high << 8) | m_cylinder_low;
             // 15/18 here match the values in the dn3500 disk image.
             // 15 = the drive's number of heads (and == TracksPerCylinder)
@@ -373,15 +373,15 @@ void apollo_dn300_disk_device::execute_command()
             m_status_high |= STATUS_HIGH_END_OF_OP_INTERRUPT;
             break;
         }
-        case CMD_WRITE_RECORD:
+        case WDC_CONTROLLER_CMD_WRITE_RECORD:
             SLOG1(("CMD_WRITE_RECORD unimplemented"))
             break;
 
-        case CMD_FORMAT_TRACK:
+        case WDC_CONTROLLER_CMD_FORMAT_TRACK:
             SLOG1(("CMD_FORMAT_TRACK unimplemented"))
             break;
 
-        case CMD_SEEK:
+        case WDC_CONTROLLER_CMD_SEEK:
             SLOG1(("CMD_SEEK to cylinder %02x%02x", m_cylinder_high, m_cylinder_low))
             // Guessing this is equivalent to the ansi seek command?
 
@@ -411,19 +411,19 @@ void apollo_dn300_disk_device::execute_command()
 
             break;
 
-        case CMD_EXEC_ANSI_CMD:
+        case WDC_CONTROLLER_CMD_EXEC_ANSI_CMD:
             execute_ansi_command();
             break;
 
-        case CMD_EXEC_DRIVE_SELECT:
+        case WDC_CONTROLLER_CMD_EXEC_DRIVE_SELECT:
             m_selected_drive = m_ansi_parm;
             break;
 
-        case CMD_EXEC_ATTENTION:
+        case WDC_CONTROLLER_CMD_EXEC_ATTENTION:
             SLOG1(("CMD_EXEC_ATTENTION unimplemented"))
             break;
 
-        case CMD_SELECT_HEAD:
+        case WDC_CONTROLLER_CMD_SELECT_HEAD:
             // Guessing this is equivalent to the ansi select head command?
 
             // This command shall condition the selected device to. accept the
