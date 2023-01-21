@@ -68,9 +68,17 @@ private:
 
 	uint8_t m_wdc_ansi_cmd;
 	uint8_t m_wdc_ansi_parm;
+	uint8_t m_wdc_ansi_attribute_number;
+	uint8_t *m_wdc_ansi_attributes;
+	uint8_t m_wdc_ansi_test_byte;
 	uint8_t m_wdc_sector;
-	uint8_t m_wdc_cylinder_high;
-	uint8_t m_wdc_cylinder_low;
+	// these two cylinder bytes are for the actual current cylinder address
+	uint8_t m_wdc_current_cylinder_high;
+	uint8_t m_wdc_current_cylinder_low;
+	// and these next two are the values loaded by the load_cylinder commands.
+	// they will become the current ones above upon a successful seek.
+	uint8_t m_wdc_load_cylinder_high;
+	uint8_t m_wdc_load_cylinder_low;
 	uint8_t m_wdc_head;
 	uint8_t m_wdc_interrupt_control;
 	uint8_t m_controller_command;

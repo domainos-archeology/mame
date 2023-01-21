@@ -12,6 +12,65 @@
 #define VERBOSE 2
 #include "apollo_dn300.h"
 
+static uint8_t hopefully_this_is_right[0x48] = {
+	/* 0x00 */ 0x00, // User ID - user defined
+	/* 0x01 */ 0x00, // Model ID High - vendor defined
+
+	/* 0x02 */ 0x03, // Model ID Low - vendor defined
+	// DISK checks for model id 0x03, 0x04, 0x05, 0x35
+
+	/* 0x03 */ 0x00, // Revision ID - vendor defined
+	/* 0x04-0x0C */
+	0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00,
+	0x00,
+	/* 0x0D */ 0x00, // Device Type ID - device dependent
+	/* 0x0E */ 0x00, // Table Modification - action dependent
+	/* 0x0F */ 0x00, // Table ID - vendor defined
+
+	/* 0x10 */ 0x00, // MSB of # of bytes per track
+	/* 0x11 */ 0x00, // MedSB of # of bytes per track
+	/* 0x12 */ 0x00, // LSB of # of bytes per track
+	/* 0x13 */ 0x00, // MSB of # of bytes per sector
+	/* 0x14 */ 0x00, // MedSB of # of bytes per sector
+	/* 0x15 */ 0x00, // LSB of # of bytes per sector
+	/* 0x16 */ 0x00, // MSB of # of sector pulses per track
+	/* 0x17 */ 0x00, // MedSB of # of sector pulses per track
+	/* 0x18 */ 0x00, // LSB of # of sector pulses per track
+	/* 0x19 */ 0x00, // Sectoring method
+	/* 0x1a-0x1f */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+
+	/* 0x20 */ 0x00, // MSB of # of cylinders
+	/* 0x21 */ 0x00, // LSB of # of cylinders
+	/* 0x22 */ 0x00, // Number of heads
+	/* 0x23-0x2f */
+	0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00,
+
+	/* 0x30 */ 0x00, // Encoding method #1
+	/* 0x31 */ 0x00, // Preamble #1 number of bytes
+	/* 0x32 */ 0x00, // Preamble #1 pattern
+	/* 0x33 */ 0x00, // Sync #1 pattern
+	/* 0x34 */ 0x00, // Postamble #1 number of bytes
+	/* 0x35 */ 0x00, // Postamble #1 pattern
+	/* 0x36 */ 0x00, // Gap #1 number of bytes
+	/* 0x37 */ 0x00, // Gap #1 pattern
+	/* 0x38-0x3f */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+
+	/* 0x40 */ 0x00, // Encoding Method #2
+	/* 0x41 */ 0x00, // Preamble #2 number of bytes
+	/* 0x42 */ 0x00, // Preamble #2 pattern
+	/* 0x43 */ 0x00, // Sync #2 pattern
+	/* 0x44 */ 0x00, // Postamble #2 number of bytes
+	/* 0x45 */ 0x00, // Postamble #2 pattern
+	/* 0x46 */ 0x00, // Gap #2 number of bytes
+	/* 0x47 */ 0x00, // Gap #2 pattern
+};
+
 DEFINE_DEVICE_TYPE(APOLLO_DN300_DISK, apollo_dn300_disk_device, APOLLO_DN300_DISK_TAG, "Apollo DN300 Winchester/Floppy controller")
 
 apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock):
@@ -21,9 +80,14 @@ apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig
 	m_fdc(*this, APOLLO_DN300_FLOPPY_TAG),
     m_wdc_ansi_cmd(0),
     m_wdc_ansi_parm(0),
+    m_wdc_ansi_attribute_number(0),
+	m_wdc_ansi_attributes(NULL),
+	m_wdc_ansi_test_byte(0),
     m_wdc_sector(0),
-    m_wdc_cylinder_high(0),
-    m_wdc_cylinder_low(0),
+    m_wdc_current_cylinder_high(0),
+    m_wdc_current_cylinder_low(0),
+    m_wdc_load_cylinder_high(0),
+    m_wdc_load_cylinder_low(0),
     m_wdc_head(0),
     m_wdc_interrupt_control(0),
     m_controller_command(0),
@@ -56,6 +120,8 @@ apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig
         logerror("couldn't open sysboot\n");
     }
 
+	m_wdc_ansi_attributes = (uint8_t*)malloc(0x48);
+	memmove(m_wdc_ansi_attributes, hopefully_this_is_right, 0x48);
 }
 
 void apollo_dn300_disk_device::device_start()
@@ -88,6 +154,11 @@ void apollo_dn300_disk_device::device_reset()
 #define FDC_REG_FLOPPY_STATUS       0x10
 #define FDC_REG_FLOPPY_DATA    		0x12
 #define FDC_REG_FLOPPY_CONTROL 		0x14
+
+#define WDC_IRQCTRL_ENABLE_END_OF_OP    0x01
+#define WDC_IRQCTRL_ENABLE_STATUS_AVAIL 0x02
+#define WDC_IRQCTRL_ENABLE_ATTENTION    0x04
+#define WDC_IRQCTRL_ENABLE_OVERALL      0x08
 
 // Controller commands
 #define WDC_CONTROLLER_CMD_NOOP              0x00
@@ -272,11 +343,11 @@ void apollo_dn300_disk_device::wdc_write(offs_t offset, uint8_t data, uint8_t me
             break;
         case WDC_REG_CYLINDER_HIGH:
             SLOG1(("DN300_DISK: wdc CYLINDER_HIGH write = %02x", data));
-            m_wdc_cylinder_high = data;
+            m_wdc_load_cylinder_high = data;
             break;
         case WDC_REG_CYLINDER_LOW:
             SLOG1(("DN300_DISK: wdc CYLINDER_LOW write = %02x", data));
-            m_wdc_cylinder_low = data;
+            m_wdc_load_cylinder_low = data;
             break;
         case WDC_REG_HEAD:
             SLOG1(("DN300_DISK: HEAD write = %02x", data));
@@ -305,7 +376,10 @@ uint8_t apollo_dn300_disk_device::wdc_read(offs_t offset, uint8_t mem_mask)
         case WDC_REG_ATTENTION_STATUS:
             SLOG1(("DN300_DISK: wdc ATTENTION_STATUS read = %02x", m_wdc_general_status));
             // reading this clears some status bits
-            m_wdc_status_high &= ~CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
+            m_wdc_status_high &= ~(
+				CONTROLLER_STATUS_HIGH_STATUS_AVAILABLE_INTERRUPT |
+				CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION
+			);
             return m_wdc_general_status;
         case WDC_REG_ANSI_PARM:
             SLOG1(("DN300_DISK: wdc ANSI_PARM read = %02x", m_wdc_ansi_parm));
@@ -336,7 +410,7 @@ void apollo_dn300_disk_device::execute_command()
             break;
 
         case WDC_CONTROLLER_CMD_READ_RECORD: {
-            int cylinder = (m_wdc_cylinder_high << 8) | m_wdc_cylinder_low;
+            int cylinder = (m_wdc_current_cylinder_high << 8) | m_wdc_current_cylinder_low;
             // 15/18 here match the values in the dn3500 disk image.
             // 15 = the drive's number of heads (and == TracksPerCylinder)
             int track = cylinder * 15 + m_wdc_head;
@@ -370,7 +444,10 @@ void apollo_dn300_disk_device::execute_command()
                 PULSE_DRQ();
             }
 
-            m_wdc_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
+			if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_END_OF_OP) {
+	            m_wdc_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
+				// m_cpu->set_input_line(APOLLO_DN300_IRQ_DISK, ASSERT_LINE);
+			}
             break;
         }
         case WDC_CONTROLLER_CMD_WRITE_RECORD:
@@ -382,7 +459,7 @@ void apollo_dn300_disk_device::execute_command()
             break;
 
         case WDC_CONTROLLER_CMD_SEEK:
-            SLOG1(("CMD_SEEK to cylinder %02x%02x", m_wdc_cylinder_high, m_wdc_cylinder_low))
+            SLOG1(("CMD_SEEK to cylinder %02x%02x", m_wdc_load_cylinder_high, m_wdc_load_cylinder_low))
             // Guessing this is equivalent to the ansi seek command?
 
             // This command shall cause the selected device to seek to the
@@ -403,10 +480,29 @@ void apollo_dn300_disk_device::execute_command()
             // if this were an async emulator we'd return here,
             // but instead we jump immediately to steps performed after the
             // operation is done:
+			m_wdc_current_cylinder_high = m_wdc_load_cylinder_high;
+			m_wdc_current_cylinder_low = m_wdc_load_cylinder_low;
 
             m_wdc_general_status &= ~WDC_GS_BUSY_EXECUTING;
             if (m_wdc_attention_enabled) {
                 m_wdc_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
+				SLOG1(("HELLO2 %02x", m_wdc_interrupt_control));
+				// if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_OVERALL) {
+					m_wdc_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
+					// m_wdc_general_status |= 0xb;
+					// status available?
+					if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_STATUS_AVAIL) {
+						m_wdc_status_high |= CONTROLLER_STATUS_HIGH_STATUS_AVAILABLE_INTERRUPT;
+						m_wdc_status_high &= ~CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
+			            m_wdc_general_status |= WDC_GS_NORMAL_COMPLETE;
+						// m_cpu->set_input_line(APOLLO_DN300_IRQ_DISK, ASSERT_LINE);
+					} else if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_END_OF_OP) {
+						m_wdc_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
+						// m_cpu->set_input_line(APOLLO_DN300_IRQ_DISK, ASSERT_LINE);
+					}
+					SLOG1(("set_input_line"));
+					// m_cpu->set_input_line(APOLLO_DN300_IRQ_DISK, ASSERT_LINE);
+				// }
             }
 
             break;
@@ -446,7 +542,13 @@ void apollo_dn300_disk_device::execute_command()
 
             m_wdc_general_status &= ~WDC_GS_BUSY_EXECUTING;
             if (m_wdc_attention_enabled) {
-                m_wdc_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
+                // m_wdc_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
+				SLOG1(("HELLO1 %02x", m_wdc_interrupt_control));
+				if ((m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_OVERALL) &&
+				    (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_ATTENTION)) {
+						SLOG1(("set_input_line"));
+					m_cpu->set_input_line(APOLLO_DN300_IRQ_DISK, ASSERT_LINE);
+				}
             }
 
             break;
@@ -550,6 +652,8 @@ void apollo_dn300_disk_device::execute_ansi_command()
             //
             // but instead we jump immediately to steps performed after the
             // operation is done:
+			m_wdc_current_cylinder_high = 0;
+			m_wdc_current_cylinder_low = 0;
 
             m_wdc_general_status &= ~WDC_GS_BUSY_EXECUTING;
             if (m_wdc_attention_enabled) {
@@ -585,9 +689,8 @@ void apollo_dn300_disk_device::execute_ansi_command()
             // information that is the Device Attribute whose number was defined
             // in the Load Attribute Number Command (see Section 4.1.6). The
             // contents of the byte is defined by Table 4-3 and Section 4.3.
-
-            // TODO
-            SLOG1(("ANSI_CMD_REPORT_ATTRIBUTE unimplemented"))
+            SLOG1(("ANSI_CMD_REPORT_ATTRIBUTE attribute=%02x", m_wdc_ansi_attribute_number));
+			m_wdc_ansi_parm = m_wdc_ansi_attributes[m_wdc_ansi_attribute_number];
             break;
 
         case ANSI_CMD_SET_ATTENTION:
@@ -658,9 +761,8 @@ void apollo_dn300_disk_device::execute_ansi_command()
             // be ascertained by the vendor specification.
             // The information shall be transferred by the Parameter Byte of the
             // command sequence.
-
-            // TODO
-            SLOG1(("ANSI_CMD_REPORT_CYL_ADDR_HIGH unimplemented"))
+            SLOG1(("ANSI_CMD_REPORT_CYL_ADDR_HIGH %02x", m_wdc_current_cylinder_high));
+			m_wdc_ansi_parm = m_wdc_current_cylinder_high;
             break;
 
         case ANSI_CMD_REPORT_CYL_ADDR_LOW:
@@ -676,8 +778,8 @@ void apollo_dn300_disk_device::execute_ansi_command()
             // The information shall be transferred by the Parameter Byte of the
             // command sequence.
             //
-            // TODO
-            SLOG1(("ANSI_CMD_REPORT_CYL_ADDR_LOW unimplemented"))
+            SLOG1(("ANSI_CMD_REPORT_CYL_ADDR_LOW %02x", m_wdc_current_cylinder_low));
+			m_wdc_ansi_parm = m_wdc_current_cylinder_low;
             break;
 
         case ANSI_CMD_REPORT_TEST_BYTE:
@@ -688,7 +790,8 @@ void apollo_dn300_disk_device::execute_ansi_command()
             // command sequence.
             //
             // TODO
-            SLOG1(("ANSI_CMD_REPORT_TEST_BYTE unimplemented"))
+            SLOG1(("ANSI_CMD_REPORT_TEST_BYTE %02x", m_wdc_ansi_test_byte));
+			m_wdc_ansi_parm = m_wdc_ansi_test_byte;
             break;
 
         case ANSI_CMD_ATTENTION_CONTROL:
@@ -752,8 +855,8 @@ void apollo_dn300_disk_device::execute_ansi_command()
             // Devices shall be initialized with the target cylinder address equal
             // to zero.
             //
-            // TODO
-            SLOG1(("ANSI_CMD_LOAD_CYL_ADDR_HIGH unimplemented"))
+            SLOG1(("ANSI_CMD_LOAD_CYL_ADDR_HIGH %02x", m_wdc_ansi_parm));
+			m_wdc_load_cylinder_high = m_wdc_ansi_parm;
             break;
 
         case ANSI_CMD_LOAD_CYL_ADDR_LOW:
@@ -769,8 +872,8 @@ void apollo_dn300_disk_device::execute_ansi_command()
             // Devices shall be initialized with the target cylinder address equal
             // to zero.
             //
-            // TODO
-            SLOG1(("ANSI_CMD_LOAD_CYL_ADDR_LOW unimplemented"))
+            SLOG1(("ANSI_CMD_LOAD_CYL_ADDR_LOW %02x", m_wdc_ansi_parm));
+			m_wdc_load_cylinder_low = m_wdc_ansi_parm;
             break;
 
         case ANSI_CMD_SELECT_HEAD:
@@ -793,9 +896,7 @@ void apollo_dn300_disk_device::execute_ansi_command()
             // Table 4-3. This command prepares the device for a subsequent Load
             // Device Attribute Command or Report Device Attribute Command (see
             // Sections 4.1.7 and 4.2.9). This command may be issued at any time.
-            //
-            // TODO
-            SLOG1(("ANSI_CMD_LOAD_ATTRIBUTE_NUMBER unimplemented"))
+			m_wdc_ansi_attribute_number = m_wdc_ansi_parm;
             break;
 
         case ANSI_CMD_LOAD_ATTRIBUTE:
@@ -803,9 +904,12 @@ void apollo_dn300_disk_device::execute_ansi_command()
             // Parameter Byte as the new value of a Device Attribute. The number
             // of the Device Attribute must have been previously defined by the
             // Load Attribute Number Command (see Section 4.1.6).
-            //
-            // TODO
-            SLOG1(("ANSI_CMD_LOAD_ATTRIBUTE unimplemented"))
+            SLOG1(("ANSI_CMD_LOAD_ATTRIBUTE attribute=%02x, value=%02x", m_wdc_ansi_attribute_number, m_wdc_ansi_parm))
+			if (m_wdc_ansi_attribute_number > 0x47) {
+				SLOG1(("  + illegal attribute number"))
+			}
+			m_wdc_ansi_attributes[m_wdc_ansi_attribute_number] = m_wdc_ansi_parm;
+			SLOG1(("  + done"));
             break;
 
         case ANSI_CMD_SPIN_CONTROL:
@@ -854,6 +958,40 @@ void apollo_dn300_disk_device::execute_ansi_command()
             }
 
             m_wdc_ansi_parm = m_wdc_general_status;
+            break;
+        case ANSI_CMD_LOAD_SECT_PER_TRACK_HIGH:
+            SLOG1(("ANSI_CMD_LOAD_SECT_PER_TRACK_HIGH unimplemented"))
+            break;
+        case ANSI_CMD_LOAD_SECT_PER_TRACK_MEDIUM:
+		    SLOG1(("ANSI_CMD_LOAD_SECT_PER_TRACK_MEDIUM unimplemented"))
+            break;
+        case ANSI_CMD_LOAD_SECT_PER_TRACK_LOW:
+		    SLOG1(("ANSI_CMD_LOAD_SECT_PER_TRACK_LOW unimplemented"))
+            break;
+        case ANSI_CMD_LOAD_BYTES_PER_SECT_HIGH:
+		    SLOG1(("ANSI_CMD_LOAD_BYTES_PER_SECT_HIGH unimplemented"))
+            break;
+        case ANSI_CMD_LOAD_BYTES_PER_SECT_MEDIUM:
+		    SLOG1(("ANSI_CMD_LOAD_BYTES_PER_SECT_MEDIUM unimplemented"))
+            break;
+        case ANSI_CMD_LOAD_BYTES_PER_SECT_LOW:
+		    SLOG1(("ANSI_CMD_LOAD_BYTES_PER_SECT_LOW unimplemented"))
+            break;
+        case ANSI_CMD_LOAD_READ_PERMIT_HIGH:
+		    SLOG1(("ANSI_CMD_LOAD_READ_PERMIT_HIGH unimplemented"))
+            break;
+        case ANSI_CMD_LOAD_READ_PERMIT_LOW:
+		    SLOG1(("ANSI_CMD_LOAD_READ_PERMIT_LOW unimplemented"))
+            break;
+        case ANSI_CMD_LOAD_WRITE_PERMIT_HIGH:
+		    SLOG1(("ANSI_CMD_LOAD_WRITE_PERMIT_HIGH unimplemented"))
+            break;
+        case ANSI_CMD_LOAD_WRITE_PERMIT_LOW:
+		    SLOG1(("ANSI_CMD_LOAD_WRITE_PERMIT_LOW unimplemented"))
+            break;
+        case ANSI_CMD_LOAD_TEST_BYTE:
+		    SLOG1(("ANSI_CMD_LOAD_TEST_BYTE %02x", m_wdc_ansi_parm));
+			m_wdc_ansi_test_byte = m_wdc_ansi_parm;
             break;
         default:
             SLOG1(("unknown ANSI command %02x", m_wdc_ansi_cmd));
