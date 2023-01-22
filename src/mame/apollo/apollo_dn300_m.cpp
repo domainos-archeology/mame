@@ -490,6 +490,9 @@ void apollo_dn300_state::apollo_dn300(machine_config &config)
 {
 	common(config);
 	SCN2681(config, m_sio, 3.6864_MHz_XTAL);
+	// disable the serial interrupt for the time being.  something about the SCN2681 implementation
+	// is triggering an interrupt when it shouldn't be.  This shows up as unexpected interrupts
+	// in MOUSE and DISK tests.
 	//m_sio->irq_cb().set_inputline(MAINCPU, APOLLO_DN300_IRQ_SIO1);
 
 	APOLLO_DN300_KBD(config, m_keyboard, 0);
