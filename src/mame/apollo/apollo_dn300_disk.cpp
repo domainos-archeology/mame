@@ -401,8 +401,15 @@ uint8_t apollo_dn300_disk_device::wdc_read(offs_t offset, uint8_t mem_mask)
 void apollo_dn300_disk_device::execute_command()
 {
     // clear the status bits that clear on command
-    m_wdc_status_high &= ~0x08;
-    m_wdc_status_low &= ~0xfa;
+    m_wdc_status_high &= ~CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
+    m_wdc_status_low &= ~(
+        CONTROLLER_STATUS_LOW_TIMEOUT |
+        CONTROLLER_STATUS_LOW_OVERRUN |
+        CONTROLLER_STATUS_LOW_CRC_ERROR |
+        CONTROLLER_STATUS_LOW_BUS_PARITY_ERROR |
+        CONTROLLER_STATUS_LOW_ILLEGAL_CONFIG |
+        CONTROLLER_STATUS_LOW_DMA_PARITY_ERROR
+    );
 
     SLOG1(("execute_command: %02x", m_controller_command))
     switch (m_controller_command) {
@@ -410,6 +417,8 @@ void apollo_dn300_disk_device::execute_command()
             break;
 
         case WDC_CONTROLLER_CMD_READ_RECORD: {
+            m_wdc_general_status |= WDC_GS_BUSY_EXECUTING;
+
             int cylinder = (m_wdc_current_cylinder_high << 8) | m_wdc_current_cylinder_low;
             // 15/18 here match the values in the dn3500 disk image.
             // 15 = the drive's number of heads (and == TracksPerCylinder)
@@ -444,10 +453,25 @@ void apollo_dn300_disk_device::execute_command()
                 PULSE_DRQ();
             }
 
+    SLOG1(("done with synchronous read"));
+            m_wdc_general_status |= WDC_GS_NORMAL_COMPLETE;
+
+            bool need_interrupt = false;
 			if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_END_OF_OP) {
 	            m_wdc_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
-				// m_cpu->set_input_line(APOLLO_DN300_IRQ_DISK, ASSERT_LINE);
+                need_interrupt = true;
+            }
+            if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_STATUS_AVAIL) {
+                m_wdc_status_high |= CONTROLLER_STATUS_HIGH_STATUS_AVAILABLE_INTERRUPT;
+                need_interrupt = true;
+            } else {
+                m_wdc_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
+            }
+
+            if (need_interrupt) {
+				m_cpu->set_input_line(APOLLO_DN300_IRQ_DISK, ASSERT_LINE);
 			}
+
             break;
         }
         case WDC_CONTROLLER_CMD_WRITE_RECORD:
@@ -491,18 +515,23 @@ void apollo_dn300_disk_device::execute_command()
 					m_wdc_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
 					// m_wdc_general_status |= 0xb;
 					// status available?
+                    bool need_interrupt = false;
+
 					if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_STATUS_AVAIL) {
 						m_wdc_status_high |= CONTROLLER_STATUS_HIGH_STATUS_AVAILABLE_INTERRUPT;
 						m_wdc_status_high &= ~CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
 			            m_wdc_general_status |= WDC_GS_NORMAL_COMPLETE;
-						// m_cpu->set_input_line(APOLLO_DN300_IRQ_DISK, ASSERT_LINE);
-					} else if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_END_OF_OP) {
-						m_wdc_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
-						// m_cpu->set_input_line(APOLLO_DN300_IRQ_DISK, ASSERT_LINE);
+						need_interrupt = true;
 					}
-					SLOG1(("set_input_line"));
-					// m_cpu->set_input_line(APOLLO_DN300_IRQ_DISK, ASSERT_LINE);
-				// }
+                    
+                    if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_END_OF_OP) {
+						m_wdc_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
+						need_interrupt = true;
+					}
+                    if (need_interrupt) {
+					    SLOG1(("set_input_line"));
+					    m_cpu->set_input_line(APOLLO_DN300_IRQ_DISK, ASSERT_LINE);
+                    }
             }
 
             break;
