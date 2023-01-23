@@ -83,8 +83,8 @@ DEFINE_DEVICE_TYPE(APOLLO_DN300_DISK, apollo_dn300_disk_device, APOLLO_DN300_DIS
 
 apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock):
     device_t(mconfig, APOLLO_DN300_DISK, tag, owner, clock),
+	irq_cb(*this),
     drq_cb(*this),
-    m_cpu(*this, MAINCPU),
 	m_fdc(*this, APOLLO_DN300_FLOPPY_TAG),
     m_floppy(*this, APOLLO_DN300_FLOPPY_TAG":%u", 0U),
     m_wdc_ansi_cmd(0),
@@ -117,8 +117,8 @@ void apollo_dn300_disk_device::device_add_mconfig(machine_config &config)
 	ANSI_DISK(config, DN300_DISK1_TAG, 0);
 
 	UPD765A(config, m_fdc, 8_MHz_XTAL, true, true);
-	// m_fdc->intrq_wr_callback().set(FUNC(apollo_dn300_disk_device::fdc_irq_w));
-	// m_fdc->drq_wr_callback().set(FUNC(apollo_dn300_disk_device::fdc_drq_w));
+	m_fdc->intrq_wr_callback().set([this](int state) { irq_cb(state); });
+	m_fdc->drq_wr_callback().set([this](int state) { drq_cb(state); });
 	FLOPPY_CONNECTOR(config, m_floppy[0], floppies, "8dsdd", apollo_dn300_disk_device::floppy_formats);
 }
 
@@ -129,6 +129,7 @@ void apollo_dn300_disk_device::floppy_formats(format_registration &fr)
 
 void apollo_dn300_disk_device::device_start()
 {
+	irq_cb.resolve();
     drq_cb.resolve();
 
     // save_item(NAME(drq));
@@ -269,15 +270,17 @@ void apollo_dn300_disk_device::device_reset()
 void
 apollo_dn300_disk_device::map(address_map &map)
 {
+	// custom hard drive controller
 	map(0x00, 0x0F).rw(FUNC(apollo_dn300_disk_device::wdc_read), FUNC(apollo_dn300_disk_device::wdc_write));
-	map(0x10, 0x11).r(FUNC(apollo_dn300_disk_device::fdc_msr_r));
-	map(0x12, 0x13).rw(FUNC(apollo_dn300_disk_device::fdc_fifo_r), FUNC(apollo_dn300_disk_device::fdc_fifo_w));
-	map(0x14, 0x15).w(FUNC(apollo_dn300_disk_device::fdc_dsr_w));
+
+	// standard floppy controller
+	map(0x10, 0x11).r(m_fdc, FUNC(upd765a_device::msr_r));
+	map(0x12, 0x13).rw(m_fdc, FUNC(upd765a_device::fifo_r), FUNC(upd765a_device::fifo_w));
+	map(0x14, 0x15).w(m_fdc, FUNC(upd765a_device::dsr_w));
 
 	map(0x20, 0x21).w(FUNC(apollo_dn300_disk_device::calendar_ctrl_w));
 	map(0x22,0x23).w(FUNC(apollo_dn300_disk_device::calendar_data_w));
 	map(0x24,0x25).r(FUNC(apollo_dn300_disk_device::calendar_data_r));
-	// calendar stuff goes here eventually
 }
 
 
@@ -298,37 +301,6 @@ apollo_dn300_disk_device::calendar_data_r(offs_t, uint8_t mem_mask)
 {
 	return m_calendar_data & mem_mask;
 }
-
-void
-apollo_dn300_disk_device::fdc_dsr_w(offs_t, uint8_t data, uint8_t mem_mask)
-{
-    SLOG1(("DN300_DISK: fdc_dsr_w = %02x & %02x", data, mem_mask));
-	m_fdc->dsr_w(data&mem_mask);
-}
-
-uint8_t
-apollo_dn300_disk_device::fdc_msr_r(offs_t offset, uint8_t mem_mask)
-{
-	uint8_t data = m_fdc->msr_r() & mem_mask;
-    SLOG1(("DN300_DISK: fdc_msr_r = %02x", data));
-	return data;
-}
-
-void
-apollo_dn300_disk_device::fdc_fifo_w(offs_t, uint8_t data, uint8_t mem_mask)
-{
-    SLOG1(("DN300_DISK: fdc_fifo_w = %02x & %02x", data, mem_mask));
-	m_fdc->fifo_w(data&mem_mask);
-}
-
-uint8_t
-apollo_dn300_disk_device::fdc_fifo_r(offs_t, uint8_t mem_mask)
-{
-	uint8_t data = m_fdc->fifo_r() & mem_mask;
-	SLOG1(("DN300_DISK: fdc_fifo_r = %02x", data));
-	return data;
-}
-
 
 void apollo_dn300_disk_device::wdc_write(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
@@ -466,7 +438,8 @@ void apollo_dn300_disk_device::execute_command()
             }
 
             if (need_interrupt) {
-				m_cpu->set_input_line(APOLLO_DN300_IRQ_DISK, ASSERT_LINE);
+			    SLOG1(("irq_cb"));
+				irq_cb(ASSERT_LINE);
 			}
 
             break;
@@ -520,14 +493,14 @@ void apollo_dn300_disk_device::execute_command()
 			            m_wdc_general_status |= WDC_GS_NORMAL_COMPLETE;
 						need_interrupt = true;
 					}
-                    
+
                     if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_END_OF_OP) {
 						m_wdc_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
 						need_interrupt = true;
 					}
                     if (need_interrupt) {
-					    SLOG1(("set_input_line"));
-					    m_cpu->set_input_line(APOLLO_DN300_IRQ_DISK, ASSERT_LINE);
+					    SLOG1(("irq_cb"));
+						irq_cb(ASSERT_LINE);
                     }
             }
 
@@ -572,8 +545,8 @@ void apollo_dn300_disk_device::execute_command()
 				SLOG1(("HELLO1 %02x", m_wdc_interrupt_control));
 				if ((m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_OVERALL) &&
 				    (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_ATTENTION)) {
-						SLOG1(("set_input_line"));
-					m_cpu->set_input_line(APOLLO_DN300_IRQ_DISK, ASSERT_LINE);
+					    SLOG1(("irq_cb"));
+					irq_cb(ASSERT_LINE);
 				}
             }
 
@@ -1123,7 +1096,7 @@ void ansi_disk_image_device::device_reset()
 	{
 		uint32_t disk_size = uint32_t(ftell() / HARD_DISK_SECTOR_SIZE);
 		uint16_t disk_type;
-        
+
         if (disk_size >= 300000) {
             disk_type = ANSI_DISK_TYPE_HACK_DN3500;
         } else if (disk_size >= 60000) {

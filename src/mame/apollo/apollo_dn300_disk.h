@@ -25,30 +25,14 @@ public:
 	//construction/destruction
 	apollo_dn300_disk_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-    // configuration
-	template <typename T> void set_cpu(T &&cputag)
-	{
-		m_cpu.set_tag(std::forward<T>(cputag));
-	}
-
-	template <typename T> void set_fdc(T &&fdctag)
-	{
-		m_fdc.set_tag(std::forward<T>(fdctag));
-	}
-
 	void wdc_write(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
     uint8_t wdc_read(offs_t offset, uint8_t mem_mask = ~0);
-
-	void fdc_dsr_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
-	uint8_t fdc_msr_r(offs_t offset, uint8_t mem_mask = ~0);
-
-	void fdc_fifo_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
-	uint8_t fdc_fifo_r(offs_t offset, uint8_t mem_mask = ~0);
 
 	void calendar_ctrl_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
 	void calendar_data_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
 	uint8_t calendar_data_r(offs_t offset, uint8_t mem_mask = ~0);
 
+	auto irq_callback() { return irq_cb.bind(); }
 	auto drq_wr_callback() { return drq_cb.bind(); }
 
 	uint8_t read_byte(offs_t offset);
@@ -66,13 +50,11 @@ protected:
 	ansi_disk_image_device *our_disks[DN300_MAX_DISK+1];
 
 private:
-	// DECLARE_WRITE_LINE_MEMBER( fdc_irq_w );
-	// DECLARE_WRITE_LINE_MEMBER( fdc_drq_w );
 	static void floppy_formats(format_registration &fr);
 
+	devcb_write_line irq_cb;
 	devcb_write_line drq_cb;
 
-    required_device<cpu_device> m_cpu;
 	required_device<upd765a_device> m_fdc;
 	optional_device_array<floppy_connector, 2> m_floppy;
 

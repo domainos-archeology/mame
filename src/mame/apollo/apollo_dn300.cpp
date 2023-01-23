@@ -142,48 +142,6 @@ uint8_t apollo_dn300_get_ram_config_byte(void) {
 	return ram_config_byte;
 }
 
-static bool dump_curpc = false;
-
-/***************************************************************************
-  instruction_hook
-  must be called by the CPU core before executing each instruction
-***************************************************************************/
-static int instruction_hook(device_t &device, offs_t curpc)
-{
-	running_machine &machine = device.machine();
-	apollo_dn300_state *state = machine.driver_data<apollo_dn300_state>();
-	address_space      &space = device.memory().space(AS_PROGRAM);
-	uint8_t            *addr_ptr;
-
-	// this is the pointer in the host machine's address space corresponding to
-	// curpc.  we don't need it.
-	addr_ptr = (uint8_t*)space.get_read_ptr(curpc);
-
-	if (dump_curpc) {
-	  machine.logerror("ip: %p %x\n", addr_ptr, curpc);
-	}
-
-	if (curpc == 0x0844) {
-		// machine.logerror("HOOK: _putc_internal called, character = '%c'\n", state->getD1());
-	} else if (curpc == 0x112a) {
-		machine.logerror("HOOK: first instruction after mmu enabled!\n");
-	} else if (curpc == 0x1b56) {
-		machine.logerror("HOOK: starting dma op!\n");
-		// dump_curpc = true;
-	} else if (curpc == 0x13c8) {
-		machine.logerror("HOOK: done loading sysboot!\n");
-		// dump_curpc = true;
-	} else if (curpc == 0x1b5c) {
-		machine.logerror("HOOK: first instruction after starting dma op!\n");
-	} else if (curpc == 0x27c2) {
-		machine.logerror("HOOK: diagnostic 7\n");
-		// state->m_mmu->set_dump_translations(true);
-		// dump_curpc = true;
-	}
-
-	return 0;
-}
-
 /***************************************************************************
  apollo bus error
  ***************************************************************************/
@@ -520,10 +478,6 @@ void apollo_dn300_state::machine_reset()
 		// set node ID from UID of logical volume 1 of logical unit 0
 		m_node_id->set_node_id_from_disk();
 	}
-
-	if (machine().debug_flags & DEBUG_FLAG_ENABLED) {
-		// m_maincpu->debug()->set_instruction_hook(instruction_hook);
-	}
 }
 
 WRITE_LINE_MEMBER(apollo_dn300_state::apollo_reset_instr_callback)
@@ -607,18 +561,19 @@ void apollo_dn300_state::dn300(machine_config &config)
 	apollo_dn300(config);
 
 	APOLLO_DN300_GRAPHICS(config, m_graphics, 0);
-	m_graphics->irq_callback().set_inputline(MAINCPU, M68K_IRQ_4);
+	m_graphics->irq_callback().set_inputline(MAINCPU, APOLLO_DN300_IRQ_DISPLAY);
 
 	APOLLO_DN300_MMU(config, m_mmu, 0);
 	m_mmu->set_cpu(m_maincpu);
 	m_maincpu->set_emmu_translate_callback(m_mmu, FUNC(apollo_dn300_mmu_device::translate));
 
 	APOLLO_DN300_DISK(config, m_disk, 0);
-	m_disk->set_cpu(m_maincpu);
+	m_disk->irq_callback().set_inputline(MAINCPU, APOLLO_DN300_IRQ_DISK);
 	m_disk->drq_wr_callback().set(m_dmac, FUNC(hd63450_device::drq3_w));
 
 	APOLLO_DN300_RING(config, m_ring, 0);
-	m_ring->set_cpu(m_maincpu);
+	m_ring->irq_callback().set_inputline(MAINCPU, APOLLO_DN300_IRQ_RING);
+	// missing: the ring dmac linkages
 
 	/* internal ram */
 	RAM(config, m_ram).set_default_size("1536K").set_extra_options("512K,1M,1536K");
@@ -636,18 +591,19 @@ void apollo_dn300_state::dn320(machine_config &config)
 	apollo_dn300(config);
 
 	APOLLO_DN300_GRAPHICS(config, m_graphics, 0);
-	m_graphics->irq_callback().set_inputline(MAINCPU, M68K_IRQ_4);
+	m_graphics->irq_callback().set_inputline(MAINCPU, APOLLO_DN300_IRQ_DISPLAY);
 
 	APOLLO_DN300_MMU(config, m_mmu, 0);
 	m_mmu->set_cpu(m_maincpu);
 	m_maincpu->set_emmu_translate_callback(m_mmu, FUNC(apollo_dn300_mmu_device::translate));
 
 	APOLLO_DN300_DISK(config, m_disk, 0);
-	m_disk->set_cpu(m_maincpu);
+	m_disk->irq_callback().set_inputline(MAINCPU, APOLLO_DN300_IRQ_DISK);
 	m_disk->drq_wr_callback().set(m_dmac, FUNC(hd63450_device::drq3_w));
 
 	APOLLO_DN300_RING(config, m_ring, 0);
-	m_ring->set_cpu(m_maincpu);
+	m_ring->irq_callback().set_inputline(MAINCPU, APOLLO_DN300_IRQ_RING);
+	// missing: the ring dmac linkages
 
 	/* internal ram */
 	RAM(config, m_ram).set_default_size("1536K").set_extra_options("512K,1M,1536K");

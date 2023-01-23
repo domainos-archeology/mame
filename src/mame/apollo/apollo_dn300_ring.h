@@ -23,12 +23,6 @@ public:
 	//construction/destruction
 	apollo_dn300_ring_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-    // configuration
-	template <typename T> void set_cpu(T &&cputag)
-	{
-		m_cpu.set_tag(std::forward<T>(cputag));
-	}
-
     void map(address_map &map);
 
 	// our dmac interface
@@ -40,6 +34,8 @@ public:
 
 	uint8_t transmit_read_byte(offs_t offset);
 	void transmit_write_byte(offs_t offset, uint8_t data);
+
+	auto irq_callback() { return irq_cb.bind(); }
 
 protected:
 	// device-level overrides
@@ -64,6 +60,8 @@ protected:
     uint8_t id_r(offs_t offset, uint8_t mem_mask = ~0);
 
 private:
+	devcb_write_line irq_cb;
+
 	uint16_t m_xmit_status;
 	uint16_t m_xmit_command;
 	uint16_t m_rcv_status;
@@ -75,8 +73,6 @@ private:
 	uint16_t m_ring_id_lsb;
 	// 4 bytes of id, msb first
 	uint8_t m_id[4];
-
-    required_device<cpu_device> m_cpu;
 };
 
 // device type definition

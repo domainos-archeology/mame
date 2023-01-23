@@ -123,7 +123,7 @@ DEFINE_DEVICE_TYPE(APOLLO_DN300_RING, apollo_dn300_ring_device, APOLLO_DN300_RIN
 
 apollo_dn300_ring_device::apollo_dn300_ring_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock):
     device_t(mconfig, APOLLO_DN300_RING, tag, owner, clock),
-    m_cpu(*this, MAINCPU)
+	irq_cb(*this)
 {
 }
 
@@ -206,7 +206,7 @@ apollo_dn300_ring_device::diag_command_w(offs_t offset, uint16_t data, uint16_t 
 		DIAG_STATUS_STICKY_ESB_ERR
 	);
 
-	m_cpu->set_input_line(APOLLO_DN300_IRQ_RING, CLEAR_LINE);
+	irq_cb(CLEAR_LINE);
 
 	// ... more stuff here
 }
