@@ -100,8 +100,8 @@ apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig
     m_wdc_head(0),
     m_wdc_interrupt_control(0),
     m_controller_command(0),
-    m_wdc_status_high(0),
-    m_wdc_status_low(0),
+    m_controller_status_high(0),
+    m_controller_status_low(0),
     m_wdc_selected_head(0),
     m_wdc_selected_drive(0),
     m_wdc_general_status(0),
@@ -291,7 +291,7 @@ void
 apollo_dn300_disk_device::fdc_irq(int state)
 {
 	if (state) {
-		m_wdc_status_high |= CONTROLLER_STATUS_HIGH_FLOPPY_INTERRUPTING;
+		m_controller_status_high |= CONTROLLER_STATUS_HIGH_FLOPPY_INTERRUPTING;
 	}
 	// irq_cb(state);
 }
@@ -301,7 +301,7 @@ apollo_dn300_disk_device::fdc_msr_r(offs_t, uint8_t mem_mask)
 {
 	// EH87 says reading the floppy status reg clears this bit, but I wonder if
 	// it shouldn't be a side effect of the controller clearing the irq line?
-	m_wdc_status_high &= ~CONTROLLER_STATUS_HIGH_FLOPPY_INTERRUPTING;
+	m_controller_status_high &= ~CONTROLLER_STATUS_HIGH_FLOPPY_INTERRUPTING;
 	return m_fdc->msr_r() & mem_mask;
 }
 
@@ -362,7 +362,7 @@ uint8_t apollo_dn300_disk_device::wdc_read(offs_t offset, uint8_t mem_mask)
         case WDC_REG_ATTENTION_STATUS:
             SLOG1(("DN300_DISK: wdc ATTENTION_STATUS read = %02x", m_wdc_general_status));
             // reading this clears some status bits
-            m_wdc_status_high &= ~(
+            m_controller_status_high &= ~(
 				CONTROLLER_STATUS_HIGH_STATUS_AVAILABLE_INTERRUPT |
 				CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION
 			);
@@ -371,11 +371,11 @@ uint8_t apollo_dn300_disk_device::wdc_read(offs_t offset, uint8_t mem_mask)
             SLOG1(("DN300_DISK: wdc ANSI_PARM read = %02x", m_wdc_ansi_parm));
             return m_wdc_ansi_parm;
         case WDC_REG_STATUS_HIGH:
-            SLOG1(("DN300_DISK: wdc STATUS_HIGH read = %02x & %02x", m_wdc_status_high, mem_mask));
-            return m_wdc_status_high;
+            SLOG1(("DN300_DISK: wdc STATUS_HIGH read = %02x & %02x", m_controller_status_high, mem_mask));
+            return m_controller_status_high;
         case WDC_REG_STATUS_LOW:
-            SLOG1(("DN300_DISK: wdc STATUS_LOW read = %02x", m_wdc_status_low));
-            return m_wdc_status_low;
+            SLOG1(("DN300_DISK: wdc STATUS_LOW read = %02x", m_controller_status_low));
+            return m_controller_status_low;
 
         default:
             SLOG1(("DN300_DISK: unknown wdc read at offset %02x & %08x", offset, mem_mask));
@@ -387,8 +387,8 @@ uint8_t apollo_dn300_disk_device::wdc_read(offs_t offset, uint8_t mem_mask)
 void apollo_dn300_disk_device::execute_command()
 {
     // clear the status bits that clear on command
-    m_wdc_status_high &= ~CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
-    m_wdc_status_low &= ~(
+    m_controller_status_high &= ~CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
+    m_controller_status_low &= ~(
         CONTROLLER_STATUS_LOW_TIMEOUT |
         CONTROLLER_STATUS_LOW_OVERRUN |
         CONTROLLER_STATUS_LOW_CRC_ERROR |
@@ -436,14 +436,14 @@ void apollo_dn300_disk_device::execute_command()
 
             bool need_interrupt = false;
 			if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_END_OF_OP) {
-	            m_wdc_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
+	            m_controller_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
                 need_interrupt = true;
             }
             if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_STATUS_AVAIL) {
-                m_wdc_status_high |= CONTROLLER_STATUS_HIGH_STATUS_AVAILABLE_INTERRUPT;
+                m_controller_status_high |= CONTROLLER_STATUS_HIGH_STATUS_AVAILABLE_INTERRUPT;
                 need_interrupt = true;
             } else {
-                m_wdc_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
+                m_controller_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
             }
 
             if (need_interrupt) {
@@ -488,23 +488,23 @@ void apollo_dn300_disk_device::execute_command()
 
             m_wdc_general_status &= ~WDC_GS_BUSY_EXECUTING;
             if (m_wdc_attention_enabled) {
-                m_wdc_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
+                m_controller_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
 				SLOG1(("HELLO2 %02x", m_wdc_interrupt_control));
 				// if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_OVERALL) {
-					m_wdc_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
+					m_controller_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
 					// m_wdc_general_status |= 0xb;
 					// status available?
                     bool need_interrupt = false;
 
 					if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_STATUS_AVAIL) {
-						m_wdc_status_high |= CONTROLLER_STATUS_HIGH_STATUS_AVAILABLE_INTERRUPT;
-						m_wdc_status_high &= ~CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
+						m_controller_status_high |= CONTROLLER_STATUS_HIGH_STATUS_AVAILABLE_INTERRUPT;
+						m_controller_status_high &= ~CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
 			            m_wdc_general_status |= WDC_GS_NORMAL_COMPLETE;
 						need_interrupt = true;
 					}
 
                     if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_END_OF_OP) {
-						m_wdc_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
+						m_controller_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
 						need_interrupt = true;
 					}
                     if (need_interrupt) {
@@ -665,7 +665,7 @@ void apollo_dn300_disk_device::execute_ansi_command()
 
             m_wdc_general_status &= ~WDC_GS_BUSY_EXECUTING;
             if (m_wdc_attention_enabled) {
-                m_wdc_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
+                m_controller_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
             }
 
             m_wdc_ansi_parm = m_wdc_general_status;
@@ -708,7 +708,7 @@ void apollo_dn300_disk_device::execute_ansi_command()
             // Parameter Byte of the command sequence.
 
             m_wdc_general_status |= WDC_GS_NORMAL_COMPLETE; // is this right?
-            m_wdc_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
+            m_controller_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
 
             m_wdc_ansi_parm = m_wdc_general_status;
             break;
@@ -959,7 +959,7 @@ void apollo_dn300_disk_device::execute_ansi_command()
             m_wdc_general_status &= ~WDC_GS_BUSY_EXECUTING;
             if (m_wdc_attention_enabled) {
                 m_wdc_general_status |= WDC_GS_NORMAL_COMPLETE;
-                m_wdc_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
+                m_controller_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
             }
 
             m_wdc_ansi_parm = m_wdc_general_status;

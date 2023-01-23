@@ -81,8 +81,8 @@ private:
 	void execute_ansi_command();
 
 	// our current state
-	uint8_t m_wdc_status_high;
-	uint8_t m_wdc_status_low;
+	uint8_t m_controller_status_high;
+	uint8_t m_controller_status_low;
 	uint8_t m_wdc_selected_head;
 	uint8_t m_wdc_selected_drive;
 	uint8_t m_wdc_general_status;
