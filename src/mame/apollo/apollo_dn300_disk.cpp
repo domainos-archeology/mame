@@ -118,7 +118,7 @@ void apollo_dn300_disk_device::device_add_mconfig(machine_config &config)
 	ANSI_DISK(config, DN300_DISK1_TAG, 0);
 
 	UPD765A(config, m_fdc, 8_MHz_XTAL, true, true);
-	m_fdc->intrq_wr_callback().set([this](int state) { irq_cb(state); });
+	m_fdc->intrq_wr_callback().set(FUNC(apollo_dn300_disk_device::fdc_irq));
 	m_fdc->drq_wr_callback().set([this](int state) { drq_cb(state); });
 	FLOPPY_CONNECTOR(config, m_floppy[0], floppies, "8dsdd", apollo_dn300_disk_device::floppy_formats);
 
@@ -288,12 +288,12 @@ apollo_dn300_disk_device::map(address_map &map)
 }
 
 void
-apollo_dn300_disk_device::fdc_irq_w(int state)
+apollo_dn300_disk_device::fdc_irq(int state)
 {
 	if (state) {
 		m_wdc_status_high |= CONTROLLER_STATUS_HIGH_FLOPPY_INTERRUPTING;
 	}
-	irq_cb(state);
+	// irq_cb(state);
 }
 
 uint8_t
@@ -448,7 +448,7 @@ void apollo_dn300_disk_device::execute_command()
 
             if (need_interrupt) {
 			    SLOG1(("irq_cb"));
-				irq_cb(ASSERT_LINE);
+				// irq_cb(ASSERT_LINE);
 			}
 
             break;
@@ -509,7 +509,7 @@ void apollo_dn300_disk_device::execute_command()
 					}
                     if (need_interrupt) {
 					    SLOG1(("irq_cb"));
-						irq_cb(ASSERT_LINE);
+						// irq_cb(ASSERT_LINE);
                     }
             }
 
@@ -555,7 +555,7 @@ void apollo_dn300_disk_device::execute_command()
 				if ((m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_OVERALL) &&
 				    (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_ATTENTION)) {
 					    SLOG1(("irq_cb"));
-					irq_cb(ASSERT_LINE);
+					// irq_cb(ASSERT_LINE);
 				}
             }
 
