@@ -13,9 +13,10 @@
 #ifndef MAME_MACHINE_APOLLO_DN300_DISK_H
 #define MAME_MACHINE_APOLLO_DN300_DISK_H
 
-#include "machine/ram.h"
-#include "machine/bankdev.h"
 #include "machine/upd765.h"
+#include "imagedev/floppy.h"
+
+class ansi_disk_image_device;
 
 class apollo_dn300_disk_device :
     public device_t
@@ -57,19 +58,27 @@ public:
 
 protected:
 	// device-level overrides
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
+	static constexpr unsigned DN300_MAX_DISK = 1;
+	ansi_disk_image_device *our_disks[DN300_MAX_DISK+1];
+
 private:
+	// DECLARE_WRITE_LINE_MEMBER( fdc_irq_w );
+	// DECLARE_WRITE_LINE_MEMBER( fdc_drq_w );
+	static void floppy_formats(format_registration &fr);
+
 	devcb_write_line drq_cb;
 
     required_device<cpu_device> m_cpu;
 	required_device<upd765a_device> m_fdc;
+	optional_device_array<floppy_connector, 2> m_floppy;
 
 	uint8_t m_wdc_ansi_cmd;
 	uint8_t m_wdc_ansi_parm;
 	uint8_t m_wdc_ansi_attribute_number;
-	uint8_t *m_wdc_ansi_attributes;
 	uint8_t m_wdc_ansi_test_byte;
 	uint8_t m_wdc_sector;
 	// these two cylinder bytes are for the actual current cylinder address
@@ -102,9 +111,6 @@ private:
 
 	uint8 m_calendar_ctrl;
 	uint8 m_calendar_data;
-
-	FILE *m_disk_fp;
-	FILE *m_sysboot_fp;
 };
 
 // device type definition

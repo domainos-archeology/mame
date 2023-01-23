@@ -42,6 +42,14 @@ const apollo_format::format apollo_format::formats[] = {
 		1, {},
 		80, 50, 22, 80
 	},
+	{
+		floppy_image::FF_8, floppy_image::DSDD, floppy_image::MFM,
+		1200, // 1us, 360rpm
+		8, 77, 2,
+		1024, {},
+		1, {},
+		80, 50, 22, 80
+	},
 	{}
 };
 

@@ -11,64 +11,72 @@
 
 #define VERBOSE 2
 #include "apollo_dn300.h"
+#include "imagedev/harddriv.h"
+#include "formats/apollo_dsk.h"
 
-static uint8_t hopefully_this_is_right[0x48] = {
-	/* 0x00 */ 0x00, // User ID - user defined
-	/* 0x01 */ 0x00, // Model ID High - vendor defined
+#define HARD_DISK_SECTOR_SIZE 1056
+#define FLOPPY_DISK_SECTOR_SIZE 1024
 
-	/* 0x02 */ 0x03, // Model ID Low - vendor defined
-	// DISK checks for model id 0x03, 0x04, 0x05, 0x35
+// software ends up sizing the micropolis to the same size as the priam, so we ignore it.
+// #define ANSI_DISK_TYPE_38_MB 0x103 // Micropolis 1203 (38MB unformatted Dtype = 103)
+#define ANSI_DISK_TYPE_32_MB 0x104 // Priam 3450 (35MB unformatted Dtype = 104)
+#define ANSI_DISK_TYPE_64_MB 0x105 // Priam 7050 (70MB unformatted Dtype = 105)
+// There's another (unknown) disk type supported in /sau2/disk (Dtype low = 35, 4 heads, 502 cylinders, 15 blocks/track)
+#define ANSI_DISK_TYPE_DEFAULT ANSI_DISK_TYPE_64_MB  // new disks will have this type (and size)
+#define ANSI_DISK_TYPE_HACK_DN3500 0xffff// allow us to do the right thing at bootup sharing the disk image with a big esdi disk
 
-	/* 0x03 */ 0x00, // Revision ID - vendor defined
-	/* 0x04-0x0C */
-	0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00,
-	0x00,
-	/* 0x0D */ 0x00, // Device Type ID - device dependent
-	/* 0x0E */ 0x00, // Table Modification - action dependent
-	/* 0x0F */ 0x00, // Table ID - vendor defined
+#define DN300_DISK0_TAG "dn300_disk0"
+#define DN300_DISK1_TAG "dn300_disk1"
 
-	/* 0x10 */ 0x00, // MSB of # of bytes per track
-	/* 0x11 */ 0x00, // MedSB of # of bytes per track
-	/* 0x12 */ 0x00, // LSB of # of bytes per track
-	/* 0x13 */ 0x00, // MSB of # of bytes per sector
-	/* 0x14 */ 0x00, // MedSB of # of bytes per sector
-	/* 0x15 */ 0x00, // LSB of # of bytes per sector
-	/* 0x16 */ 0x00, // MSB of # of sector pulses per track
-	/* 0x17 */ 0x00, // MedSB of # of sector pulses per track
-	/* 0x18 */ 0x00, // LSB of # of sector pulses per track
-	/* 0x19 */ 0x00, // Sectoring method
-	/* 0x1a-0x1f */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 
-	/* 0x20 */ 0x00, // MSB of # of cylinders
-	/* 0x21 */ 0x00, // LSB of # of cylinders
-	/* 0x22 */ 0x00, // Number of heads
-	/* 0x23-0x2f */
-	0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00,
+static void floppies(device_slot_interface &device)
+{
+	device.option_add("8ssdd", FLOPPY_8_SSDD);
+	device.option_add("8dsdd", FLOPPY_8_DSDD);
+}
 
-	/* 0x30 */ 0x00, // Encoding method #1
-	/* 0x31 */ 0x00, // Preamble #1 number of bytes
-	/* 0x32 */ 0x00, // Preamble #1 pattern
-	/* 0x33 */ 0x00, // Sync #1 pattern
-	/* 0x34 */ 0x00, // Postamble #1 number of bytes
-	/* 0x35 */ 0x00, // Postamble #1 pattern
-	/* 0x36 */ 0x00, // Gap #1 number of bytes
-	/* 0x37 */ 0x00, // Gap #1 pattern
-	/* 0x38-0x3f */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+// forward declaration of image class
+DECLARE_DEVICE_TYPE(ANSI_DISK, ansi_disk_image_device)
 
-	/* 0x40 */ 0x00, // Encoding Method #2
-	/* 0x41 */ 0x00, // Preamble #2 number of bytes
-	/* 0x42 */ 0x00, // Preamble #2 pattern
-	/* 0x43 */ 0x00, // Sync #2 pattern
-	/* 0x44 */ 0x00, // Postamble #2 number of bytes
-	/* 0x45 */ 0x00, // Postamble #2 pattern
-	/* 0x46 */ 0x00, // Gap #2 number of bytes
-	/* 0x47 */ 0x00, // Gap #2 pattern
+class ansi_disk_image_device : public harddisk_image_base_device
+{
+public:
+	// construction/destruction
+	ansi_disk_image_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+
+	// image-level overrides
+	virtual bool support_command_line_image_creation() const noexcept override { return true; }
+	virtual const char *file_extensions() const noexcept override { return "awd"; }
+	virtual const char *image_type_name() const noexcept override { return "winchester"; }
+	virtual const char *image_brief_type_name() const noexcept override { return "disk"; }
+
+	virtual image_init_result call_create(int format_type, util::option_resolution *format_options) override;
+
+    uint8_t report_attribute(uint8_t attribute_number);
+    void load_attribute(uint8_t attribute_number, uint8_t attribute_value);
+
+protected:
+	// device-level overrides
+	virtual void device_start() override;
+	virtual void device_reset() override;
+
+	void ansi_disk_config(uint16_t disk_type);
+
+public:
+    template <typename Format, typename... Params> void logerror(Format &&fmt, Params &&... args) const;
+
+	uint16_t m_type;
+	uint16_t m_cylinders;
+	uint16_t m_heads;
+	uint16_t m_sectors;
+	uint32_t m_sectorbytes;
+	uint32_t m_sector_count;
+
+	device_image_interface *m_image;
+
+	// configuration data
+    bool m_attributes_initialized;
+	uint8_t m_ansi_attributes[0x48];
 };
 
 DEFINE_DEVICE_TYPE(APOLLO_DN300_DISK, apollo_dn300_disk_device, APOLLO_DN300_DISK_TAG, "Apollo DN300 Winchester/Floppy controller")
@@ -78,10 +86,10 @@ apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig
     drq_cb(*this),
     m_cpu(*this, MAINCPU),
 	m_fdc(*this, APOLLO_DN300_FLOPPY_TAG),
+    m_floppy(*this, APOLLO_DN300_FLOPPY_TAG":%u", 0U),
     m_wdc_ansi_cmd(0),
     m_wdc_ansi_parm(0),
     m_wdc_ansi_attribute_number(0),
-	m_wdc_ansi_attributes(NULL),
 	m_wdc_ansi_test_byte(0),
     m_wdc_sector(0),
     m_wdc_current_cylinder_high(0),
@@ -99,29 +107,24 @@ apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig
     m_wdc_sense_byte_1(0),
     m_wdc_sense_byte_2(0),
     m_wdc_write_enabled(false),
-    m_wdc_attention_enabled(true),
-	m_disk_fp(NULL),
-	m_sysboot_fp(NULL)
+    m_wdc_attention_enabled(true)
 {
-    char* DISK_IMAGE = getenv("DISK_IMAGE");
-    char* SYSBOOT_OVERRIDE_IMAGE = getenv("SYSBOOT_OVERRIDE_IMAGE");
+}
 
-    if (DISK_IMAGE) {
-        m_disk_fp = fopen(DISK_IMAGE, "r");
-    }
-    if (SYSBOOT_OVERRIDE_IMAGE) {
-        m_sysboot_fp = fopen(SYSBOOT_OVERRIDE_IMAGE, "r");
-    }
+void apollo_dn300_disk_device::device_add_mconfig(machine_config &config)
+{
+    ANSI_DISK(config, DN300_DISK0_TAG, 0);
+	ANSI_DISK(config, DN300_DISK1_TAG, 0);
 
-    if (m_disk_fp == NULL) {
-        logerror("couldn't open disk image\n");
-    }
-    if (m_sysboot_fp == NULL) {
-        logerror("couldn't open sysboot\n");
-    }
+	UPD765A(config, m_fdc, 8_MHz_XTAL, true, true);
+	// m_fdc->intrq_wr_callback().set(FUNC(apollo_dn300_disk_device::fdc_irq_w));
+	// m_fdc->drq_wr_callback().set(FUNC(apollo_dn300_disk_device::fdc_drq_w));
+	FLOPPY_CONNECTOR(config, m_floppy[0], floppies, "8dsdd", apollo_dn300_disk_device::floppy_formats);
+}
 
-	m_wdc_ansi_attributes = (uint8_t*)malloc(0x48);
-	memmove(m_wdc_ansi_attributes, hopefully_this_is_right, 0x48);
+void apollo_dn300_disk_device::floppy_formats(format_registration &fr)
+{
+	fr.add(FLOPPY_APOLLO_FORMAT);
 }
 
 void apollo_dn300_disk_device::device_start()
@@ -129,6 +132,8 @@ void apollo_dn300_disk_device::device_start()
     drq_cb.resolve();
 
     // save_item(NAME(drq));
+    our_disks[0] = subdevice<ansi_disk_image_device>(DN300_DISK0_TAG);
+    our_disks[1] = subdevice<ansi_disk_image_device>(DN300_DISK1_TAG);
 }
 
 void apollo_dn300_disk_device::device_reset()
@@ -419,27 +424,19 @@ void apollo_dn300_disk_device::execute_command()
         case WDC_CONTROLLER_CMD_READ_RECORD: {
             m_wdc_general_status |= WDC_GS_BUSY_EXECUTING;
 
+            ansi_disk_image_device *disk = our_disks[m_wdc_selected_drive-1];
+
             int cylinder = (m_wdc_current_cylinder_high << 8) | m_wdc_current_cylinder_low;
-            // 15/18 here match the values in the dn3500 disk image.
-            // 15 = the drive's number of heads (and == TracksPerCylinder)
-            int track = cylinder * 15 + m_wdc_head;
-            // 18 = SectorsPerTrack
-            int sector_offset = track * 18;
+            int track = cylinder * disk->m_heads + m_wdc_head;
+            int sector_offset = track * disk->m_sectors;
             int sector = sector_offset + m_wdc_sector;
-            SLOG1(("CMD_READ_RECORD for sector %d on cylinder %d and head %d", m_wdc_sector, cylinder, m_wdc_head));
+
+            SLOG1(("CMD_READ_RECORD for drive %d sector %d on cylinder %d and head %d", m_wdc_selected_drive, m_wdc_sector, cylinder, m_wdc_head));
             SLOG1(("linearized as logical sector address %d\n", sector));
-            SLOG1(("reading header from disk image"));
-            fseek(m_disk_fp, 1056 * sector, SEEK_SET);
-            fread(m_read_buffer, 32, 1, m_disk_fp);
-            if (track == 0 && (m_wdc_sector >= 2 && m_wdc_sector <= 11 && m_sysboot_fp)) {
-                SLOG1(("reading data from sysboot override"));
-                fseek(m_sysboot_fp, 1024 * (m_wdc_sector-2), SEEK_SET);
-                memset(&m_read_buffer[32], 0, 1024); // just in case we get a short read.
-                fread(&m_read_buffer[32], 1024, 1, m_sysboot_fp);
-            } else {
-                SLOG1(("reading data from disk image"));
-                fread(&m_read_buffer[32], 1024, 1, m_disk_fp);
-            }
+
+            disk->m_image->fseek(sector * HARD_DISK_SECTOR_SIZE, SEEK_SET);
+            disk->m_image->fread(m_read_buffer, HARD_DISK_SECTOR_SIZE);
+
             m_read_cursor = 0;
 
 #define PULSE_DRQ() do { drq_cb(true); drq_cb(false); } while (0)
@@ -676,7 +673,7 @@ void apollo_dn300_disk_device::execute_ansi_command()
 
             // if this were an async emulator we'd return here:
             //
-            // m_ansi_param = m_general_status;
+            // m_ansi_parm = m_general_status;
             // return;
             //
             // but instead we jump immediately to steps performed after the
@@ -719,7 +716,7 @@ void apollo_dn300_disk_device::execute_ansi_command()
             // in the Load Attribute Number Command (see Section 4.1.6). The
             // contents of the byte is defined by Table 4-3 and Section 4.3.
             SLOG1(("ANSI_CMD_REPORT_ATTRIBUTE attribute=%02x", m_wdc_ansi_attribute_number));
-			m_wdc_ansi_parm = m_wdc_ansi_attributes[m_wdc_ansi_attribute_number];
+            m_wdc_ansi_parm = our_disks[m_wdc_selected_drive]->report_attribute(m_wdc_ansi_attribute_number);
             break;
 
         case ANSI_CMD_SET_ATTENTION:
@@ -934,10 +931,7 @@ void apollo_dn300_disk_device::execute_ansi_command()
             // of the Device Attribute must have been previously defined by the
             // Load Attribute Number Command (see Section 4.1.6).
             SLOG1(("ANSI_CMD_LOAD_ATTRIBUTE attribute=%02x, value=%02x", m_wdc_ansi_attribute_number, m_wdc_ansi_parm))
-			if (m_wdc_ansi_attribute_number > 0x47) {
-				SLOG1(("  + illegal attribute number"))
-			}
-			m_wdc_ansi_attributes[m_wdc_ansi_attribute_number] = m_wdc_ansi_parm;
+            our_disks[m_wdc_selected_drive]->load_attribute(m_wdc_ansi_attribute_number, m_wdc_ansi_parm);
 			SLOG1(("  + done"));
             break;
 
@@ -974,7 +968,7 @@ void apollo_dn300_disk_device::execute_ansi_command()
 
             // if this were an async emulator we'd return here:
             //
-            // m_ansi_param = m_general_status;
+            // m_ansi_parm = m_general_status;
             // return;
             //
             // but instead we jump immediately to steps performed after the
@@ -1040,3 +1034,194 @@ void apollo_dn300_disk_device::write_byte(offs_t offset, uint8_t data)
     SLOG1(("writing disk DMA at offset %02x = %02x", offset, data));
 }
 
+
+//##########################################################################
+
+DEFINE_DEVICE_TYPE(ANSI_DISK, ansi_disk_image_device, "ansi_disk_image", "DN300 ANSI disk")
+
+ansi_disk_image_device::ansi_disk_image_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: harddisk_image_base_device(mconfig, ANSI_DISK, tag, owner, clock)
+	, m_type(0), m_cylinders(0), m_heads(0), m_sectors(0), m_sectorbytes(0), m_sector_count(0), m_image(nullptr)
+{
+}
+
+
+/***************************************************************************
+ ansi_disk_config - configure disk parameters
+ ***************************************************************************/
+
+void ansi_disk_image_device::ansi_disk_config(uint16_t disk_type)
+{
+	logerror("ansi_disk_config: configuring disk with type %x\n", disk_type);
+
+	switch (disk_type)
+	{
+        case ANSI_DISK_TYPE_64_MB: // Priam 7050 (Unformatted 70MB)
+            m_cylinders = 1049;
+            m_heads = 5;
+            m_sectors = 12;
+            break;
+
+        case ANSI_DISK_TYPE_32_MB: // Priam 3450 (Unformatted 35MB)
+            m_cylinders = 525;
+            m_heads = 5;
+            m_sectors = 12;
+            break;
+
+        case ANSI_DISK_TYPE_HACK_DN3500: // Maxtor 380 MB (348-MB FA formatted)
+            m_cylinders = 1223;
+            m_heads = 15;
+            m_sectors = 18;
+            break;
+    }
+
+	m_type = disk_type;
+	m_sectorbytes = HARD_DISK_SECTOR_SIZE;
+	m_sector_count = m_cylinders * m_heads * m_sectors;
+}
+
+/*-------------------------------------------------
+ logerror - log an error message (w/o device tags)
+ -------------------------------------------------*/
+
+template <typename Format, typename... Params>
+void ansi_disk_image_device::logerror(Format &&fmt, Params &&... args) const
+{
+	machine().logerror(std::forward<Format>(fmt), std::forward<Params>(args)...);
+}
+
+/*-------------------------------------------------
+    device start callback
+-------------------------------------------------*/
+
+void ansi_disk_image_device::device_start()
+{
+	m_image = this;
+
+	if (!m_image->is_open())
+	{
+		logerror("device_start_ansi_disk: no disk\n");
+	}
+	else
+	{
+		logerror("device_start_ansi_disk: with disk image %s\n", m_image->basename());
+	}
+
+	// default disk type
+	ansi_disk_config(ANSI_DISK_TYPE_DEFAULT);
+}
+
+/*-------------------------------------------------
+    device reset callback
+-------------------------------------------------*/
+
+void ansi_disk_image_device::device_reset()
+{
+	logerror("device_reset_ansi_disk\n");
+
+	if (exists() && !fseek(0, SEEK_END))
+	{
+		uint32_t disk_size = uint32_t(ftell() / HARD_DISK_SECTOR_SIZE);
+		uint16_t disk_type;
+        
+        if (disk_size >= 300000) {
+            disk_type = ANSI_DISK_TYPE_HACK_DN3500;
+        } else if (disk_size >= 60000) {
+            disk_type = ANSI_DISK_TYPE_64_MB;
+        } else {
+            disk_type = ANSI_DISK_TYPE_32_MB;
+        }
+		if (disk_type != m_type) {
+			logerror("device_reset_ansi_disk: disk size=%d blocks, disk type=%x\n", disk_size, disk_type);
+			ansi_disk_config(disk_type);
+		}
+	}
+}
+
+/*-------------------------------------------------
+   disk image create callback
+-------------------------------------------------*/
+
+image_init_result ansi_disk_image_device::call_create(int format_type, util::option_resolution *format_options)
+{
+	logerror("device_create_ansi_disk: creating ANSI Disk with %d blocks\n", m_sector_count);
+
+	unsigned char sectordata[HARD_DISK_SECTOR_SIZE]; // empty block data
+	memset(sectordata, 0x55, sizeof(sectordata));
+
+	for (int x = 0; x < m_sector_count; x++)
+	{
+		if (fwrite(sectordata, HARD_DISK_SECTOR_SIZE)
+				< HARD_DISK_SECTOR_SIZE)
+		{
+			return image_init_result::FAIL;
+		}
+	}
+
+	return image_init_result::PASS;
+}
+
+/*
+
+*/
+uint8_t ansi_disk_image_device::report_attribute(uint8_t attribute_number)
+{
+    /* ensure our attributes have been initialized */
+    if (!m_attributes_initialized) {
+        m_attributes_initialized = true;
+        memset(m_ansi_attributes, 0, sizeof(m_ansi_attributes));
+
+        m_ansi_attributes[0x00] = 0x00;          // User ID - user defined
+	    m_ansi_attributes[0x01] = m_type >> 8;   // Model ID High - vendor defined
+        m_ansi_attributes[0x02] = m_type & 0xff; // Model ID Low - vendor defined
+        m_ansi_attributes[0x03] = 0x00;          // Revision ID - vendor defined
+
+	    m_ansi_attributes[0x0D] = 0x00; // Device Type ID - device dependent
+	    m_ansi_attributes[0x0E] = 0x00; // Table Modification - action dependent
+	    m_ansi_attributes[0x0F] = 0x00; // Table ID - vendor defined
+
+        uint32_t bytes_per_track = m_sectors * HARD_DISK_SECTOR_SIZE;
+	    m_ansi_attributes[0x10] = (bytes_per_track >> 16) & 0xff;       // MSB of # of bytes per track
+	    m_ansi_attributes[0x11] = (bytes_per_track >> 8) & 0xff;        // MedSB of # of bytes per track
+	    m_ansi_attributes[0x12] = bytes_per_track & 0xff;               // LSB of # of bytes per track
+	    m_ansi_attributes[0x13] = (HARD_DISK_SECTOR_SIZE >> 16) & 0xff; // MSB of # of bytes per sector
+	    m_ansi_attributes[0x14] = (HARD_DISK_SECTOR_SIZE >> 8) & 0xff;  // MedSB of # of bytes per sector
+	    m_ansi_attributes[0x15] = HARD_DISK_SECTOR_SIZE & 0xff;         // LSB of # of bytes per sector
+	    m_ansi_attributes[0x16] = 0x00;                                 // MSB of # of sector pulses per track
+	    m_ansi_attributes[0x17] = m_sectors >> 8;                       // MedSB of # of sector pulses per track
+	    m_ansi_attributes[0x18] = m_sectors & 0xff;                     // LSB of # of sector pulses per track
+	    m_ansi_attributes[0x19] = 0x00;                                 // Sectoring method
+
+	    m_ansi_attributes[0x20] = m_cylinders >> 8;              // MSB of # of cylinders
+	    m_ansi_attributes[0x21] = m_cylinders & 0xff;            // LSB of # of cylinders
+	    m_ansi_attributes[0x22] = m_heads;                       // Number of heads
+
+	    m_ansi_attributes[0x30] = 0x00;                          // Encoding method #1
+	    m_ansi_attributes[0x31] = 0x00;                          // Preamble #1 number of bytes
+	    m_ansi_attributes[0x32] = 0x00;                          // Preamble #1 pattern
+	    m_ansi_attributes[0x33] = 0x00;                          // Sync #1 pattern
+	    m_ansi_attributes[0x34] = 0x00;                          // Postamble #1 number of bytes
+	    m_ansi_attributes[0x35] = 0x00;                          // Postamble #1 pattern
+	    m_ansi_attributes[0x36] = 0x00;                          // Gap #1 number of bytes
+	    m_ansi_attributes[0x37] = 0x00;                          // Gap #1 pattern
+
+	    m_ansi_attributes[0x40] = 0x00;                          // Encoding Method #2
+	    m_ansi_attributes[0x41] = 0x00;                          // Preamble #2 number of bytes
+	    m_ansi_attributes[0x42] = 0x00;                          // Preamble #2 pattern
+	    m_ansi_attributes[0x43] = 0x00;                          // Sync #2 pattern
+	    m_ansi_attributes[0x44] = 0x00;                          // Postamble #2 number of bytes
+	    m_ansi_attributes[0x45] = 0x00;                          // Postamble #2 pattern
+	    m_ansi_attributes[0x46] = 0x00;                          // Gap #2 number of bytes
+	    m_ansi_attributes[0x47] = 0x00;                          // Gap #2 pattern
+    }
+    return m_ansi_attributes[attribute_number];
+}
+
+void ansi_disk_image_device::load_attribute(uint8_t attribute_number, uint8_t attribute_value)
+{
+    if (attribute_number > 0x47) {
+        SLOG1(("  + illegal attribute number %d", attribute_number))
+        return;
+    }
+    m_ansi_attributes[attribute_number] = attribute_value;
+}

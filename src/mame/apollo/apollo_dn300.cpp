@@ -373,7 +373,7 @@ uint16_t apollo_dn300_state::apollo_unmapped_r(offs_t offset, uint16_t mem_mask)
 		// omit logging for FPA trial access
 	} else if (address == 0x00030000 && VERBOSE < 2) {
 		// omit logging for Bus error test address in DN3500 boot prom and self_test
-	} else if (address == 0x0000ac00 && VERBOSE < 2) {
+	} else if (address == 0x0000ac00 && VERBOSE < 2 	) {
 		// omit logging for Bus error test address in DN3000 boot prom
 	} else {
 		// m68000_musashi_device *m68k = m_maincpu;
@@ -615,11 +615,7 @@ void apollo_dn300_state::dn300(machine_config &config)
 
 	APOLLO_DN300_DISK(config, m_disk, 0);
 	m_disk->set_cpu(m_maincpu);
-	m_disk->set_fdc(m_fdc);
 	m_disk->drq_wr_callback().set(m_dmac, FUNC(hd63450_device::drq3_w));
-
-	UPD765A(config, m_fdc, 8_MHz_XTAL, true, true);
-	// FLOPPY_CONNECTOR(config, "fdc:0", ckz80_floppies, "525dd", floppy_image_device::default_mfm_floppy_formats);
 
 	APOLLO_DN300_RING(config, m_ring, 0);
 	m_ring->set_cpu(m_maincpu);
@@ -646,12 +642,8 @@ void apollo_dn300_state::dn320(machine_config &config)
 	m_mmu->set_cpu(m_maincpu);
 	m_maincpu->set_emmu_translate_callback(m_mmu, FUNC(apollo_dn300_mmu_device::translate));
 
-	UPD765A(config, m_fdc, 8_MHz_XTAL, true, true);
-	// FLOPPY_CONNECTOR(config, "fdc:0", ckz80_floppies, "525dd", floppy_image_device::default_mfm_floppy_formats);
-
 	APOLLO_DN300_DISK(config, m_disk, 0);
 	m_disk->set_cpu(m_maincpu);
-	m_disk->set_fdc(m_fdc);
 	m_disk->drq_wr_callback().set(m_dmac, FUNC(hd63450_device::drq3_w));
 
 	APOLLO_DN300_RING(config, m_ring, 0);
