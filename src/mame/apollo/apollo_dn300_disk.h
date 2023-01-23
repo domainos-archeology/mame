@@ -14,6 +14,7 @@
 #define MAME_MACHINE_APOLLO_DN300_DISK_H
 
 #include "machine/upd765.h"
+#include "machine/msm5832.h"
 #include "imagedev/floppy.h"
 
 class ansi_disk_image_device;
@@ -29,8 +30,6 @@ public:
     uint8_t wdc_read(offs_t offset, uint8_t mem_mask = ~0);
 
 	void calendar_ctrl_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
-	void calendar_data_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
-	uint8_t calendar_data_r(offs_t offset, uint8_t mem_mask = ~0);
 
 	auto irq_callback() { return irq_cb.bind(); }
 	auto drq_wr_callback() { return drq_cb.bind(); }
@@ -58,6 +57,7 @@ private:
 	devcb_write_line irq_cb;
 	devcb_write_line drq_cb;
 
+	required_device<msm5832_device> m_rtc;
 	required_device<upd765a_device> m_fdc;
 	optional_device_array<floppy_connector, 2> m_floppy;
 
@@ -95,7 +95,6 @@ private:
 	char m_read_buffer[2000];
 
 	uint8 m_calendar_ctrl;
-	uint8 m_calendar_data;
 };
 
 // device type definition

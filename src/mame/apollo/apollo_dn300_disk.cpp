@@ -85,6 +85,7 @@ apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig
     device_t(mconfig, APOLLO_DN300_DISK, tag, owner, clock),
 	irq_cb(*this),
     drq_cb(*this),
+    m_rtc(*this, APOLLO_DN300_RTC_TAG),
 	m_fdc(*this, APOLLO_DN300_FLOPPY_TAG),
     m_floppy(*this, APOLLO_DN300_FLOPPY_TAG":%u", 0U),
     m_wdc_ansi_cmd(0),
@@ -120,6 +121,8 @@ void apollo_dn300_disk_device::device_add_mconfig(machine_config &config)
 	m_fdc->intrq_wr_callback().set([this](int state) { irq_cb(state); });
 	m_fdc->drq_wr_callback().set([this](int state) { drq_cb(state); });
 	FLOPPY_CONNECTOR(config, m_floppy[0], floppies, "8dsdd", apollo_dn300_disk_device::floppy_formats);
+
+    MSM5832(config, m_rtc, 0);
 }
 
 void apollo_dn300_disk_device::floppy_formats(format_registration &fr)
@@ -274,13 +277,14 @@ apollo_dn300_disk_device::map(address_map &map)
 	map(0x00, 0x0F).rw(FUNC(apollo_dn300_disk_device::wdc_read), FUNC(apollo_dn300_disk_device::wdc_write));
 
 	// standard floppy controller
-	map(0x10, 0x11).r(m_fdc, FUNC(apollo_dn300_disk_device::fdc_msr_r));
+	map(0x10, 0x11).r(FUNC(apollo_dn300_disk_device::fdc_msr_r));
 	map(0x12, 0x13).rw(m_fdc, FUNC(upd765a_device::fifo_r), FUNC(upd765a_device::fifo_w));
 	map(0x14, 0x15).w(m_fdc, FUNC(upd765a_device::dsr_w));
 
+    // our rtc
 	map(0x20, 0x21).w(FUNC(apollo_dn300_disk_device::calendar_ctrl_w));
-	map(0x22,0x23).w(FUNC(apollo_dn300_disk_device::calendar_data_w));
-	map(0x24,0x25).r(FUNC(apollo_dn300_disk_device::calendar_data_r));
+	map(0x22,0x23).w(m_rtc, FUNC(msm5832_device::data_w));
+	map(0x24,0x25).r(m_rtc, FUNC(msm5832_device::data_r));
 }
 
 void
@@ -305,18 +309,6 @@ void
 apollo_dn300_disk_device::calendar_ctrl_w(offs_t, uint8_t data, uint8_t mem_mask)
 {
 	COMBINE_DATA(&m_calendar_ctrl);
-}
-
-void
-apollo_dn300_disk_device::calendar_data_w(offs_t, uint8_t data, uint8_t mem_mask)
-{
-	COMBINE_DATA(&m_calendar_data);
-}
-
-uint8_t
-apollo_dn300_disk_device::calendar_data_r(offs_t, uint8_t mem_mask)
-{
-	return m_calendar_data & mem_mask;
 }
 
 void apollo_dn300_disk_device::wdc_write(offs_t offset, uint8_t data, uint8_t mem_mask)
