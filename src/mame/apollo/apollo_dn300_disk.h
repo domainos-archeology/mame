@@ -52,6 +52,9 @@ protected:
 private:
 	static void floppy_formats(format_registration &fr);
 
+	DECLARE_WRITE_LINE_MEMBER(fdc_irq_w);
+	uint8_t fdc_msr_r(offs_t, uint8_t mem_mask);
+
 	devcb_write_line irq_cb;
 	devcb_write_line drq_cb;
 

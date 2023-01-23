@@ -274,7 +274,7 @@ apollo_dn300_disk_device::map(address_map &map)
 	map(0x00, 0x0F).rw(FUNC(apollo_dn300_disk_device::wdc_read), FUNC(apollo_dn300_disk_device::wdc_write));
 
 	// standard floppy controller
-	map(0x10, 0x11).r(m_fdc, FUNC(upd765a_device::msr_r));
+	map(0x10, 0x11).r(m_fdc, FUNC(apollo_dn300_disk_device::fdc_msr_r));
 	map(0x12, 0x13).rw(m_fdc, FUNC(upd765a_device::fifo_r), FUNC(upd765a_device::fifo_w));
 	map(0x14, 0x15).w(m_fdc, FUNC(upd765a_device::dsr_w));
 
@@ -283,6 +283,23 @@ apollo_dn300_disk_device::map(address_map &map)
 	map(0x24,0x25).r(FUNC(apollo_dn300_disk_device::calendar_data_r));
 }
 
+void
+apollo_dn300_disk_device::fdc_irq_w(int state)
+{
+	if (state) {
+		m_wdc_status_high |= CONTROLLER_STATUS_HIGH_FLOPPY_INTERRUPTING;
+	}
+	irq_cb(state);
+}
+
+uint8_t
+apollo_dn300_disk_device::fdc_msr_r(offs_t, uint8_t mem_mask)
+{
+	// EH87 says reading the floppy status reg clears this bit, but I wonder if
+	// it shouldn't be a side effect of the controller clearing the irq line?
+	m_wdc_status_high &= ~CONTROLLER_STATUS_HIGH_FLOPPY_INTERRUPTING;
+	return m_fdc->msr_r() & mem_mask;
+}
 
 void
 apollo_dn300_disk_device::calendar_ctrl_w(offs_t, uint8_t data, uint8_t mem_mask)
