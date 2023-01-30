@@ -229,7 +229,6 @@ public:
 
 	void dn300_physical_map(address_map &map);
 
-	uint32_t ptm_counter;
 	int m_dma_channel;
 	bool m_cur_eop;
 };

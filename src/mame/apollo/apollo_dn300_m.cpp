@@ -546,5 +546,4 @@ MACHINE_RESET_MEMBER(apollo_dn300_state,apollo_dn300)
 		apollo_dn300_rtc_w(9, year);
 	}
 #endif
-	ptm_counter = 0;
 }
