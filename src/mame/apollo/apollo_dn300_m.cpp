@@ -459,7 +459,8 @@ void apollo_dn300_state::common(machine_config &config)
 	m_ptm->set_external_clocks(250000, 125000, 62500);
 	m_ptm->irq_callback().set_inputline(MAINCPU, APOLLO_DN300_IRQ_PTM);
 
-	// no clue what this clock rate should be.  but we need a clock to pulse rxc/txc
+	// the cpu board has a 4.9152 MHz oscillator can which passes through 2 /16
+	// dividers, resulting in 19200.
 	ACIA6850(config, m_acia, 0);
 	clock_device &acia_clock(CLOCK(config, "acia_clock", 19200));
 	acia_clock.signal_handler().set(m_acia, FUNC(acia6850_device::write_txc));
