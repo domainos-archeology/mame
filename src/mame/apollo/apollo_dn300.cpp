@@ -447,8 +447,8 @@ void apollo_dn300_state::dn300_physical_map(address_map &map)
 
 	map(0x009400, 0x00940f).rw(m_graphics, FUNC(apollo_dn300_graphics::reg_r), FUNC(apollo_dn300_graphics::reg_w));
 
-	map(0x009800, 0x009bff).m(m_ring, FUNC(apollo_dn300_ring_device::map));
-    map(0x009c00, 0x009fff).m(m_disk, FUNC(apollo_dn300_disk_device::map));
+	map(0x009800, 0x009bff).m(m_ring, FUNC(apollo_dn300_ring_ctrlr_device::map));
+    map(0x009c00, 0x009fff).m(m_disk, FUNC(apollo_dn300_disk_ctrlr_device::map));
 
 	map(0x00b000, 0x00b3ff).rw(FUNC(apollo_dn300_state::apollo_fpu_ctl_r), FUNC(apollo_dn300_state::apollo_fpu_ctl_w)); // docs call this "fpu ctl"
 	map(0x00b400, 0x00b7ff).rw(FUNC(apollo_dn300_state::apollo_fpu_cmd_r), FUNC(apollo_dn300_state::apollo_fpu_cmd_w)); // docs call this "fpu cmd"
@@ -567,11 +567,11 @@ void apollo_dn300_state::dn300(machine_config &config)
 	m_mmu->set_cpu(m_maincpu);
 	m_maincpu->set_emmu_translate_callback(m_mmu, FUNC(apollo_dn300_mmu_device::translate));
 
-	APOLLO_DN300_DISK(config, m_disk, 0);
+	APOLLO_DN300_DISK_CTRLR(config, m_disk, 0);
 	m_disk->irq_callback().set_inputline(MAINCPU, APOLLO_DN300_IRQ_DISK);
 	m_disk->drq_wr_callback().set(m_dmac, FUNC(hd63450_device::drq3_w));
 
-	APOLLO_DN300_RING(config, m_ring, 0);
+	APOLLO_DN300_RING_CTRLR(config, m_ring, 0);
 	m_ring->irq_callback().set_inputline(MAINCPU, APOLLO_DN300_IRQ_RING);
 	// missing: the ring dmac linkages
 
@@ -597,11 +597,11 @@ void apollo_dn300_state::dn320(machine_config &config)
 	m_mmu->set_cpu(m_maincpu);
 	m_maincpu->set_emmu_translate_callback(m_mmu, FUNC(apollo_dn300_mmu_device::translate));
 
-	APOLLO_DN300_DISK(config, m_disk, 0);
+	APOLLO_DN300_DISK_CTRLR(config, m_disk, 0);
 	m_disk->irq_callback().set_inputline(MAINCPU, APOLLO_DN300_IRQ_DISK);
 	m_disk->drq_wr_callback().set(m_dmac, FUNC(hd63450_device::drq3_w));
 
-	APOLLO_DN300_RING(config, m_ring, 0);
+	APOLLO_DN300_RING_CTRLR(config, m_ring, 0);
 	m_ring->irq_callback().set_inputline(MAINCPU, APOLLO_DN300_IRQ_RING);
 	// missing: the ring dmac linkages
 

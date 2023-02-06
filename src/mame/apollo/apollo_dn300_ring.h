@@ -16,12 +16,12 @@
 #include "machine/ram.h"
 #include "machine/bankdev.h"
 
-class apollo_dn300_ring_device :
+class apollo_dn300_ring_ctrlr_device :
     public device_t
 {
 public:
 	//construction/destruction
-	apollo_dn300_ring_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	apollo_dn300_ring_ctrlr_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
     void map(address_map &map);
 
@@ -76,6 +76,6 @@ private:
 };
 
 // device type definition
-DECLARE_DEVICE_TYPE(APOLLO_DN300_RING, apollo_dn300_ring_device)
+DECLARE_DEVICE_TYPE(APOLLO_DN300_RING_CTRLR, apollo_dn300_ring_ctrlr_device)
 
 #endif // MAME_MACHINE_APOLLO_DN300_RING_H

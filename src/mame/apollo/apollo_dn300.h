@@ -120,8 +120,8 @@ class apollo_dn300_ni;
 class apollo_dn300_graphics;
 class apollo_dn300_kbd_device;
 class apollo_dn300_mmu_device;
-class apollo_dn300_disk_device;
-class apollo_dn300_ring_device;
+class apollo_dn300_disk_ctrlr_device;
+class apollo_dn300_ring_ctrlr_device;
 
 class apollo_dn300_state : public driver_device
 {
@@ -171,8 +171,8 @@ public:
 	required_device<apollo_dn300_graphics> m_graphics;
 	optional_device<apollo_dn300_kbd_device> m_keyboard;
 	required_device<apollo_dn300_mmu_device> m_mmu;
-	required_device<apollo_dn300_disk_device> m_disk;
-	required_device<apollo_dn300_ring_device> m_ring;
+	required_device<apollo_dn300_disk_ctrlr_device> m_disk;
+	required_device<apollo_dn300_ring_ctrlr_device> m_ring;
 	output_finder<4> m_internal_leds;
 
 	void apollo_timers_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);

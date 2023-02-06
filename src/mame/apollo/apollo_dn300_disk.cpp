@@ -79,58 +79,58 @@ public:
 	uint8_t m_ansi_attributes[0x48];
 };
 
-DEFINE_DEVICE_TYPE(APOLLO_DN300_DISK, apollo_dn300_disk_device, APOLLO_DN300_DISK_TAG, "Apollo DN300 Winchester/Floppy controller")
+DEFINE_DEVICE_TYPE(APOLLO_DN300_DISK_CTRLR, apollo_dn300_disk_ctrlr_device, APOLLO_DN300_DISK_TAG, "Apollo DN300 Winchester/Floppy controller")
 
-apollo_dn300_disk_device::apollo_dn300_disk_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock):
-    device_t(mconfig, APOLLO_DN300_DISK, tag, owner, clock),
-	irq_cb(*this),
-    drq_cb(*this),
-    m_rtc(*this, APOLLO_DN300_RTC_TAG),
-	m_fdc(*this, APOLLO_DN300_FLOPPY_TAG),
-    m_floppy(*this, APOLLO_DN300_FLOPPY_TAG":%u", 0U),
-    m_wdc_ansi_cmd(0),
-    m_wdc_ansi_parm(0),
-    m_wdc_ansi_attribute_number(0),
-	m_wdc_ansi_test_byte(0),
-    m_wdc_sector(0),
-    m_wdc_current_cylinder_high(0),
-    m_wdc_current_cylinder_low(0),
-    m_wdc_load_cylinder_high(0),
-    m_wdc_load_cylinder_low(0),
-    m_wdc_head(0),
-    m_wdc_interrupt_control(0),
-    m_controller_command(0),
-    m_controller_status_high(0),
-    m_controller_status_low(0),
-    m_wdc_selected_head(0),
-    m_wdc_selected_drive(0),
-    m_wdc_general_status(0),
-    m_wdc_sense_byte_1(0),
-    m_wdc_sense_byte_2(0),
-    m_wdc_write_enabled(false),
-    m_wdc_attention_enabled(true)
+apollo_dn300_disk_ctrlr_device::apollo_dn300_disk_ctrlr_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+    : device_t(mconfig, APOLLO_DN300_DISK_CTRLR, tag, owner, clock)
+	, irq_cb(*this)
+    , drq_cb(*this)
+    , m_rtc(*this, APOLLO_DN300_RTC_TAG)
+	, m_fdc(*this, APOLLO_DN300_FLOPPY_TAG)
+    , m_floppy(*this, APOLLO_DN300_FLOPPY_TAG":%u", 0U)
+    , m_wdc_ansi_cmd(0)
+    , m_wdc_ansi_parm(0)
+    , m_wdc_ansi_attribute_number(0)
+	, m_wdc_ansi_test_byte(0)
+    , m_wdc_sector(0)
+    , m_wdc_current_cylinder_high(0)
+    , m_wdc_current_cylinder_low(0)
+    , m_wdc_load_cylinder_high(0)
+    , m_wdc_load_cylinder_low(0)
+    , m_wdc_head(0)
+    , m_wdc_interrupt_control(0)
+    , m_controller_command(0)
+    , m_controller_status_high(0)
+    , m_controller_status_low(0)
+    , m_wdc_selected_head(0)
+    , m_wdc_selected_drive(0)
+    , m_wdc_general_status(0)
+    , m_wdc_sense_byte_1(0)
+    , m_wdc_sense_byte_2(0)
+    , m_wdc_write_enabled(false)
+    , m_wdc_attention_enabled(true)
 {
 }
 
-void apollo_dn300_disk_device::device_add_mconfig(machine_config &config)
+void apollo_dn300_disk_ctrlr_device::device_add_mconfig(machine_config &config)
 {
     ANSI_DISK(config, DN300_DISK0_TAG, 0);
 	ANSI_DISK(config, DN300_DISK1_TAG, 0);
 
-	UPD765A(config, m_fdc, 8_MHz_XTAL, true, true);
-	m_fdc->intrq_wr_callback().set(FUNC(apollo_dn300_disk_device::fdc_irq));
+	UPD765A(config, m_fdc, 16_MHz_XTAL, true, true);
+	m_fdc->intrq_wr_callback().set(FUNC(apollo_dn300_disk_ctrlr_device::fdc_irq));
 	m_fdc->drq_wr_callback().set([this](int state) { drq_cb(state); });
-	FLOPPY_CONNECTOR(config, m_floppy[0], floppies, "8dsdd", apollo_dn300_disk_device::floppy_formats);
+	FLOPPY_CONNECTOR(config, m_floppy[0], floppies, "8dsdd", apollo_dn300_disk_ctrlr_device::floppy_formats);
 
     MSM5832(config, m_rtc, 0);
 }
 
-void apollo_dn300_disk_device::floppy_formats(format_registration &fr)
+void apollo_dn300_disk_ctrlr_device::floppy_formats(format_registration &fr)
 {
 	fr.add(FLOPPY_APOLLO_FORMAT);
 }
 
-void apollo_dn300_disk_device::device_start()
+void apollo_dn300_disk_ctrlr_device::device_start()
 {
 	irq_cb.resolve();
     drq_cb.resolve();
@@ -140,7 +140,7 @@ void apollo_dn300_disk_device::device_start()
     our_disks[1] = subdevice<ansi_disk_image_device>(DN300_DISK1_TAG);
 }
 
-void apollo_dn300_disk_device::device_reset()
+void apollo_dn300_disk_ctrlr_device::device_reset()
 {
 }
 
@@ -271,33 +271,33 @@ void apollo_dn300_disk_device::device_reset()
 #define CONTROLLER_STATUS_LOW_DMA_PARITY_ERROR             0x02
 
 void
-apollo_dn300_disk_device::map(address_map &map)
+apollo_dn300_disk_ctrlr_device::map(address_map &map)
 {
 	// custom hard drive controller
-	map(0x00, 0x0F).rw(FUNC(apollo_dn300_disk_device::wdc_read), FUNC(apollo_dn300_disk_device::wdc_write));
+	map(0x00, 0x0F).rw(FUNC(apollo_dn300_disk_ctrlr_device::wdc_read), FUNC(apollo_dn300_disk_ctrlr_device::wdc_write));
 
 	// standard floppy controller
-	map(0x10, 0x11).r(FUNC(apollo_dn300_disk_device::fdc_msr_r));
+	map(0x10, 0x11).r(FUNC(apollo_dn300_disk_ctrlr_device::fdc_msr_r));
 	map(0x12, 0x13).rw(m_fdc, FUNC(upd765a_device::fifo_r), FUNC(upd765a_device::fifo_w));
 	map(0x14, 0x15).w(m_fdc, FUNC(upd765a_device::dsr_w));
 
     // our rtc
-	map(0x20, 0x21).w(FUNC(apollo_dn300_disk_device::calendar_ctrl_w));
+	map(0x20, 0x21).w(FUNC(apollo_dn300_disk_ctrlr_device::calendar_ctrl_w));
 	map(0x22,0x23).w(m_rtc, FUNC(msm5832_device::data_w));
 	map(0x24,0x25).r(m_rtc, FUNC(msm5832_device::data_r));
 }
 
 void
-apollo_dn300_disk_device::fdc_irq(int state)
+apollo_dn300_disk_ctrlr_device::fdc_irq(int state)
 {
 	if (state) {
 		m_controller_status_high |= CONTROLLER_STATUS_HIGH_FLOPPY_INTERRUPTING;
 	}
-	// irq_cb(state);
+	irq_cb(state);
 }
 
 uint8_t
-apollo_dn300_disk_device::fdc_msr_r(offs_t, uint8_t mem_mask)
+apollo_dn300_disk_ctrlr_device::fdc_msr_r(offs_t, uint8_t mem_mask)
 {
 	// EH87 says reading the floppy status reg clears this bit, but I wonder if
 	// it shouldn't be a side effect of the controller clearing the irq line?
@@ -306,12 +306,13 @@ apollo_dn300_disk_device::fdc_msr_r(offs_t, uint8_t mem_mask)
 }
 
 void
-apollo_dn300_disk_device::calendar_ctrl_w(offs_t, uint8_t data, uint8_t mem_mask)
+apollo_dn300_disk_ctrlr_device::calendar_ctrl_w(offs_t, uint8_t data, uint8_t mem_mask)
 {
+	SLOG1(("DN300_DISK: calendar_ctrl write = %02x", data));
 	COMBINE_DATA(&m_calendar_ctrl);
 }
 
-void apollo_dn300_disk_device::wdc_write(offs_t offset, uint8_t data, uint8_t mem_mask)
+void apollo_dn300_disk_ctrlr_device::wdc_write(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
     switch (offset) {
         // winchester register writes
@@ -355,7 +356,7 @@ void apollo_dn300_disk_device::wdc_write(offs_t offset, uint8_t data, uint8_t me
     }
 }
 
-uint8_t apollo_dn300_disk_device::wdc_read(offs_t offset, uint8_t mem_mask)
+uint8_t apollo_dn300_disk_ctrlr_device::wdc_read(offs_t offset, uint8_t mem_mask)
 {
     switch (offset) {
         // winchester register reads
@@ -384,7 +385,7 @@ uint8_t apollo_dn300_disk_device::wdc_read(offs_t offset, uint8_t mem_mask)
 }
 
 
-void apollo_dn300_disk_device::execute_command()
+void apollo_dn300_disk_ctrlr_device::execute_command()
 {
     // clear the status bits that clear on command
     m_controller_status_high &= ~CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
@@ -567,7 +568,7 @@ void apollo_dn300_disk_device::execute_command()
     }
 }
 
-void apollo_dn300_disk_device::execute_ansi_command()
+void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
 {
     switch (m_wdc_ansi_cmd) {
         case ANSI_CMD_REPORT_ILLEGAL_COMMAND:
@@ -1004,14 +1005,14 @@ void apollo_dn300_disk_device::execute_ansi_command()
     }
 }
 
-uint8_t apollo_dn300_disk_device::read_byte(offs_t _unused_offset)
+uint8_t apollo_dn300_disk_ctrlr_device::read_byte(offs_t _unused_offset)
 {
     // SLOG1(("reading disk DMA from offset %02x -> %02x", m_read_cursor, _unused_offset));
     // send back the byte pointed to by the read cursor
     return m_read_buffer[m_read_cursor++];
 }
 
-void apollo_dn300_disk_device::write_byte(offs_t offset, uint8_t data)
+void apollo_dn300_disk_ctrlr_device::write_byte(offs_t offset, uint8_t data)
 {
     SLOG1(("writing disk DMA at offset %02x = %02x", offset, data));
 }
@@ -1023,7 +1024,13 @@ DEFINE_DEVICE_TYPE(ANSI_DISK, ansi_disk_image_device, "ansi_disk_image", "DN300 
 
 ansi_disk_image_device::ansi_disk_image_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
 	: harddisk_image_base_device(mconfig, ANSI_DISK, tag, owner, clock)
-	, m_type(0), m_cylinders(0), m_heads(0), m_sectors(0), m_sectorbytes(0), m_sector_count(0), m_image(nullptr)
+	, m_type(0)
+	, m_cylinders(0)
+	, m_heads(0)
+	, m_sectors(0)
+	, m_sectorbytes(0)
+	, m_sector_count(0)
+	, m_image(nullptr)
 {
 }
 

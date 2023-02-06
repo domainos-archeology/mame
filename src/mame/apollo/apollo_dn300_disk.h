@@ -19,12 +19,12 @@
 
 class ansi_disk_image_device;
 
-class apollo_dn300_disk_device :
+class apollo_dn300_disk_ctrlr_device :
     public device_t
 {
 public:
 	//construction/destruction
-	apollo_dn300_disk_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	apollo_dn300_disk_ctrlr_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	void wdc_write(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
     uint8_t wdc_read(offs_t offset, uint8_t mem_mask = ~0);
@@ -98,6 +98,6 @@ private:
 };
 
 // device type definition
-DECLARE_DEVICE_TYPE(APOLLO_DN300_DISK, apollo_dn300_disk_device)
+DECLARE_DEVICE_TYPE(APOLLO_DN300_DISK_CTRLR, apollo_dn300_disk_ctrlr_device)
 
 #endif // MAME_MACHINE_APOLLO_DN300_DISK_H

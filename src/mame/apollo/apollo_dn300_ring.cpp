@@ -119,44 +119,44 @@
 // NOTES from EH87:
 //  Except for BROADCAST, these bits are software defined.
 
-DEFINE_DEVICE_TYPE(APOLLO_DN300_RING, apollo_dn300_ring_device, APOLLO_DN300_RING_TAG, "Apollo DN300 Ring controller")
+DEFINE_DEVICE_TYPE(APOLLO_DN300_RING_CTRLR, apollo_dn300_ring_ctrlr_device, APOLLO_DN300_RING_TAG, "Apollo DN300 Ring controller")
 
-apollo_dn300_ring_device::apollo_dn300_ring_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock):
-    device_t(mconfig, APOLLO_DN300_RING, tag, owner, clock),
+apollo_dn300_ring_ctrlr_device::apollo_dn300_ring_ctrlr_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock):
+    device_t(mconfig, APOLLO_DN300_RING_CTRLR, tag, owner, clock),
 	irq_cb(*this)
 {
 }
 
 void
-apollo_dn300_ring_device::device_start()
+apollo_dn300_ring_ctrlr_device::device_start()
 {
 }
 
 void
-apollo_dn300_ring_device::device_reset()
+apollo_dn300_ring_ctrlr_device::device_reset()
 {
 }
 
 void
-apollo_dn300_ring_device::map(address_map &map)
+apollo_dn300_ring_ctrlr_device::map(address_map &map)
 {
-	map(0x0,0x1).rw(FUNC(apollo_dn300_ring_device::xmit_status_r), FUNC(apollo_dn300_ring_device::xmit_command_w));
-	map(0x2,0x3).rw(FUNC(apollo_dn300_ring_device::rcv_status_r), FUNC(apollo_dn300_ring_device::rcv_command_w));
-	map(0x4,0x4).rw(FUNC(apollo_dn300_ring_device::tmask_r), FUNC(apollo_dn300_ring_device::tmask_w));
-	map(0x6,0x7).rw(FUNC(apollo_dn300_ring_device::diag_status_r), FUNC(apollo_dn300_ring_device::diag_command_w));
-	map(0x8,0xB).rw(FUNC(apollo_dn300_ring_device::ring_id_r), FUNC(apollo_dn300_ring_device::ring_id_w));
+	map(0x0,0x1).rw(FUNC(apollo_dn300_ring_ctrlr_device::xmit_status_r), FUNC(apollo_dn300_ring_ctrlr_device::xmit_command_w));
+	map(0x2,0x3).rw(FUNC(apollo_dn300_ring_ctrlr_device::rcv_status_r), FUNC(apollo_dn300_ring_ctrlr_device::rcv_command_w));
+	map(0x4,0x4).rw(FUNC(apollo_dn300_ring_ctrlr_device::tmask_r), FUNC(apollo_dn300_ring_ctrlr_device::tmask_w));
+	map(0x6,0x7).rw(FUNC(apollo_dn300_ring_ctrlr_device::diag_status_r), FUNC(apollo_dn300_ring_ctrlr_device::diag_command_w));
+	map(0x8,0xB).rw(FUNC(apollo_dn300_ring_ctrlr_device::ring_id_r), FUNC(apollo_dn300_ring_ctrlr_device::ring_id_w));
 
-	map(0x10,0x16).r(FUNC(apollo_dn300_ring_device::id_r));
+	map(0x10,0x16).r(FUNC(apollo_dn300_ring_ctrlr_device::id_r));
 }
 
 void
-apollo_dn300_ring_device::xmit_command_w(offs_t offset, uint16_t data, uint16_t mem_mask)
+apollo_dn300_ring_ctrlr_device::xmit_command_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
     SLOG1(("DN300_RING: writing xmit_command at offset %02x = %04x & %08x", offset, data, mem_mask));
 }
 
 uint16_t
-apollo_dn300_ring_device::xmit_status_r(offs_t offset, uint16_t mem_mask)
+apollo_dn300_ring_ctrlr_device::xmit_status_r(offs_t offset, uint16_t mem_mask)
 {
 	uint16_t data = m_xmit_status & mem_mask;
     SLOG1(("DN300_RING: reading xmit_status at offset %02x & %08x = %04x", offset, mem_mask, data));
@@ -164,13 +164,13 @@ apollo_dn300_ring_device::xmit_status_r(offs_t offset, uint16_t mem_mask)
 }
 
 void
-apollo_dn300_ring_device::rcv_command_w(offs_t offset, uint16_t data, uint16_t mem_mask)
+apollo_dn300_ring_ctrlr_device::rcv_command_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
     SLOG1(("DN300_RING: writing rcv_command at offset %02x = %04x & %08x", offset, data, mem_mask));
 }
 
 uint16_t
-apollo_dn300_ring_device::rcv_status_r(offs_t offset, uint16_t mem_mask)
+apollo_dn300_ring_ctrlr_device::rcv_status_r(offs_t offset, uint16_t mem_mask)
 {
 	uint16_t data = m_rcv_status & mem_mask;
     SLOG1(("DN300_RING: reading rcv_status at offset %02x & %08x = %04x", offset, mem_mask, data));
@@ -178,13 +178,13 @@ apollo_dn300_ring_device::rcv_status_r(offs_t offset, uint16_t mem_mask)
 }
 
 void
-apollo_dn300_ring_device::tmask_w(offs_t offset, uint8_t data, uint8_t mem_mask)
+apollo_dn300_ring_ctrlr_device::tmask_w(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
     SLOG1(("writing tmask at offset %02x = %02x & %08x", offset, data, mem_mask));
 }
 
 uint8_t
-apollo_dn300_ring_device::tmask_r(offs_t offset, uint8_t mem_mask)
+apollo_dn300_ring_ctrlr_device::tmask_r(offs_t offset, uint8_t mem_mask)
 {
 	uint8_t data = m_tmask & mem_mask;
     SLOG1(("DN300_RING: reading tmask at offset %02x & %08x = %02x", offset, mem_mask, data));
@@ -192,7 +192,7 @@ apollo_dn300_ring_device::tmask_r(offs_t offset, uint8_t mem_mask)
 }
 
 void
-apollo_dn300_ring_device::diag_command_w(offs_t offset, uint16_t data, uint16_t mem_mask)
+apollo_dn300_ring_ctrlr_device::diag_command_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
     SLOG1(("DN300_RING: writing diag_command at offset %02x = %04x & %08x", offset, data, mem_mask));
 
@@ -212,7 +212,7 @@ apollo_dn300_ring_device::diag_command_w(offs_t offset, uint16_t data, uint16_t 
 }
 
 uint16_t
-apollo_dn300_ring_device::diag_status_r(offs_t offset, uint16_t mem_mask)
+apollo_dn300_ring_ctrlr_device::diag_status_r(offs_t offset, uint16_t mem_mask)
 {
 	uint16_t data = m_diag_status & mem_mask;
     SLOG1(("DN300_RING: reading diag_status at offset %02x & %08x = %04x", offset, mem_mask, data));
@@ -220,13 +220,13 @@ apollo_dn300_ring_device::diag_status_r(offs_t offset, uint16_t mem_mask)
 }
 
 void
-apollo_dn300_ring_device::ring_id_w(offs_t offset, uint16_t data, uint16_t mem_mask)
+apollo_dn300_ring_ctrlr_device::ring_id_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
     SLOG1(("DN300_RING: writing ring_id at offset %02x = %04x & %08x", offset, data, mem_mask));
 }
 
 uint16_t
-apollo_dn300_ring_device::ring_id_r(offs_t offset, uint16_t mem_mask)
+apollo_dn300_ring_ctrlr_device::ring_id_r(offs_t offset, uint16_t mem_mask)
 {
 	uint8_t data = (offset == 0 ? m_ring_id_msb : m_ring_id_lsb) & mem_mask;
     SLOG1(("DN300_RING: reading ring_id at offset %02x & %08x = %04x", offset, mem_mask, data));
@@ -234,7 +234,7 @@ apollo_dn300_ring_device::ring_id_r(offs_t offset, uint16_t mem_mask)
 }
 
 uint8_t
-apollo_dn300_ring_device::id_r(offs_t offset, uint8_t mem_mask)
+apollo_dn300_ring_ctrlr_device::id_r(offs_t offset, uint8_t mem_mask)
 {
 	uint8_t data = m_id[offset / 2] & mem_mask;
     SLOG1(("DN300_RING: reading node_id at offset %02x & %08x = %02x", offset, mem_mask, data));
@@ -242,7 +242,7 @@ apollo_dn300_ring_device::id_r(offs_t offset, uint8_t mem_mask)
 }
 
 uint8_t
-apollo_dn300_ring_device::rcv_header_read_byte(offs_t offset)
+apollo_dn300_ring_ctrlr_device::rcv_header_read_byte(offs_t offset)
 {
 	uint8_t data = 0;
     SLOG1(("DN300_RING: ring rcv_header_read_byte offset %02x = %02x", offset, data));
@@ -250,13 +250,13 @@ apollo_dn300_ring_device::rcv_header_read_byte(offs_t offset)
 }
 
 void
-apollo_dn300_ring_device::rcv_header_write_byte(offs_t offset, uint8_t data)
+apollo_dn300_ring_ctrlr_device::rcv_header_write_byte(offs_t offset, uint8_t data)
 {
     SLOG1(("ring rcv_header_write_byte at offset %02x = %02x", offset, data));
 }
 
 uint8_t
-apollo_dn300_ring_device::rcv_data_read_byte(offs_t offset)
+apollo_dn300_ring_ctrlr_device::rcv_data_read_byte(offs_t offset)
 {
 	uint8_t data = 0;
     SLOG1(("DN300_RING: ring rcv_data_read_byte offset %02x = %02x & %08x", offset, data));
@@ -264,13 +264,13 @@ apollo_dn300_ring_device::rcv_data_read_byte(offs_t offset)
 }
 
 void
-apollo_dn300_ring_device::rcv_data_write_byte(offs_t offset, uint8_t data)
+apollo_dn300_ring_ctrlr_device::rcv_data_write_byte(offs_t offset, uint8_t data)
 {
     SLOG1(("DN300_RING: ring rcv_data_write_byte at offset %02x = %02x", offset, data));
 }
 
 uint8_t
-apollo_dn300_ring_device::transmit_read_byte(offs_t offset)
+apollo_dn300_ring_ctrlr_device::transmit_read_byte(offs_t offset)
 {
 	uint8_t data = 0;
     SLOG1(("DN300_RING: ring transmit_read_byte offset %02x = %02x & %08x", offset, data));
@@ -278,7 +278,7 @@ apollo_dn300_ring_device::transmit_read_byte(offs_t offset)
 }
 
 void
-apollo_dn300_ring_device::transmit_write_byte(offs_t offset, uint8_t data)
+apollo_dn300_ring_ctrlr_device::transmit_write_byte(offs_t offset, uint8_t data)
 {
     SLOG1(("DN300_RING: ring transmit_write_byte at offset %02x = %02x", offset, data));
 }
