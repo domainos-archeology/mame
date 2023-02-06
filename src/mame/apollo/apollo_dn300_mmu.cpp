@@ -74,10 +74,6 @@ typedef union {
     pfte_s pfte;
 } pfte;
 
-//-------------------------------------------------
-//  device_add_mconfig - add device configuration
-//-------------------------------------------------
-
 #define NUM_PTTE 1024
 #define PAGE_SIZE 1024
 
