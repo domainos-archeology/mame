@@ -412,7 +412,7 @@ void apollo_dn300_graphics::vblank_state_changed(screen_device &screen, bool vbl
 		// the tests sometimes fail because this bit gets unset so fast
 		// because our vblank period is much faster than the CPU;
 		// so it can't actually read that this bit is set when it gets
-		// the interrupt.  
+		// the interrupt.
 		m_sr &= ~SR_END_OF_FRAME_IRQ;
 	}
 }
@@ -434,7 +434,7 @@ void apollo_dn300_graphics::device_add_mconfig(machine_config &config)
 	config.set_default_layout(layout_apollo_dn300);
 	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
 	m_screen->set_video_attributes(VIDEO_UPDATE_AFTER_VBLANK | VIDEO_ALWAYS_UPDATE);
-	m_screen->set_raw(68000000, 1346, 0, 1024, 1346, 0, 1024);
+	m_screen->set_raw(68000000, 1346, 0, 1024, 841, 0, 800);
 	m_screen->set_screen_update(FUNC(apollo_dn300_graphics::screen_update));
 }
 
@@ -478,7 +478,7 @@ void apollo_dn300_graphics::device_reset()
 
 	m_n_planes = 1;
 	m_width = 1024;
-	m_height = 1024;
+	m_height = 800;
 	m_buffer_width = 1024;
 	m_buffer_height = 1024;
 
