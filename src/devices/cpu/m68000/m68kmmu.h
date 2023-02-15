@@ -9,7 +9,7 @@
 
 // MMU status register bit definitions
 
-#if 1
+#if 0
 #define MMULOG logerror
 #else
 #define MMULOG(...)
