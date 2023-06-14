@@ -88,6 +88,7 @@ apollo_dn300_disk_ctrlr_device::apollo_dn300_disk_ctrlr_device(const machine_con
     , m_rtc(*this, APOLLO_DN300_RTC_TAG)
 	, m_fdc(*this, APOLLO_DN300_FLOPPY_TAG)
     , m_floppy(*this, APOLLO_DN300_FLOPPY_TAG":%u", 0U)
+	, m_floppy_drq_state(false)
     , m_wdc_ansi_cmd(0)
     , m_wdc_ansi_parm(0)
     , m_wdc_ansi_attribute_number(0)
@@ -119,10 +120,14 @@ void apollo_dn300_disk_ctrlr_device::device_add_mconfig(machine_config &config)
 
 	UPD765A(config, m_fdc, 16_MHz_XTAL, true, true);
 	m_fdc->intrq_wr_callback().set(FUNC(apollo_dn300_disk_ctrlr_device::fdc_irq));
-	m_fdc->drq_wr_callback().set([this](int state) { drq_cb(state); });
+	m_fdc->drq_wr_callback().set([this](int state) {
+		SLOG1(("DN300_DISK: floppy drq %s", state ? "asserted" : "cleared"));
+		m_floppy_drq_state = state;
+		drq_cb(state);
+	});
 	FLOPPY_CONNECTOR(config, m_floppy[0], floppies, "8dsdd", apollo_dn300_disk_ctrlr_device::floppy_formats);
 
-    MSM5832(config, m_rtc, 0);
+    MSM5832(config, m_rtc, 16_MHz_XTAL /* not sure about this clock.  there may be dividers.. */ );
 }
 
 void apollo_dn300_disk_ctrlr_device::floppy_formats(format_registration &fr)
@@ -134,6 +139,8 @@ void apollo_dn300_disk_ctrlr_device::device_start()
 {
 	irq_cb.resolve();
     drq_cb.resolve();
+
+	m_timer = timer_alloc(FUNC(apollo_dn300_disk_ctrlr_device::trigger_interrupt), this);
 
     // save_item(NAME(drq));
     our_disks[0] = subdevice<ansi_disk_image_device>(DN300_DISK0_TAG);
@@ -179,6 +186,18 @@ void apollo_dn300_disk_ctrlr_device::device_reset()
 #define WDC_CONTROLLER_CMD_EXEC_DRIVE_SELECT 0x06
 #define WDC_CONTROLLER_CMD_EXEC_ATTENTION    0x07
 #define WDC_CONTROLLER_CMD_SELECT_HEAD       0x08
+
+static const char* command_names[] = {
+	"NOOP",
+	"READ_RECORD",
+	"WRITE_RECORD",
+	"FORMAT_TRACK",
+	"SEEK",
+	"EXEC_ANSI_CMD",
+	"EXEC_DRIVE_SELECT",
+	"EXEC_ATTENTION",
+	"SELECT_HEAD"
+};
 
 // ANSI commands
 #define ANSI_CMD_REPORT_ILLEGAL_COMMAND     0x00
@@ -279,12 +298,18 @@ apollo_dn300_disk_ctrlr_device::map(address_map &map)
 	// standard floppy controller
 	map(0x10, 0x11).r(FUNC(apollo_dn300_disk_ctrlr_device::fdc_msr_r));
 	map(0x12, 0x13).rw(m_fdc, FUNC(upd765a_device::fifo_r), FUNC(upd765a_device::fifo_w));
-	map(0x14, 0x15).w(m_fdc, FUNC(upd765a_device::dsr_w));
+	map(0x14, 0x15).w(FUNC(apollo_dn300_disk_ctrlr_device::fdc_control_w));
 
     // our rtc
 	map(0x20, 0x21).w(FUNC(apollo_dn300_disk_ctrlr_device::calendar_ctrl_w));
 	map(0x22,0x23).w(m_rtc, FUNC(msm5832_device::data_w));
 	map(0x24,0x25).r(m_rtc, FUNC(msm5832_device::data_r));
+}
+
+TIMER_CALLBACK_MEMBER(apollo_dn300_disk_ctrlr_device::trigger_interrupt)
+{
+	m_controller_status_high &= ~CONTROLLER_STATUS_HIGH_CONTROLLER_BUSY;
+	irq_cb(ASSERT_LINE);
 }
 
 void
@@ -293,16 +318,38 @@ apollo_dn300_disk_ctrlr_device::fdc_irq(int state)
 	if (state) {
 		m_controller_status_high |= CONTROLLER_STATUS_HIGH_FLOPPY_INTERRUPTING;
 	}
-	irq_cb(state);
+	if (m_fdc_control & 0x02) {
+		irq_cb(state);
+	}
 }
 
 uint8_t
 apollo_dn300_disk_ctrlr_device::fdc_msr_r(offs_t, uint8_t mem_mask)
 {
+	uint8_t fdc_status = m_fdc->msr_r();
+	SLOG1(("DN300_DISK: floppy msr = %02x (mask %02x)", fdc_status, mem_mask));
+
 	// EH87 says reading the floppy status reg clears this bit, but I wonder if
 	// it shouldn't be a side effect of the controller clearing the irq line?
 	m_controller_status_high &= ~CONTROLLER_STATUS_HIGH_FLOPPY_INTERRUPTING;
-	return m_fdc->msr_r() & mem_mask;
+	// irq_cb(CLEAR_LINE);
+	return fdc_status;
+}
+
+void
+apollo_dn300_disk_ctrlr_device::fdc_control_w(offs_t offset, uint8_t data, uint8_t mem_mask)
+{
+	SLOG1(("DN300_DISK: floppy control write = %02x (mask %02x)", data, mem_mask));
+	if (data & 0x02) {
+		SLOG1(("DN300_DISK:   floppy interrupt enabled"));
+	}
+	if (data & 0x01) {
+		SLOG1(("DN300_DISK:   floppy WRITE"));
+	} else {
+		SLOG1(("DN300_DISK:   floppy READ"));
+	}
+
+	m_fdc_control = data;
 }
 
 void
@@ -367,12 +414,13 @@ uint8_t apollo_dn300_disk_ctrlr_device::wdc_read(offs_t offset, uint8_t mem_mask
 				CONTROLLER_STATUS_HIGH_STATUS_AVAILABLE_INTERRUPT |
 				CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION
 			);
+			irq_cb(CLEAR_LINE);
             return m_wdc_general_status;
         case WDC_REG_ANSI_PARM:
             SLOG1(("DN300_DISK: wdc ANSI_PARM read = %02x", m_wdc_ansi_parm));
             return m_wdc_ansi_parm;
         case WDC_REG_STATUS_HIGH:
-            SLOG1(("DN300_DISK: wdc STATUS_HIGH read = %02x & %02x", m_controller_status_high, mem_mask));
+            // SLOG1(("DN300_DISK: wdc STATUS_HIGH read = %02x & %02x", m_controller_status_high, mem_mask));
             return m_controller_status_high;
         case WDC_REG_STATUS_LOW:
             SLOG1(("DN300_DISK: wdc STATUS_LOW read = %02x", m_controller_status_low));
@@ -387,6 +435,16 @@ uint8_t apollo_dn300_disk_ctrlr_device::wdc_read(offs_t offset, uint8_t mem_mask
 
 void apollo_dn300_disk_ctrlr_device::execute_command()
 {
+	if (m_controller_status_high == CONTROLLER_STATUS_HIGH_CONTROLLER_BUSY) {
+		SLOG1(("controller was busy and we started another command?"));
+		abort();
+	}
+
+	bool need_interrupt = false;
+	int command_duration = 0;
+
+	irq_cb(CLEAR_LINE);
+
     // clear the status bits that clear on command
     m_controller_status_high &= ~CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
     m_controller_status_low &= ~(
@@ -398,7 +456,9 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
         CONTROLLER_STATUS_LOW_DMA_PARITY_ERROR
     );
 
-    SLOG1(("execute_command: %02x", m_controller_command))
+	m_controller_status_high |= CONTROLLER_STATUS_HIGH_CONTROLLER_BUSY;
+
+    SLOG1(("DN300_DISK: execute_command %02x (%s)", m_controller_command, command_names[m_controller_command]))
     switch (m_controller_command) {
         case WDC_CONTROLLER_CMD_NOOP:
             break;
@@ -413,8 +473,8 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
             int sector_offset = track * disk->m_sectors;
             int sector = sector_offset + m_wdc_sector;
 
-            SLOG1(("CMD_READ_RECORD for drive %d sector %d on cylinder %d and head %d", m_wdc_selected_drive, m_wdc_sector, cylinder, m_wdc_head));
-            SLOG1(("linearized as logical sector address %d\n", sector));
+            SLOG1(("DN300_DISK:    CMD_READ_RECORD for drive %d sector %d on cylinder %d and head %d", m_wdc_selected_drive, m_wdc_sector, cylinder, m_wdc_head));
+            SLOG1(("DN300_DISK:    linearized as logical sector address %d", sector));
 
             disk->m_image->fseek(sector * HARD_DISK_SECTOR_SIZE, SEEK_SET);
             disk->m_image->fread(m_read_buffer, HARD_DISK_SECTOR_SIZE);
@@ -432,38 +492,40 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
                 PULSE_DRQ();
             }
 
-    SLOG1(("done with synchronous read"));
+		    SLOG1(("DN300_DISK:    done with synchronous read"));
+            m_wdc_general_status &= ~WDC_GS_BUSY_EXECUTING;
             m_wdc_general_status |= WDC_GS_NORMAL_COMPLETE;
 
-            bool need_interrupt = false;
 			if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_END_OF_OP) {
 	            m_controller_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
+				SLOG1(("DN300_DISK:    irqctrl end of op set, interrupting in 1ms"));
                 need_interrupt = true;
+				command_duration = 1;
             }
             if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_STATUS_AVAIL) {
                 m_controller_status_high |= CONTROLLER_STATUS_HIGH_STATUS_AVAILABLE_INTERRUPT;
+				SLOG1(("DN300_DISK:    irqctrl status avail set, interrupting in 1ms"));
                 need_interrupt = true;
-            } else {
+				command_duration = 1;
+			}
+
+			if (!need_interrupt) {
+				SLOG1(("DN300_DISK:    irqctrl not set, not interrupting"));
                 m_controller_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
             }
-
-            if (need_interrupt) {
-			    SLOG1(("irq_cb"));
-				// irq_cb(ASSERT_LINE);
-			}
 
             break;
         }
         case WDC_CONTROLLER_CMD_WRITE_RECORD:
-            SLOG1(("CMD_WRITE_RECORD unimplemented"))
+            SLOG1(("DN300_DISK:    CMD_WRITE_RECORD unimplemented"))
             break;
 
         case WDC_CONTROLLER_CMD_FORMAT_TRACK:
-            SLOG1(("CMD_FORMAT_TRACK unimplemented"))
+            SLOG1(("DN300_DISK:    CMD_FORMAT_TRACK unimplemented"))
             break;
 
         case WDC_CONTROLLER_CMD_SEEK:
-            SLOG1(("CMD_SEEK to cylinder %02x%02x", m_wdc_load_cylinder_high, m_wdc_load_cylinder_low))
+            SLOG1(("DN300_DISK:    to cylinder %02x%02x", m_wdc_load_cylinder_high, m_wdc_load_cylinder_low))
             // Guessing this is equivalent to the ansi seek command?
 
             // This command shall cause the selected device to seek to the
@@ -490,28 +552,25 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
             m_wdc_general_status &= ~WDC_GS_BUSY_EXECUTING;
             if (m_wdc_attention_enabled) {
                 m_controller_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
-				SLOG1(("HELLO2 %02x", m_wdc_interrupt_control));
+				SLOG1(("DN300_DISK:    HELLO2 %02x", m_wdc_interrupt_control));
 				// if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_OVERALL) {
 					m_controller_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
 					// m_wdc_general_status |= 0xb;
 					// status available?
-                    bool need_interrupt = false;
-
 					if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_STATUS_AVAIL) {
 						m_controller_status_high |= CONTROLLER_STATUS_HIGH_STATUS_AVAILABLE_INTERRUPT;
 						m_controller_status_high &= ~CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
 			            m_wdc_general_status |= WDC_GS_NORMAL_COMPLETE;
 						need_interrupt = true;
+
+						command_duration = 3;
 					}
 
-                    if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_END_OF_OP) {
-						m_controller_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
-						need_interrupt = true;
-					}
-                    if (need_interrupt) {
-					    SLOG1(("irq_cb"));
-						// irq_cb(ASSERT_LINE);
-                    }
+                    // if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_END_OF_OP) {
+					// 	m_controller_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
+					// 	need_interrupt = true;
+					// 	command_duration = 1;
+					// }
             }
 
             break;
@@ -525,7 +584,7 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
             break;
 
         case WDC_CONTROLLER_CMD_EXEC_ATTENTION:
-            SLOG1(("CMD_EXEC_ATTENTION unimplemented"))
+            SLOG1(("DN300_DISK:    CMD_EXEC_ATTENTION unimplemented"))
             break;
 
         case WDC_CONTROLLER_CMD_SELECT_HEAD:
@@ -552,26 +611,39 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
             m_wdc_general_status &= ~WDC_GS_BUSY_EXECUTING;
             if (m_wdc_attention_enabled) {
                 // m_wdc_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
-				SLOG1(("HELLO1 %02x", m_wdc_interrupt_control));
+				SLOG1(("DN300_DISK:    HELLO1 %02x", m_wdc_interrupt_control));
 				if ((m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_OVERALL) &&
 				    (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_ATTENTION)) {
-					    SLOG1(("irq_cb"));
-					// irq_cb(ASSERT_LINE);
+						// need_interrupt = true;
 				}
             }
 
             break;
 
         default:
-            SLOG1(("unknown controller command %02x", m_controller_command));
+            SLOG1(("DN300_DISK:    unknown controller command %02x", m_controller_command));
             break;
     }
+
+	if (need_interrupt) {
+		if (command_duration == 0) {
+			SLOG1(("DN300_DISK:    irq_cb now"));
+			m_controller_status_high &= ~CONTROLLER_STATUS_HIGH_CONTROLLER_BUSY;
+			irq_cb(ASSERT_LINE);
+		} else {
+			SLOG1(("DN300_DISK:    irq_cb in %d ms", command_duration));
+			m_timer->adjust(attotime::from_msec(command_duration), 0);
+		}
+	} else {
+		m_controller_status_high &= ~CONTROLLER_STATUS_HIGH_CONTROLLER_BUSY;
+	}
 }
 
 void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
 {
     switch (m_wdc_ansi_cmd) {
         case ANSI_CMD_REPORT_ILLEGAL_COMMAND:
+			SLOG1(("DN300_DISK:    ansicmd REPORT_ILLEGAL_COMMAND"));
             // This command shall force the Illegal Command Bit to be set in the
             // General Status Byte (see Section 4.4). The General Status Byte,
             // with the Illegal Command Bit equal to one, is returned to the host
@@ -581,6 +653,7 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             break;
 
         case ANSI_CMD_CLEAR_FAULT:
+			SLOG1(("DN300_DISK:    ansicmd CLEAR_FAULT"));
             // This command shall cause all fault status bits of the selected
             // device to be reset, provided the fault condition has passed. If
             // the fault condition persits the appropriate status bit shall
@@ -607,6 +680,7 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             break;
 
         case ANSI_CMD_CLEAR_ATTENTION:
+			SLOG1(("DN300_DISK:    ansicmd CLEAR_ATTENTION"));
             // This command shall cause the Attention Condition to be reset in the
             // selected device. The General Status Byte shall be returned by the
             // Parameter Byte of the command sequence.
@@ -627,6 +701,7 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             break;
 
         case ANSI_CMD_SEEK:
+			SLOG1(("DN300_DISK:    ansicmd SEEK"));
             // This command shall cause the selected device to seek to the
             // cylinder identified as the target cylinder by the Load Cylinder
             // Address Commands (see Sections 4.1.3 and 4.1.4). The General
@@ -643,6 +718,7 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             break;
 
         case ANSI_CMD_REZERO:
+			SLOG1(("DN300_DISK:    ansicmd REZERO"));
             // This command shall cause the selected device to position the moving
             // head(s) over cylinder zero. The General Status byte shall be
             // returned to the host by the Parameter Byte of the command sequence
@@ -673,18 +749,21 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             break;
 
         case ANSI_CMD_REPORT_SENSE_BYTE_2:
+			SLOG1(("DN300_DISK:    ansicmd REPORT_SENSE_BYTE_2"));
             // The command shall cause the selected device to return Sense Byte 2
             // by the Parameter Byte of the command sequence. No other action
             // shall be taken in the device.
             m_wdc_ansi_parm = m_wdc_sense_byte_2;
             break;
         case ANSI_CMD_REPORT_SENSE_BYTE_1:
+			SLOG1(("DN300_DISK:    ansicmd REPORT_SENSE_BYTE_1"));
             // This command shall cause the selected device to return Sense Byte 1
             // by the Parameter Byte of the command sequence. No other action
             // shall be taken in the device.
             m_wdc_ansi_parm = m_wdc_sense_byte_1;
             break;
         case ANSI_CMD_REPORT_GENERAL_STATUS:
+			SLOG1(("DN300_DISK:    ansicmd REPORT_GENERAL_STATUS"));
             // This command shall cause the selected device to return the general
             // Status Byte by the Parameter Byte of the command sequence. This
             // command shall not perform any other function in the device and acts
@@ -694,6 +773,7 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             break;
 
         case ANSI_CMD_REPORT_ATTRIBUTE:
+			SLOG1(("DN300_DISK:    ansicmd REPORT_ATTRIBUTE"));
             // This command shall cause the selected device to return a byte of
             // information that is the Device Attribute whose number was defined
             // in the Load Attribute Number Command (see Section 4.1.6). The
@@ -703,6 +783,7 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             break;
 
         case ANSI_CMD_SET_ATTENTION:
+			SLOG1(("DN300_DISK:    ansicmd SET_ATTENTION"));
             // This command shall cause the selected device to set the Attention
             // Condition. No other action shall be caused.
             // The General Status Byte shall be transferred to the host by the
@@ -715,6 +796,7 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             break;
 
         case ANSI_CMD_SELECTIVE_RESET:
+			SLOG1(("DN300_DISK:    ansicmd SELECTIVE_RESET"));
             // This command shall cause the selected device to reach Initial State
             // (see Section 3.2.1). This is a time dependent command and as such
             // shall set the Busy Executing bit prior to the assertion of the
@@ -731,6 +813,7 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             break;
 
         case ANSI_CMD_REFORMAT_TRACK:
+			SLOG1(("DN300_DISK:    ansicmd REFORMAT_TRACK"));
             // This command shall cause the selected device to reconfigure the
             // arrangement of Sector Pulse generation according to parameters
             // received via the Load Sector Pulses Per Track Commands (see
@@ -759,6 +842,7 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             break;
 
         case ANSI_CMD_REPORT_CYL_ADDR_HIGH:
+			SLOG1(("DN300_DISK:    ansicmd REPORT_CYL_ADDR_HIGH"));
             // This command shall cause the selected device to return a byte of
             // information that is the most significant byte of a 16 bit .number
             // that, indicates the cylinder address of the current position of the
@@ -775,6 +859,7 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             break;
 
         case ANSI_CMD_REPORT_CYL_ADDR_LOW:
+			SLOG1(("DN300_DISK:    ansicmd REPORT_CYL_ADDR_LOW"));
             // This command shall cause the selected device to return a byte of
             // information that is the least significant byte of a 16 bit number
             // that indicates the cylinder address of the current position of the
@@ -792,6 +877,7 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             break;
 
         case ANSI_CMD_REPORT_TEST_BYTE:
+			SLOG1(("DN300_DISK:    ansicmd REPORT_TEST_BYTE"));
             // This command shall cause the selected device to return a copy of
             // the Test Byte transferred to the device via the Load 'Test Byte
             // Command. (See Section 4.1.12.)
@@ -804,6 +890,7 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             break;
 
         case ANSI_CMD_ATTENTION_CONTROL:
+			SLOG1(("DN300_DISK:    ansicmd ATTENTION_CONTROL"));
             // This command shall condition the selected device to enable or
             // disable its attention circuitry based on the value of the Parameter
             // Byte as shown below.
@@ -830,6 +917,7 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             break;
 
         case ANSI_CMD_WRITE_CONTROL:
+			SLOG1(("DN300_DISK:    ansicmd WRITE_CONTROL"));
             // This command shall condition the selected device to enable or
             // disable its write circuitry based on the value of the parameter
             // Byte as shown below:
@@ -852,6 +940,7 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             break;
 
         case ANSI_CMD_LOAD_CYL_ADDR_HIGH:
+			SLOG1(("DN300_DISK:    ansicmd LOAD_CYL_ADDR_HIGH"));
             // This command shall condition the selected device to accept the
             // Parameter Byte as the most significant Byte of a cylinder address.
             // This command is used in conjunction with the Seek Command (see
@@ -869,6 +958,7 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             break;
 
         case ANSI_CMD_LOAD_CYL_ADDR_LOW:
+			SLOG1(("DN300_DISK:    ansicmd LOAD_CYL_ADDR_LOW"));
             // This command shall condition the selected device to accept the
             // Parameter Byte as the least signficant byte of a cylinder address.
             // This command is used in conjunction with the Seek Command (see
@@ -886,6 +976,7 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             break;
 
         case ANSI_CMD_SELECT_HEAD:
+			SLOG1(("DN300_DISK:    ansicmd SELECT_HEAD"));
             // This command shall condition the selected device to. accept the
             // Parameter Byte as the binary address of the head selected for read
             // or write operations. This command shall enable the moving heads
@@ -900,6 +991,7 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             break;
 
         case ANSI_CMD_LOAD_ATTRIBUTE_NUMBER:
+			SLOG1(("DN300_DISK:    ansicmd LOAD_ATTRIBUTE_NUMBER"));
             // This command shall condition the selected device to accept the
             // Parameter Byte as the number of a Device Attribute as defined in
             // Table 4-3. This command prepares the device for a subsequent Load
@@ -909,6 +1001,7 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             break;
 
         case ANSI_CMD_LOAD_ATTRIBUTE:
+			SLOG1(("DN300_DISK:    ansicmd LOAD_ATTRIBUTE"));
             // This command shall condition the selected device to accept the
             // Parameter Byte as the new value of a Device Attribute. The number
             // of the Device Attribute must have been previously defined by the
@@ -919,6 +1012,7 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             break;
 
         case ANSI_CMD_SPIN_CONTROL:
+			SLOG1(("DN300_DISK:    ansicmd SPIN_CONTROL"));
             // This command shall condition the seleted device to enter a spin up
             // or spin down cycle based on the value of the Parameter Byte as
             // shown below.
@@ -966,37 +1060,37 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             m_wdc_ansi_parm = m_wdc_general_status;
             break;
         case ANSI_CMD_LOAD_SECT_PER_TRACK_HIGH:
-            SLOG1(("ANSI_CMD_LOAD_SECT_PER_TRACK_HIGH unimplemented"))
+            SLOG1(("DN300_DISK:    ansicmd LOAD_SECT_PER_TRACK_HIGH unimplemented"))
             break;
         case ANSI_CMD_LOAD_SECT_PER_TRACK_MEDIUM:
-		    SLOG1(("ANSI_CMD_LOAD_SECT_PER_TRACK_MEDIUM unimplemented"))
+		    SLOG1(("DN300_DISK:    ansicmd LOAD_SECT_PER_TRACK_MEDIUM unimplemented"))
             break;
         case ANSI_CMD_LOAD_SECT_PER_TRACK_LOW:
-		    SLOG1(("ANSI_CMD_LOAD_SECT_PER_TRACK_LOW unimplemented"))
+		    SLOG1(("DN300_DISK:    ansicmd LOAD_SECT_PER_TRACK_LOW unimplemented"))
             break;
         case ANSI_CMD_LOAD_BYTES_PER_SECT_HIGH:
-		    SLOG1(("ANSI_CMD_LOAD_BYTES_PER_SECT_HIGH unimplemented"))
+		    SLOG1(("DN300_DISK:    ansicmd LOAD_BYTES_PER_SECT_HIGH unimplemented"))
             break;
         case ANSI_CMD_LOAD_BYTES_PER_SECT_MEDIUM:
-		    SLOG1(("ANSI_CMD_LOAD_BYTES_PER_SECT_MEDIUM unimplemented"))
+		    SLOG1(("DN300_DISK:    ansicmd LOAD_BYTES_PER_SECT_MEDIUM unimplemented"))
             break;
         case ANSI_CMD_LOAD_BYTES_PER_SECT_LOW:
-		    SLOG1(("ANSI_CMD_LOAD_BYTES_PER_SECT_LOW unimplemented"))
+		    SLOG1(("DN300_DISK:    ansicmd LOAD_BYTES_PER_SECT_LOW unimplemented"))
             break;
         case ANSI_CMD_LOAD_READ_PERMIT_HIGH:
-		    SLOG1(("ANSI_CMD_LOAD_READ_PERMIT_HIGH unimplemented"))
+		    SLOG1(("DN300_DISK:    ansicmd LOAD_READ_PERMIT_HIGH unimplemented"))
             break;
         case ANSI_CMD_LOAD_READ_PERMIT_LOW:
-		    SLOG1(("ANSI_CMD_LOAD_READ_PERMIT_LOW unimplemented"))
+		    SLOG1(("DN300_DISK:    ansicmd LOAD_READ_PERMIT_LOW unimplemented"))
             break;
         case ANSI_CMD_LOAD_WRITE_PERMIT_HIGH:
-		    SLOG1(("ANSI_CMD_LOAD_WRITE_PERMIT_HIGH unimplemented"))
+		    SLOG1(("DN300_DISK:    ansicmd LOAD_WRITE_PERMIT_HIGH unimplemented"))
             break;
         case ANSI_CMD_LOAD_WRITE_PERMIT_LOW:
-		    SLOG1(("ANSI_CMD_LOAD_WRITE_PERMIT_LOW unimplemented"))
+		    SLOG1(("DN300_DISK:    ansicmd LOAD_WRITE_PERMIT_LOW unimplemented"))
             break;
         case ANSI_CMD_LOAD_TEST_BYTE:
-		    SLOG1(("ANSI_CMD_LOAD_TEST_BYTE %02x", m_wdc_ansi_parm));
+		    SLOG1(("DN300_DISK:    ansicmd LOAD_TEST_BYTE %02x", m_wdc_ansi_parm));
 			m_wdc_ansi_test_byte = m_wdc_ansi_parm;
             break;
         default:
@@ -1005,8 +1099,13 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
     }
 }
 
-uint8_t apollo_dn300_disk_ctrlr_device::read_byte(offs_t _unused_offset)
+uint8_t apollo_dn300_disk_ctrlr_device::read_byte(offs_t offset)
 {
+	if (m_floppy_drq_state) {
+		uint8_t data =  m_fdc->dma_r();
+		SLOG1(("DN300_DISK: reading disk DMA from FDC FIFO offset %d.  data = %02x", offset, data));
+		return data;
+	}
     // SLOG1(("reading disk DMA from offset %02x -> %02x", m_read_cursor, _unused_offset));
     // send back the byte pointed to by the read cursor
     return m_read_buffer[m_read_cursor++];

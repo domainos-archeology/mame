@@ -29,6 +29,8 @@ public:
 	void wdc_write(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
     uint8_t wdc_read(offs_t offset, uint8_t mem_mask = ~0);
 
+	void fdc_control_w(offs_t offset, uint8_t data, uint8_t mem_mask);
+
 	void calendar_ctrl_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
 
 	auto irq_callback() { return irq_cb.bind(); }
@@ -54,12 +56,17 @@ private:
 	DECLARE_WRITE_LINE_MEMBER(fdc_irq);
 	uint8_t fdc_msr_r(offs_t, uint8_t mem_mask);
 
+	emu_timer *m_timer;
+
 	devcb_write_line irq_cb;
 	devcb_write_line drq_cb;
+
+	TIMER_CALLBACK_MEMBER(trigger_interrupt);
 
 	required_device<msm5832_device> m_rtc;
 	required_device<upd765a_device> m_fdc;
 	optional_device_array<floppy_connector, 2> m_floppy;
+	bool m_floppy_drq_state;
 
 	uint8_t m_wdc_ansi_cmd;
 	uint8_t m_wdc_ansi_parm;
@@ -76,6 +83,8 @@ private:
 	uint8_t m_wdc_head;
 	uint8_t m_wdc_interrupt_control;
 	uint8_t m_controller_command;
+
+	uint8_t m_fdc_control;
 
 	void execute_command();
 	void execute_ansi_command();

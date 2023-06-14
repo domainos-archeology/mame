@@ -33,7 +33,9 @@ public:
 
 	bool is_enabled() { return m_enabled; }
 
-	offs_t translate(offs_t offset);
+	void cpu_reset(int state);
+
+	offs_t translate(offs_t offset, int intention);
 
 	void pft_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	uint16_t pft_r(offs_t offset, uint16_t mem_mask = ~0);

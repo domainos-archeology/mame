@@ -123,7 +123,10 @@ DEFINE_DEVICE_TYPE(APOLLO_DN300_RING_CTRLR, apollo_dn300_ring_ctrlr_device, APOL
 
 apollo_dn300_ring_ctrlr_device::apollo_dn300_ring_ctrlr_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock):
     device_t(mconfig, APOLLO_DN300_RING_CTRLR, tag, owner, clock),
-	irq_cb(*this)
+	irq_cb(*this),
+	rcv_header_drq_wr_cb(*this),
+	rcv_data_drq_wr_cb(*this),
+	transmit_data_drq_wr_cb(*this)
 {
 }
 
@@ -206,7 +209,7 @@ apollo_dn300_ring_ctrlr_device::diag_command_w(offs_t offset, uint16_t data, uin
 		DIAG_STATUS_STICKY_ESB_ERR
 	);
 
-	irq_cb(CLEAR_LINE);
+	// irq_cb(CLEAR_LINE);
 
 	// ... more stuff here
 }

@@ -1604,44 +1604,44 @@ void m68000_musashi_device::init16emmu(address_space &space, address_space &ospa
 
 	m_readimm16 = [this](offs_t address) -> u16 {
 		if (m_emmu_enabled)
-			address = emmu_translate_addr(address);
+			address = emmu_translate_addr(address, TRANSLATE_READ);
 		return m_oprogram16.read_word(address);
 	};
 
 	m_read8   = [this](offs_t address) -> u8     {
 		if (m_emmu_enabled)
-			address = emmu_translate_addr(address);
+			address = emmu_translate_addr(address, TRANSLATE_READ);
 		return m_program16.read_byte(address);
 	};
 
 	m_read16  = [this](offs_t address) -> u16    {
 		if (m_emmu_enabled)
-			address = emmu_translate_addr(address);
+			address = emmu_translate_addr(address, TRANSLATE_READ);
 		return m_program16.read_word(address);
 	};
 
 	m_read32  = [this](offs_t address) -> u32    {
 		if (m_emmu_enabled)
-			address = emmu_translate_addr(address);
+			address = emmu_translate_addr(address, TRANSLATE_READ);
 		return m_program16.read_dword(address);
 	};
 
 
 	m_write8  = [this](offs_t address, u8 data)  {
 		if (m_emmu_enabled)
-			address = emmu_translate_addr(address);
+			address = emmu_translate_addr(address, TRANSLATE_WRITE);
 		m_program16.write_byte(address, data);
 	};
 
 	m_write16 = [this](offs_t address, u16 data)  {
 		if (m_emmu_enabled)
-			address = emmu_translate_addr(address);
+			address = emmu_translate_addr(address, TRANSLATE_WRITE);
 		m_program16.write_word(address, data);
 	};
 
 	m_write32 = [this](offs_t address, u32 data)  {
 		if (m_emmu_enabled)
-			address = emmu_translate_addr(address);
+			address = emmu_translate_addr(address, TRANSLATE_WRITE);
 		m_program16.write_dword(address, data);
 	};
 }

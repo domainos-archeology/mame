@@ -172,7 +172,7 @@ using write16smo_delegate = device_delegate<void (u16)>;
 using write32smo_delegate = device_delegate<void (u32)>;
 using write64smo_delegate = device_delegate<void (u64)>;
 
-using transform_offs_delegate = device_delegate<offs_t (offs_t)>;
+using transform_offs_delegate = device_delegate<offs_t (offs_t, int)>;
 
 namespace emu::detail {
 

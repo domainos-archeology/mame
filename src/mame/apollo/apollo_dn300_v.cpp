@@ -50,6 +50,7 @@ static const char* tb3(uint16_t data) { static char buffer[17]; buffer[16] = 0; 
 
 void apollo_dn300_graphics::reg_w(offs_t offset, uint16_t data)
 {
+#if 0
 	static const char *const graphics_reg_write_names[0x08] = {
 		"DISPLAY CONTROL",
 		"DEB",
@@ -59,6 +60,7 @@ void apollo_dn300_graphics::reg_w(offs_t offset, uint16_t data)
 		"DCX",
 		"WSDY",
 		"WSDX"};
+#endif
 
 	int reg = offset;
 
@@ -110,6 +112,7 @@ void apollo_dn300_graphics::reg_w(offs_t offset, uint16_t data)
 
 uint16_t apollo_dn300_graphics::reg_r(offs_t offset)
 {
+#if 0
 	static const char *const graphics_reg_read_names[0x08] = {
 		"DISPLAY STATUS",
 		"DEB",
@@ -119,6 +122,7 @@ uint16_t apollo_dn300_graphics::reg_r(offs_t offset)
 		"DCX",
 		"WSDY",
 		"WSDX"};
+#endif
 
 	int reg = offset;
 	uint16_t value = 0;

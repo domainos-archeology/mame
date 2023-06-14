@@ -166,7 +166,10 @@ u16 apollo_dn300_state::apollo_irq_acknowledge(offs_t offset)
 	// the previous non-dn300 code does this; but I don't think this is correct.
 	// there's no PIC, and with this getting cleared, I get TBLT errors about
 	// BLT interrupt misses.
-	//m_maincpu->set_input_line(offset, CLEAR_LINE);
+	// m_maincpu->set_input_line(offset, CLEAR_LINE);
+	// if (offset == APOLLO_DN300_IRQ_DISK) {
+	// 	m_maincpu->set_input_line(offset, CLEAR_LINE);
+	// }
 	return m68000_base_device::autovector(offset);
 }
 
@@ -520,7 +523,6 @@ void apollo_dn300_state::init_dn300()
 	ram_end_address = DN300_RAM_END;
 
 	node_type=  NODE_TYPE_DN300;
-	// ram_config_byte= DN300_RAM_CONFIG_BYTE;
 
 	init_apollo();
 }
@@ -533,8 +535,7 @@ void apollo_dn300_state::init_dn320()
 	ram_base_address = DN300_RAM_BASE;
 	ram_end_address = DN300_RAM_END;
 
-	node_type = NODE_TYPE_DN300;
-	// ram_config_byte= DN3000_RAM_CONFIG_8MB;
+	node_type = NODE_TYPE_DN320;
 }
 
 /***************************************************************************
@@ -573,7 +574,9 @@ void apollo_dn300_state::dn300(machine_config &config)
 
 	APOLLO_DN300_RING_CTRLR(config, m_ring, 0);
 	m_ring->irq_callback().set_inputline(MAINCPU, APOLLO_DN300_IRQ_RING);
-	// missing: the ring dmac linkages
+	m_ring->rcv_header_drq_wr_callback().set(m_dmac, FUNC(hd63450_device::drq0_w));
+	m_ring->rcv_data_drq_wr_callback().set(m_dmac, FUNC(hd63450_device::drq1_w));
+	m_ring->transmit_data_drq_wr_callback().set(m_dmac, FUNC(hd63450_device::drq2_w));
 
 	/* internal ram */
 	RAM(config, m_ram).set_default_size("1536K").set_extra_options("512K,1M,1536K");
@@ -596,6 +599,7 @@ void apollo_dn300_state::dn320(machine_config &config)
 	APOLLO_DN300_MMU(config, m_mmu, 0);
 	m_mmu->set_cpu(m_maincpu);
 	m_maincpu->set_emmu_translate_callback(m_mmu, FUNC(apollo_dn300_mmu_device::translate));
+	m_maincpu->reset_cb().set(m_mmu, FUNC(apollo_dn300_mmu_device::cpu_reset));
 
 	APOLLO_DN300_DISK_CTRLR(config, m_disk, 0);
 	m_disk->irq_callback().set_inputline(MAINCPU, APOLLO_DN300_IRQ_DISK);
@@ -603,7 +607,9 @@ void apollo_dn300_state::dn320(machine_config &config)
 
 	APOLLO_DN300_RING_CTRLR(config, m_ring, 0);
 	m_ring->irq_callback().set_inputline(MAINCPU, APOLLO_DN300_IRQ_RING);
-	// missing: the ring dmac linkages
+	m_ring->rcv_header_drq_wr_callback().set(m_dmac, FUNC(hd63450_device::drq0_w));
+	m_ring->rcv_data_drq_wr_callback().set(m_dmac, FUNC(hd63450_device::drq1_w));
+	m_ring->transmit_data_drq_wr_callback().set(m_dmac, FUNC(hd63450_device::drq2_w));
 
 	/* internal ram */
 	RAM(config, m_ram).set_default_size("1536K").set_extra_options("512K,1M,1536K");
@@ -637,4 +643,4 @@ ROM_END
 
 /*    YEAR  NAME       PARENT  COMPAT  MACHINE  INPUT   CLASS               INIT         COMPANY   FULLNAME         FLAGS */
 COMP( 1983, dn300,     0,      0,      dn300,   dn300,  apollo_dn300_state, init_dn300,  "Apollo", "Apollo DN300",  DN_FLAGS )
-COMP( 1984, dn320,     dn300,  0,      dn320,   dn300,  apollo_dn300_state, init_dn300,  "Apollo", "Apollo DN320",  DN_FLAGS )
+COMP( 1984, dn320,     dn300,  0,      dn320,   dn300,  apollo_dn300_state, init_dn320,  "Apollo", "Apollo DN320",  DN_FLAGS )

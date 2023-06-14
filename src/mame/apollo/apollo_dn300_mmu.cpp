@@ -49,6 +49,11 @@ void apollo_dn300_mmu_device::device_reset()
     save_pointer(NAME(m_ptt), 1024);
 }
 
+void apollo_dn300_mmu_device::cpu_reset(int state)
+{
+	MLOG1(("apollo_dn300_mmu_device::cpu_reset(%d)", state));
+	m_status = 0x00;
+}
 typedef struct {
 
     uint elsid: 7;    // Address space ID (0-127)
@@ -77,7 +82,7 @@ typedef union {
 #define NUM_PTTE 1024
 #define PAGE_SIZE 1024
 
-offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset) {
+offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset, int intention) {
     // from Domain Engineering Handbook:
     // PAGE TRANSLATION TABLE ENTRY (PTTE)
     // (type "ppn_t" in base.ins.pas)
@@ -149,6 +154,14 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset) {
             }
             // update the PTT to point to this PFT entry first so we'll hit it faster next time
             m_ptt[ptt_index] = cur_ppn;
+
+			// marked it as accessed
+			m_pft[cur_ppn * 2 + 1] |= 1 << 13;
+
+			// and if we're writing, mark it as modified
+			if (intention & TRANSLATE_WRITE) {
+				m_pft[cur_ppn * 2 + 1] |= 1 << 14;
+			}
 
             // return the translated address
             return (cur_ppn << 10) | byte_offset_within_page;
