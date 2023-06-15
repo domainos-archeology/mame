@@ -1,7 +1,7 @@
 
 #include "emu.h"
 
-#define VERBOSE 2
+#define VERBOSE 1
 #include "apollo_dn300.h"
 
 DEFINE_DEVICE_TYPE(APOLLO_DN300_MMU, apollo_dn300_mmu_device, APOLLO_DN300_MMU_TAG, "Apollo DN300 Custom MMU")
@@ -35,7 +35,7 @@ void apollo_dn300_mmu_device::device_start()
 
 void apollo_dn300_mmu_device::device_reset()
 {
-    SLOG1(("RESET of the mmu"));
+    SLOG2(("RESET of the mmu"));
     m_enabled = 0;
     m_asid = 0;
 
@@ -127,7 +127,7 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset, int intention) {
         int pfte_global = (pfte >> 12) & 0x1;
         int pfte_eoc =    (pfte >> 15) & 0x1;
         int pfte_xsvpn =  (pfte >> 16) & 0xf;
-        int pfte_elsid =    (pfte >> 25) & 0x7f;
+        int pfte_elsid =  (pfte >> 25);
 
         if (pfte_eoc) {
             if (seen_eoc) {
@@ -217,9 +217,10 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset, int intention) {
 	// when we can't find a physical page, add this bit (Page fault) to our
 	// status so the FIM can tell why we bus errored.
 	m_status |= 0x40;
-	m_status |= 0x80; // interrupt pending too?
+	m_status |= 0x80;
+	// interrupt pending too?
 
-	m_cpu->set_buserror_details(byte_offset, 1/*wrong.. we don't know if it's r or w*/, m_cpu->get_fc(), false);
+	m_cpu->set_buserror_details(byte_offset, (intention & TRANSLATE_READ) ? 1 : 0, m_cpu->get_fc(), true);
     return 0;
 }
 
@@ -236,7 +237,7 @@ void apollo_dn300_mmu_device::ptt_w(offs_t offset, uint16_t data, uint16_t mem_m
         return;
     }
 
-    SLOG1(("writing PTT at offset %02x = %02x & %08x", offset, data, mem_mask));
+    SLOG2(("writing PTT at offset %02x = %02x & %08x", offset, data, mem_mask));
     m_ptt[offset/512] = data & mem_mask;
 }
 
@@ -248,18 +249,18 @@ uint16_t apollo_dn300_mmu_device::ptt_r(offs_t offset, uint16_t mem_mask)
         return 0;
     }
 
-    // SLOG1(("reading PTT at offset %02x & %08x", offset, mem_mask));
+    // SLOG2(("reading PTT at offset %02x & %08x", offset, mem_mask));
     return m_ptt[offset/512] & mem_mask;
 }
 
 void apollo_dn300_mmu_device::pft_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
-    // SLOG1(("writing PFT at offset %02x = %02x & %08x", offset, data, mem_mask));
+    // SLOG2(("writing PFT at offset %02x = %02x & %08x", offset, data, mem_mask));
     m_pft[offset] = data & mem_mask;
 }
 uint16_t apollo_dn300_mmu_device::pft_r(offs_t offset, uint16_t mem_mask)
 {
-    // SLOG1(("reading PFT at offset %02x & %08x", offset, mem_mask));
+    // SLOG2(("reading PFT at offset %02x & %08x", offset, mem_mask));
     return m_pft[offset] & mem_mask;
 }
 
@@ -277,19 +278,27 @@ uint16_t apollo_dn300_mmu_device::unk_r(offs_t offset, uint16_t mem_mask)
 
 void apollo_dn300_mmu_device::pid_priv_power_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
-    SLOG1(("writing PID/PRIV/POWER at offset %02x = %02x & %08x", offset, data, mem_mask));
+    SLOG2(("writing PID/PRIV/POWER at offset %02x = %02x & %08x", offset, data, mem_mask));
     COMBINE_DATA(&m_pid_priv_power);
+
+	bool was_enabled = m_enabled;
 
     m_enabled = m_pid_priv_power & 0x01;
     m_asid = m_pid_priv_power >> 8;
     m_domain = (m_pid_priv_power >> 2) & 0x01;
 
     bool ptt_access_enabled = m_pid_priv_power & 0x02;
-    SLOG1(("mmu enabled? %s.  asid %d.  domain %d.  ptt access? %s.",
+    SLOG2(("mmu enabled? %s.  asid %d.  domain %d.  ptt access? %s.",
             m_enabled ? "yes" : "no",
             m_asid,
             m_domain,
             ptt_access_enabled ? "yes" : "no"));
+
+	if (!m_enabled && was_enabled) {
+		// reset the status register when switching from disabled to enabled
+		// (10.2 /SAU2/CPT1 tests this).
+		m_status = 0;
+	}
 
 	if (m_enabled) {
 		m_status |= 0x01;
@@ -312,25 +321,25 @@ uint16_t apollo_dn300_mmu_device::pid_priv_power_r(offs_t offset, uint16_t mem_m
 
 void apollo_dn300_mmu_device::status_w(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
-    SLOG1(("MMU STATUS WRITE at offset %02x = %02x & %08x", offset, data, mem_mask));
+    SLOG2(("MMU STATUS WRITE at offset %02x = %02x & %08x", offset, data, mem_mask));
     // EH87 says any write to register clears bits 5-7.
     m_status &= ~(0xe0);
 }
 
 uint8_t apollo_dn300_mmu_device::status_r(offs_t offset, uint8_t mem_mask)
 {
-    SLOG1(("MMU STATUS READ = %02x", m_status));
+    SLOG2(("MMU STATUS READ = %02x", m_status));
     return m_status;
 }
 
 void apollo_dn300_mmu_device::fpu_owner_w(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
-    SLOG1(("MMU FPU OWNER WRITE at offset %02x = %02x & %08x", offset, data, mem_mask));
+    SLOG2(("MMU FPU OWNER WRITE at offset %02x = %02x & %08x", offset, data, mem_mask));
 }
 
 uint8_t apollo_dn300_mmu_device::fpu_owner_r(offs_t offset, uint8_t mem_mask)
 {
-    SLOG1(("MMU FPU OWNER = %02x", m_fpu_owner));
+    SLOG2(("MMU FPU OWNER = %02x", m_fpu_owner));
     return m_fpu_owner;
 }
 
