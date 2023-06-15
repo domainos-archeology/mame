@@ -9,7 +9,7 @@
 #include "emu.h"
 #include "hd63450.h"
 
-// #define VERBOSE 5
+#define VERBOSE 5
 #include "logmacro.h"
 
 DEFINE_DEVICE_TYPE(HD63450, hd63450_device, "hd63450", "Hitachi HD63450 DMAC")
@@ -112,6 +112,7 @@ uint16_t hd63450_device::read(offs_t offset)
 	switch(reg)
 	{
 	case 0x00:  // CSR / CER
+		LOG("DMA#%i:  Channel status/error read : %02x\n",channel,(m_reg[channel].csr << 8) | m_reg[channel].cer);
 		return (m_reg[channel].csr << 8) | m_reg[channel].cer;
 	case 0x02:  // DCR / OCR
 		return (m_reg[channel].dcr << 8) | m_reg[channel].ocr;
@@ -557,10 +558,12 @@ void hd63450_device::single_transfer(int x)
 		m_reg[x].ccr &= ~0xc0;
 
 		// Burst transfer or max rate transfer
+		/*
 		if (((m_reg[x].dcr & 0xc0) == 0x00) || ((m_reg[x].ocr & 3) == 1))
 		{
 			m_cpu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
 		}
+		*/
 
 		m_dma_end((offs_t)x, 0);
 		set_irq(x);
@@ -574,14 +577,16 @@ void hd63450_device::set_error(int channel, uint8_t code)
 	m_reg[channel].cer = code;
 	m_reg[channel].ccr &= ~0xc0;
 
+/*
 	if (((m_reg[channel].dcr & 0xc0) == 0x00) || ((m_reg[channel].ocr & 3) == 1))
 		m_cpu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE); // if the cpu is halted resume it
+*/
 	set_irq(channel);
 }
 
 WRITE_LINE_MEMBER(hd63450_device::drq0_w)
 {
-    LOG("DMA#0: drq\n");
+    LOG("DMA#0: drq %d\n", state);
 	bool ostate = m_drq_state[0];
 	m_drq_state[0] = state;
 
@@ -597,7 +602,7 @@ WRITE_LINE_MEMBER(hd63450_device::drq0_w)
 
 WRITE_LINE_MEMBER(hd63450_device::drq1_w)
 {
-    LOG("DMA#1: drq\n");
+    LOG("DMA#1: drq %d\n", state);
 	bool ostate = m_drq_state[1];
 	m_drq_state[1] = state;
 
@@ -612,7 +617,7 @@ WRITE_LINE_MEMBER(hd63450_device::drq1_w)
 
 WRITE_LINE_MEMBER(hd63450_device::drq2_w)
 {
-    LOG("DMA#2: drq\n");
+    LOG("DMA#2: drq %d\n", state);
 	bool ostate = m_drq_state[2];
 	m_drq_state[2] = state;
 
@@ -627,7 +632,7 @@ WRITE_LINE_MEMBER(hd63450_device::drq2_w)
 
 WRITE_LINE_MEMBER(hd63450_device::drq3_w)
 {
-    LOG("DMA#3: drq\n");
+    LOG("DMA#3: drq %d\n", state);
 	bool ostate = m_drq_state[3];
 	m_drq_state[3] = state;
 

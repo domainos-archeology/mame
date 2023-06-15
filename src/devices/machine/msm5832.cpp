@@ -21,7 +21,7 @@
 #include "emu.h"
 #include "msm5832.h"
 
-//#define VERBOSE 1
+#define VERBOSE 0
 #include "logmacro.h"
 
 
@@ -143,7 +143,7 @@ TIMER_CALLBACK_MEMBER(msm5832_device::clock_tick)
 
 void msm5832_device::rtc_clock_updated(int year, int month, int day, int day_of_week, int hour, int minute, int second)
 {
-	LOG("MSM5832 Clock Update: %d.%d.%d %d %d:%d:%d\n", year, month, day, day_of_week, hour, minute, second);
+	// LOG("MSM5832 Clock Update: %d.%d.%d %d %d:%d:%d\n", year, month, day, day_of_week, hour, minute, second);
 
 	write_counter(REGISTER_Y1, year);
 	write_counter(REGISTER_MO1, month);
