@@ -1,7 +1,7 @@
 
 #include "emu.h"
 
-#define VERBOSE 1
+#define VERBOSE 0
 #include "apollo_dn300.h"
 
 DEFINE_DEVICE_TYPE(APOLLO_DN300_MMU, apollo_dn300_mmu_device, APOLLO_DN300_MMU_TAG, "Apollo DN300 Custom MMU")

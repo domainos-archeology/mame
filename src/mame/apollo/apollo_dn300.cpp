@@ -514,10 +514,7 @@ void apollo_dn300_state::machine_start(){
 
 void apollo_dn300_state::init_dn300()
 {
-//  MLOG1(("driver_init_dn3500"));
-
-	/* hook the RESET line, which resets a slew of other components */
-	// m_maincpu->set_reset_callback(*this, FUNC(apollo_dn300_state::apollo_reset_instr_callback));
+  	MLOG1(("driver_init_dn300"));
 
 	ram_base_address = DN300_RAM_BASE;
 	ram_end_address = DN300_RAM_END;
