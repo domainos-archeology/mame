@@ -144,6 +144,8 @@ uint8_t apollo_dn300_get_ram_config_byte(void) {
 
 static bool dump_curpc = false;
 
+bool g_start_dumping = false;
+
 /***************************************************************************
   instruction_hook
   must be called by the CPU core before executing each instruction
@@ -177,8 +179,9 @@ static int instruction_hook(device_t &device, offs_t curpc)
 		machine.logerror("HOOK: first instruction after starting dma op!\n");
 	} else if (curpc == 0x27c2) {
 		machine.logerror("HOOK: diagnostic 7\n");
-		// state->m_mmu->set_dump_translations(true);
-		// dump_curpc = true;
+		state->m_mmu->set_dump_translations(true);
+		dump_curpc = true;
+		machine.logerror("ip: %p %x\n", addr_ptr, curpc);
 	}
 
 	return 0;
@@ -204,7 +207,7 @@ void apollo_dn300_state::cpu_space_map(address_map &map)
 
 u16 apollo_dn300_state::apollo_irq_acknowledge(offs_t offset)
 {
-	MLOG2(("apollo_irq_acknowledge: interrupt level=%d", offset));
+	//MLOG2(("apollo_irq_acknowledge: interrupt level=%d", offset));
 	// the previous non-dn300 code does this; but I don't think this is correct.
 	// there's no PIC, and with this getting cleared, I get TBLT errors about
 	// BLT interrupt misses.

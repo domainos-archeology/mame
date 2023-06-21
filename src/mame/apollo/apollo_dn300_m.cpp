@@ -486,15 +486,24 @@ void apollo_dn300_state::common(machine_config &config)
 	APOLLO_DN300_NI(config, m_node_id, 0);
 }
 
+WRITE_LINE_MEMBER(apollo_dn300_state::sio1_irq_callback)
+{
+	LOG2(("sio1_irq_callback"));
+	m_maincpu->set_input_line(APOLLO_DN300_IRQ_SIO1, state);
+}
+
 void apollo_dn300_state::apollo_dn300(machine_config &config)
 {
 	common(config);
 	SCN2681(config, m_sio, 3.6864_MHz_XTAL);
 	//m_sio->irq_cb().set_inputline(MAINCPU, APOLLO_DN300_IRQ_SIO1);
+	//m_sio->irq_cb().set(FUNC(apollo_dn300_state::sio1_irq_callback));
 
-	APOLLO_DN300_KBD(config, m_keyboard, 0);
+	APOLLO_DN300_KBDMOUSE(config, m_keyboard, 0);
+	// connect keyboard tx to acia rx bit
 	m_keyboard->tx_cb().set(m_acia, FUNC(acia6850_device::write_rxd));
-	m_acia->txd_handler().set(m_keyboard, FUNC(apollo_dn300_kbd_device::write_txd));
+	// connect acia txd to keyboard 
+	m_acia->txd_handler().set(m_keyboard, FUNC(apollo_dn300_kbdmouse_device::rx_w));
 	m_acia->irq_handler().set_inputline(MAINCPU, APOLLO_DN300_IRQ_KBD);
 }
 

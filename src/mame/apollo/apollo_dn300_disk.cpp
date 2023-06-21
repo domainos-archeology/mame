@@ -9,7 +9,7 @@
 
 #include "emu.h"
 
-#define VERBOSE 2
+#define VERBOSE 0
 #include "apollo_dn300.h"
 
 DEFINE_DEVICE_TYPE(APOLLO_DN300_DISK, apollo_dn300_disk_device, APOLLO_DN300_DISK_TAG, "Apollo DN300 Winchester/Floppy controller")

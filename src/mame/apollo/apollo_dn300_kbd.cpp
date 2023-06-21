@@ -12,7 +12,7 @@
 
 #include "emu.h"
 
-#define VERBOSE 1
+#define VERBOSE 2
 
 #include "apollo_dn300_kbd.h"
 #include "speaker.h"
@@ -160,16 +160,19 @@ INPUT_PORTS_START( apollo_dn300_kbd )
 	PORT_BIT( 0x00000020, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("Shift")  PORT_CODE(KEYCODE_RSHIFT) /* Shift */
 	PORT_BIT( 0x00000040, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("Num Lock")  PORT_CODE(KEYCODE_NUMLOCK) /* Num Lock */
 
+	// labeled as 1..3 because they're accessed as "mouse%u" through an ioport array
 	PORT_START("mouse1")  // mouse buttons
 	PORT_BIT( 0x00000010, IP_ACTIVE_HIGH, IPT_BUTTON1) PORT_NAME("Left mouse button") PORT_CODE(MOUSECODE_BUTTON1)
 	PORT_BIT( 0x00000020, IP_ACTIVE_HIGH, IPT_BUTTON3) PORT_NAME("Right mouse button") PORT_CODE(MOUSECODE_BUTTON3)
 	PORT_BIT( 0x00000040, IP_ACTIVE_HIGH, IPT_BUTTON2) PORT_NAME("Center mouse button") PORT_CODE(MOUSECODE_BUTTON2)
 
 	PORT_START("mouse2")  // X-axis
-	PORT_BIT( 0xff, 0x00, IPT_MOUSE_X) PORT_SENSITIVITY(50) PORT_KEYDELTA(0) PORT_PLAYER(1)
+	PORT_BIT(0x3ff, 0x000, IPT_MOUSE_X) PORT_SENSITIVITY(100) PORT_MINMAX(0x000, 0x3ff) PORT_KEYDELTA(0) PORT_PLAYER(1)
+	//PORT_BIT( 0xffff, 0x00, IPT_MOUSE_X) PORT_SENSITIVITY(100) PORT_KEYDELTA(0) PORT_PLAYER(1) PORT_MINMAX(0, 1024)
 
 	PORT_START("mouse3")  // Y-axis
-	PORT_BIT( 0xff, 0x00, IPT_MOUSE_Y) PORT_SENSITIVITY(50) PORT_KEYDELTA(0) PORT_PLAYER(1)
+	PORT_BIT(0x3ff, 0x000, IPT_MOUSE_Y) PORT_SENSITIVITY(100) PORT_MINMAX(0x000, 0x3ff) PORT_KEYDELTA(0) PORT_PLAYER(1)
+	//PORT_BIT( 0xffff, 0x00, IPT_MOUSE_Y) PORT_SENSITIVITY(100) PORT_KEYDELTA(0) PORT_PLAYER(1) PORT_MINMAX(0, 1024)
 INPUT_PORTS_END
 
 } // anonymous namespace
@@ -195,13 +198,7 @@ apollo_dn300_kbd_device::apollo_dn300_kbd_device(const machine_config &mconfig, 
 	, m_tx_w(*this)
 	, m_german_r(*this)
 	, m_rxd(0)
-	, m_rxd_handler(*this)
 {
-}
-
-WRITE_LINE_MEMBER( apollo_dn300_kbd_device::write_txd )
-{
-	LOG1(("in apollo_dn300_kbd_device::write_txd"));
 }
 
 //-------------------------------------------------
@@ -233,7 +230,6 @@ void apollo_dn300_kbd_device::device_resolve_objects()
 {
 	m_tx_w.resolve_safe();
 	m_german_r.resolve_safe(0);
-	m_rxd_handler.resolve_safe();
 }
 
 //-------------------------------------------------
@@ -251,10 +247,6 @@ void apollo_dn300_kbd_device::device_start()
 	m_timer = timer_alloc(FUNC(apollo_dn300_kbd_device::kbd_scan_timer), this);
 
 	save_item(NAME(m_rxd));
-
-	m_rxd = 1;
-
-	m_rxd_handler(m_rxd);
 }
 
 //-------------------------------------------------
@@ -281,7 +273,8 @@ void apollo_dn300_kbd_device::device_reset()
 	// start timer
 	m_timer->adjust( attotime::zero, 0, attotime::from_msec(5)); // every 5ms
 
-	set_data_frame(1, 7, PARITY_EVEN, STOP_BITS_2);
+	// ROM sets 8N1 for the keyboard rx
+	set_data_frame(1, 8, PARITY_NONE, STOP_BITS_1);
 	set_rcv_rate(1200);
 	set_tra_rate(1200);
 
@@ -391,76 +384,113 @@ void apollo_dn300_kbd_device::mouse::read_mouse()
 	if (m_tx_pending > 0)
 	{
 		m_tx_pending -= 5; // we will be called every 5ms
+		return;
 	}
-	else
+
+	char b = m_device->m_io_mouse[0]->read();
+	short rx = m_device->m_io_mouse[1]->read();
+	short ry = m_device->m_io_mouse[2]->read();
+
+	// note: only the deltas between rx/ry values and their previous values
+	// are valid.  They are not meaningful absolute coordinates, and they are not
+	// explicit deltas themselves.
+
+	ry = -ry;
+
+	if (m_last_b < 0)
 	{
-		char b = m_device->m_io_mouse[0]->read();
-		char x = m_device->m_io_mouse[1]->read();
-		char y = m_device->m_io_mouse[2]->read();
-
-		y = -y;
-
-		if (m_last_b < 0)
-		{
-			m_last_b = b;
-			m_last_x = x;
-			m_last_y = y;
-		}
-		else if (b != m_last_b || x != m_last_x || y != m_last_y)
-		{
-			uint8_t mouse_data[4];
-			int mouse_data_size;
-
-			int dx = x - m_last_x;
-			int dy = y - m_last_y;
-
-			LOG2(("read_mouse: b=%02x x=%d y=%d dx=%d dy=%d", b, x, y, dx, dy));
-
-			if (m_device->m_mode == KBD_MODE_0_COMPATIBILITY)
-			{
-				mouse_data[0] = 0xdf;
-				mouse_data[1] = 0xf0 ^ b;
-				mouse_data[2] = dx;
-				mouse_data[3] = dy;
-				mouse_data_size = 4;
-			}
-			else
-			{
-				if (m_device->m_mode != KBD_MODE_2_RELATIVE_CURSOR_CONTROL)
-				{
-					m_device->set_mode(KBD_MODE_2_RELATIVE_CURSOR_CONTROL);
-				}
-
-				mouse_data[0] = 0xf0 ^ b;
-				mouse_data[1] = dx;
-				mouse_data[2] = dy;
-				mouse_data_size = 3;
-			}
-
-			for (int md = 0; md < mouse_data_size; md++)
-			{
-				m_device->xmit_char(mouse_data[md]);
-			}
-
-			// mouse data submitted; update current mouse state
-			m_last_b = b;
-			m_last_x = x;
-			m_last_y = y;
-			m_tx_pending = 50; // mouse data packet will take 40 ms
-		}
+		m_last_b = b;
+		m_last_x = rx;
+		m_last_y = ry;
+		return;
 	}
+
+	if (b == m_last_b && rx == m_last_x && ry == m_last_y)
+	{
+		return;
+	}
+
+	uint8_t mouse_data[4];
+
+	short dx = rx - m_last_x;
+	short dy = ry - m_last_y;
+
+	// we only have 8 bits to use for the deltas, so cap.  shouldn't really happen.
+	dx = (dx < -127) ? -127 : (dx > 127) ? 127 : dx; 
+	dy = (dy < -127) ? -127 : (dy > 127) ? 127 : dy;
+
+	// LOG2(("read_mouse: b=%02x dx=%d dy=%d (x=%d y=%d)", b, dx, dy, rx, ry));
+
+	int bytes = 0;
+	if (m_device->m_mode == KBD_MODE_0_COMPATIBILITY)
+	{
+		// if in compat mode, mouse data has a prefix
+		mouse_data[bytes++] = 0xdf;
+	} else if (m_device->m_mode != KBD_MODE_2_RELATIVE_CURSOR_CONTROL) {
+		LOG2(("Keyboard in unexpected mode %d, setting to RELATIVE_CURSOR_CONTROL", m_device->m_mode));
+		m_device->set_mode(KBD_MODE_2_RELATIVE_CURSOR_CONTROL);
+	}
+
+	// first byte is
+	// 1 M R L X X Y Y (XXYY = 1111 to indicate that X/Y are valid).  MRL are active-low. b already has 1 bits in the right place
+	// for pressed buttons based on the input ports.
+	//mouse_data[1] = 0xf0 ^ b; // vlad -- this is what this used to be but that seems wrong
+	mouse_data[bytes++] = 0x8f | ~b; // TODO we can just make the input ports for b be ACTIVE_LOW?
+	mouse_data[bytes++] = (char)dx;
+	mouse_data[bytes++] = (char)dy;
+
+#if false
+	// If we want to send touchpad data, we need to send 4 bytes:
+	//   0: E8
+	//   1: low 8 bits X
+	//   2: (high 4 bits y) << 4 | (high 4 bits x)
+	//   3: low 8 bits y
+	// The range of X and Y coordinates is approximately 30 to 1100 for the
+	// actual touchpad, no idea what our setup is here.  We need to also
+	// find a way to get absolute coordinates from the mouse driver.
+	mouse_data[0] = 0xe8;
+	mouse_data[1] = (rx >> 4) & 0xff;
+	mouse_data[2] = (((ry >> 8) & 0x0f) << 4) | ((rx >> 8) & 0x0f);
+	mouse_data[3] = (ry >> 4) & 0xff;
+	bytes = 4;
+#endif
+
+	LOG2(("MOUSE: %02x %02x %02x %02x (b: %d, dx %d dy %d)", mouse_data[0], mouse_data[1], mouse_data[2], mouse_data[3], b, dx, dy));
+
+	for (int md = 0; md < bytes; md++)
+	{
+		m_device->xmit_char(mouse_data[md]);
+	}
+
+	// mouse data submitted; update current mouse state
+	m_last_b = b;
+	m_last_x = rx;
+	m_last_y = ry;
+	m_tx_pending = 50; // mouse data packet will take 40 ms
 }
 
 void apollo_dn300_kbd_device::set_mode(uint16_t mode)
 {
+	LOG2(("keyboard set_mode: %d", mode));
+
 	// xmit_char(0xff);
 	// xmit_char(mode);
 	m_mode = mode;
 }
 
-void apollo_dn300_kbd_device::tra_complete()    // Tx completed sending byte
+//
+// serial device interface
+//
+
+void apollo_dn300_kbd_device::tra_callback()    // Tx, device should send next bit
 {
-	LOG2(("apollo_dn300_kbd_device::tra_complete()"))
+	int bit = transmit_register_get_data_bit();
+	m_tx_w(bit);
+}
+
+void apollo_dn300_kbd_device::tra_complete()    // Tx, device completed sending byte
+{
+	//LOG2(("apollo_dn300_kbd_device::tra_complete()"))
 	// is there more waiting to send?
 	if (m_xmit_read != m_xmit_write)
 	{
@@ -476,22 +506,13 @@ void apollo_dn300_kbd_device::tra_complete()    // Tx completed sending byte
 	}
 }
 
-void apollo_dn300_kbd_device::rcv_complete()    // Rx completed receiving byte
+void apollo_dn300_kbd_device::rcv_complete()    // Rx complete, byte available
 {
 	receive_register_extract();
 	uint8_t data = get_received_char();
+	printf("KBD rcv complete %02x\n", data);
 
 	kgetchar(data);
-}
-
-void apollo_dn300_kbd_device::tra_callback()    // Tx send bit
-{
-	int bit = transmit_register_get_data_bit();
-	m_tx_w(bit);
-}
-
-void apollo_dn300_kbd_device::input_callback(uint8_t state)
-{
 }
 
 void apollo_dn300_kbd_device::xmit_char(uint8_t data)
@@ -499,11 +520,13 @@ void apollo_dn300_kbd_device::xmit_char(uint8_t data)
 	// if tx is busy it'll pick this up automatically when it completes
 	if (!m_tx_busy)
 	{
+		LOG1(("xmit_char %02x (not busy)", data));
 		m_tx_busy = true;
 		transmit_register_setup(data);
 	}
 	else
 	{
+		LOG1(("xmit_char %02x (busy)", data));
 		// tx is busy, it'll pick this up next time
 		m_xmitring[m_xmit_write++] = data;
 		if (m_xmit_write >= XMIT_RING_SIZE)
@@ -544,15 +567,15 @@ void apollo_dn300_kbd_device::kgetchar(uint8_t data)
 {
 	static const uint8_t ff1116_data[] = { 0x00, 0xff, 0x00 };
 
-	LOG1(("getchar <- %02x", data));
+	LOG1(("KBD IN getchar <- %02x", data));
 
-	if (data == 0xff)
+	if (data == 0xff && m_rx_message == 0)
 	{
 		m_rx_message = data;
-		putdata(&data, 1);
+		putdata(&data, 1); // 0xff
 		m_loopback_mode = 1;
 	}
-	else if (data == 0x00)
+	else if (data == 0x00 && m_rx_message == 0)
 	{
 		if (m_loopback_mode)
 		{
@@ -566,30 +589,30 @@ void apollo_dn300_kbd_device::kgetchar(uint8_t data)
 
 		switch (m_rx_message)
 		{
-		case 0xff00:
-			putdata(&data, 1);
+		case 0xff00: // we will literally never get here, because of the data == 0x00 branch above
+			putdata(&data, 1); // 0x00
 			m_mode = KBD_MODE_0_COMPATIBILITY;
 			m_loopback_mode = 0;
 			m_rx_message = 0;
 			break;
 		case 0xff01:
-			putdata(&data, 1);
+			putdata(&data, 1); // 0x01
 			m_mode = KBD_MODE_1_KEYSTATE;
 			m_rx_message = 0;
 			break;
 		case 0xff11:
-			putdata(&data, 1);
+			putdata(&data, 1); // 0x11
 			break;
 		case 0xff1116:
-			putdata(ff1116_data, sizeof(ff1116_data));
+			putdata(ff1116_data, sizeof(ff1116_data)); // er what? we already sent back 0xff and 0x11, we're supposed to send it all again?
 			m_loopback_mode = 0;
 			m_rx_message = 0;
 			break;
 		case 0xff1117:
-			m_rx_message = 0;
+			m_rx_message = 0; // no echo?
 			break;
 		case 0xff12:
-			putdata(&data, 1);
+			putdata(&data, 1); // 0x12
 			break;
 		case 0xff1221: // receive ID message
 			abort();
@@ -615,12 +638,12 @@ void apollo_dn300_kbd_device::kgetchar(uint8_t data)
 			// m_rx_message = 0;
 			// break;
 		case 0xff2181: // beeper on (for 300 ms)
-			putdata(&data, 1);
+			putdata(&data, 1); // 0x81
 			m_rx_message = 0;
 			m_beeper.on();
 			break;
 		case 0xff2182: // beeper off
-			putdata(&data, 1);
+			putdata(&data, 1); // 0x82
 			m_rx_message = 0;
 			m_beeper.off();
 			break;
@@ -672,6 +695,20 @@ int apollo_dn300_kbd_device::push_scancode(uint8_t code, uint8_t repeat)
 		}
 	}
 #endif
+
+	if (code == 0x1b) { // [
+		xmit_char(0xdf); // escape
+		xmit_char(0xff); // active low, so no buttons pressed
+		xmit_char(-10);
+		xmit_char(0);
+		return 4;
+	} else if (code == 0x1c) { // ]
+		xmit_char(0xdf); // escape
+		xmit_char(0xff); // active low, so no buttons pressed
+		xmit_char(10);
+		xmit_char(0);
+		return 4;
+	}
 
 	code_entry const &entry = s_code_table[code & 0x7f];
 	if (m_mode == KBD_MODE_0_COMPATIBILITY)
@@ -747,6 +784,7 @@ int apollo_dn300_kbd_device::push_scancode(uint8_t code, uint8_t repeat)
 		}
 		xmit_char(key_code & 0xff);
 		n_chars++;
+		LOG1(("=== %d", n_chars));
 	}
 	return n_chars;
 }
@@ -811,9 +849,9 @@ TIMER_CALLBACK_MEMBER(apollo_dn300_kbd_device::kbd_scan_timer)
 
 	// Note: we omit extra traffic while keyboard is in Compatibility mode
 	if (m_device->m_mode != KBD_MODE_0_COMPATIBILITY)
-	{
+	//{
 		m_mouse.read_mouse();
-	}
+	//}
 }
 
 apollo_dn300_kbd_device::code_entry const apollo_dn300_kbd_device::s_code_table[] = {

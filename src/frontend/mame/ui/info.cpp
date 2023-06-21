@@ -62,6 +62,7 @@ constexpr std::pair<device_t::feature_type, char const *> FEATURE_NAMES[] = {
 
 void get_general_warnings(std::ostream &buf, running_machine &machine, machine_flags::type flags, device_t::feature_type unemulated, device_t::feature_type imperfect)
 {
+#if false
 	// add a warning if any ROMs were loaded with warnings
 	bool bad_roms(false);
 	if (machine.rom_load().warnings() > 0)
@@ -86,6 +87,7 @@ void get_general_warnings(std::ostream &buf, running_machine &machine, machine_f
 	// add a warning if any ROMs are flagged BAD_DUMP/NO_DUMP
 	if (machine.rom_load().knownbad() > 0)
 		buf << _("One or more ROMs/disk images for this system have not been correctly dumped.\n");
+#endif
 }
 
 void get_device_warnings(std::ostream &buf, device_t::feature_type unemulated, device_t::feature_type imperfect)
@@ -125,6 +127,7 @@ void get_device_warnings(std::ostream &buf, device_t::feature_type unemulated, d
 
 void get_system_warnings(std::ostream &buf, running_machine &machine, machine_flags::type flags, device_t::feature_type unemulated, device_t::feature_type imperfect)
 {
+#if false
 	// start with the unemulated/imperfect features
 	get_device_warnings(buf, unemulated, imperfect);
 
@@ -174,6 +177,7 @@ void get_system_warnings(std::ostream &buf, running_machine &machine, machine_fl
 		if (foundworking)
 			buf << '\n';
 	}
+#endif
 }
 
 } // anonymous namespace

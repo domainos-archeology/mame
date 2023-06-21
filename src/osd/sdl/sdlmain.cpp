@@ -465,6 +465,8 @@ void sdl_osd_interface::init(running_machine &machine)
 
 	/* Initialize SDL */
 
+    SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
+
 	if (SDL_InitSubSystem(SDL_INIT_VIDEO))
 	{
 		osd_printf_error("Could not initialize SDL %s\n", SDL_GetError());

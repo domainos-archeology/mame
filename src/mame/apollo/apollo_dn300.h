@@ -15,6 +15,7 @@
 
 
 #include "apollo_dn300_kbd.h"
+#include "apollo_dn300_kbdmouse.h"
 #include "apollo_dn300_mmu.h"
 #include "apollo_dn300_disk.h"
 #include "apollo_dn300_ring.h"
@@ -120,6 +121,7 @@ void apollo_dn300_set_cache_status_register(device_t *device,uint8_t mask, uint8
 class apollo_dn300_ni;
 class apollo_dn300_graphics;
 class apollo_dn300_kbd_device;
+class apollo_dn300_kbdmouse_device;
 class apollo_dn300_mmu_device;
 class apollo_dn300_disk_device;
 class apollo_dn300_ring_device;
@@ -171,7 +173,8 @@ public:
 	optional_device<mc146818_device> m_rtc;
 	required_device<apollo_dn300_ni> m_node_id;
 	required_device<apollo_dn300_graphics> m_graphics;
-	optional_device<apollo_dn300_kbd_device> m_keyboard;
+	//optional_device<apollo_dn300_kbd_device> m_keyboard;
+	optional_device<apollo_dn300_kbdmouse_device> m_keyboard;
 	required_device<apollo_dn300_mmu_device> m_mmu;
 	required_device<upd765a_device> m_fdc;
 	required_device<apollo_dn300_disk_device> m_disk;
@@ -231,6 +234,8 @@ public:
 	void apollo_dn300(machine_config &config);
 
 	void dn300_physical_map(address_map &map);
+
+	DECLARE_WRITE_LINE_MEMBER(  sio1_irq_callback );
 
 	uint32_t ptm_counter;
 	int m_dma_channel;

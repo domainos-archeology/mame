@@ -13,8 +13,8 @@
 
 #pragma once
 
+#include <vector>
 #include "sound/beep.h"
-
 #include "diserial.h"
 
 
@@ -43,11 +43,6 @@ public:
 	auto tx_cb() { return m_tx_w.bind(); }
 	auto german_cb() { return m_german_r.bind(); }
 
-	auto rxd_handler() { return m_rxd_handler.bind(); }
-
-	DECLARE_WRITE_LINE_MEMBER( write_txd );
-	DECLARE_READ_LINE_MEMBER( rxd_r ) { return m_rxd; }
-
 private:
 	// device-level overrides
 	virtual ioport_constructor device_input_ports() const override;
@@ -60,11 +55,11 @@ private:
 	virtual void rcv_complete() override;    // Rx completed receiving byte
 	virtual void tra_complete() override;    // Tx completed sending byte
 	virtual void tra_callback() override;    // Tx send bit
-	void input_callback(uint8_t state);
 
 	TIMER_CALLBACK_MEMBER( kbd_scan_timer );
 
 	std::string cpu_context() const;
+
 	template <typename Format, typename... Params>
 	void logerror(Format &&fmt, Params &&... args) const;
 
@@ -75,7 +70,9 @@ private:
 	void putstring(const char *data);
 
 	int push_scancode( uint8_t code, uint8_t repeat);
+
 	void scan_keyboard();
+	void scan_mouse();
 
 	// the keyboard beeper
 	class beeper
@@ -145,11 +142,11 @@ private:
 	int m_keytime[0x80];    // time until next key press (1 ms)
 	uint8_t m_keyon[0x80];    // is 1 if key is pressed
 
+	int m_rxd;
+public:
 	struct code_entry { uint16_t down, up, unshifted, shifted, control, caps_lock, up_trans, auto_repeat; };
 	static code_entry const s_code_table[];
-
-	int m_rxd;
-	devcb_write_line m_rxd_handler;
+	static const code_entry* get_code_table() { return (code_entry*)s_code_table; }
 };
 
 // device type definition

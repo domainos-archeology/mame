@@ -1,7 +1,7 @@
 
 #include "emu.h"
 
-#define VERBOSE 2
+#define VERBOSE 1
 #include "apollo_dn300.h"
 
 DEFINE_DEVICE_TYPE(APOLLO_DN300_MMU, apollo_dn300_mmu_device, APOLLO_DN300_MMU_TAG, "Apollo DN300 Custom MMU")
@@ -227,7 +227,7 @@ void apollo_dn300_mmu_device::ptt_w(offs_t offset, uint16_t data, uint16_t mem_m
         return;
     }
 
-    SLOG1(("writing PTT at offset %02x = %02x & %08x", offset, data, mem_mask));
+    SLOG2(("writing PTT at offset %02x = %02x & %08x", offset, data, mem_mask));
     m_ptt[offset/512] = data & mem_mask;
 }
 
@@ -239,18 +239,18 @@ uint16_t apollo_dn300_mmu_device::ptt_r(offs_t offset, uint16_t mem_mask)
         return 0;
     }
 
-    // SLOG1(("reading PTT at offset %02x & %08x", offset, mem_mask));
+    // SLOG2(("reading PTT at offset %02x & %08x", offset, mem_mask));
     return m_ptt[offset/512] & mem_mask;
 }
 
 void apollo_dn300_mmu_device::pft_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
-    // SLOG1(("writing PFT at offset %02x = %02x & %08x", offset, data, mem_mask));
+    // SLOG2(("writing PFT at offset %02x = %02x & %08x", offset, data, mem_mask));
     m_pft[offset] = data & mem_mask;
 }
 uint16_t apollo_dn300_mmu_device::pft_r(offs_t offset, uint16_t mem_mask)
 {
-    // SLOG1(("reading PFT at offset %02x & %08x", offset, mem_mask));
+    // SLOG2(("reading PFT at offset %02x & %08x", offset, mem_mask));
     return m_pft[offset] & mem_mask;
 }
 
