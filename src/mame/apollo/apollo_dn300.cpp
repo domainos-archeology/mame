@@ -492,6 +492,7 @@ WRITE_LINE_MEMBER(apollo_dn300_state::apollo_reset_instr_callback)
 
 	m_graphics->reset();
 	m_keyboard->reset();
+	// m_mmu->reset();
 }
 
 /***************************************************************************
@@ -553,6 +554,7 @@ void apollo_dn300_state::dn300(machine_config &config)
 	M68010EMMU(config, m_maincpu, 16000000); /* 16 MHz 68010 with an external mmu */
 	m_maincpu->set_addrmap(AS_PROGRAM, &apollo_dn300_state::dn300_physical_map);
 	m_maincpu->set_addrmap(m68000_base_device::AS_CPU_SPACE, &apollo_dn300_state::cpu_space_map);
+	m_maincpu->reset_cb().set(FUNC(apollo_dn300_state::apollo_reset_instr_callback));
 
 	config.set_maximum_quantum(attotime::from_hz(60));
 

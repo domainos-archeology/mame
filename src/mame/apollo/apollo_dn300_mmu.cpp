@@ -23,10 +23,10 @@ apollo_dn300_mmu_device::apollo_dn300_mmu_device(const machine_config &mconfig, 
 void apollo_dn300_mmu_device::device_start()
 {
     m_pft = std::make_unique<uint16_t[]>(8192);
-    save_pointer(NAME(m_pft), 8192);
+    // save_pointer(NAME(m_pft), 8192);
 
     m_ptt = std::make_unique<uint16_t[]>(1024);
-    save_pointer(NAME(m_ptt), 1024);
+    // save_pointer(NAME(m_ptt), 1024);
 }
 
 //-------------------------------------------------
@@ -42,11 +42,11 @@ void apollo_dn300_mmu_device::device_reset()
 	// normal mode
 	// m_status = 0x10;
 
-    m_pft = std::make_unique<uint16_t[]>(8192);
-    save_pointer(NAME(m_pft), 8192);
+    // m_pft = std::make_unique<uint16_t[]>(8192);
+    // save_pointer(NAME(m_pft), 8192);
 
-    m_ptt = std::make_unique<uint16_t[]>(1024);
-    save_pointer(NAME(m_ptt), 1024);
+    // m_ptt = std::make_unique<uint16_t[]>(1024);
+    // save_pointer(NAME(m_ptt), 1024);
 }
 
 void apollo_dn300_mmu_device::cpu_reset(int state)
