@@ -81,6 +81,7 @@ typedef union {
 
 #define NUM_PTTE 1024
 #define PAGE_SIZE 1024
+#define PAGE_SIZE_OFFSET 10
 
 offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset, int intention) {
     // from Domain Engineering Handbook:
@@ -95,7 +96,7 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset, int intention) {
     // Page Translation Table at [ n/a | 700000]
     // through [ n/a | 800000 ]
     // One PPTE every 1024 bytes in table.
-    int vpn = byte_offset >> 10;
+    int vpn = byte_offset >> PAGE_SIZE_OFFSET;
 
     if ((m_status & 0x02) // PTT is enabled
          && (byte_offset >= 0x700000 && byte_offset < 0x800000)) {
@@ -104,8 +105,8 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset, int intention) {
 
 
     // split up the vpn again on the 10 bit boundary into a ptt index and an "excess vpn" (xsvpn)
-    int ptt_index = vpn & 0x3ff;
-    int xsvpn = vpn >> 10;
+    int ptt_index = vpn & (PAGE_SIZE-1);
+    int xsvpn = vpn >> PAGE_SIZE_OFFSET;
 
     int byte_offset_within_page = byte_offset % PAGE_SIZE;
     int ppn = m_ptt[ptt_index] & 0xfff;
@@ -127,6 +128,7 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset, int intention) {
         int pfte_global = (pfte >> 12) & 0x1;
         int pfte_eoc =    (pfte >> 15) & 0x1;
         int pfte_xsvpn =  (pfte >> 16) & 0xf;
+        // int pfte_DOMAIN = (pfte >> 23) & 0x1;
         int pfte_elsid =  (pfte >> 25);
 
         if (pfte_eoc) {
@@ -144,7 +146,7 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset, int intention) {
 
         if (
             // ppn and xsvpn match
-            pfte_xsvpn == xsvpn	&& (
+            pfte_xsvpn == xsvpn && (
                 // the page is either global or the asid matches
                 pfte_global || pfte_elsid == m_asid
             )) {
@@ -220,7 +222,7 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset, int intention) {
 	m_status |= 0x80;
 	// interrupt pending too?
 
-	m_cpu->set_buserror_details(byte_offset, (intention & TRANSLATE_READ) ? 1 : 0, m_cpu->get_fc(), true);
+	m_cpu->set_buserror_details(byte_offset, (intention & TRANSLATE_READ) ? 1 : 0, m_cpu->get_fc(), false);
     return 0;
 }
 
