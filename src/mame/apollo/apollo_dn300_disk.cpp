@@ -477,9 +477,9 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
             SLOG1(("DN300_DISK:    linearized as logical sector address %d", sector));
 
             disk->m_image->fseek(sector * HARD_DISK_SECTOR_SIZE, SEEK_SET);
-            disk->m_image->fread(m_read_buffer, HARD_DISK_SECTOR_SIZE);
+            disk->m_image->fread(m_buffer, HARD_DISK_SECTOR_SIZE);
 
-            m_read_cursor = 0;
+            m_cursor = 0;
 
 #define PULSE_DRQ() do { drq_cb(true); drq_cb(false); } while (0)
             // 0x10 for the first operation
@@ -516,9 +516,58 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
 
             break;
         }
-        case WDC_CONTROLLER_CMD_WRITE_RECORD:
-            SLOG1(("DN300_DISK:    CMD_WRITE_RECORD unimplemented"))
+        case WDC_CONTROLLER_CMD_WRITE_RECORD: {
+            m_wdc_general_status |= WDC_GS_BUSY_EXECUTING;
+
+            ansi_disk_image_device *disk = our_disks[m_wdc_selected_drive-1];
+
+            int cylinder = (m_wdc_current_cylinder_high << 8) | m_wdc_current_cylinder_low;
+            int track = cylinder * disk->m_heads + m_wdc_head;
+            int sector_offset = track * disk->m_sectors;
+            int sector = sector_offset + m_wdc_sector;
+
+            SLOG1(("DN300_DISK:    CMD_WRITE_RECORD for drive %d sector %d on cylinder %d and head %d", m_wdc_selected_drive, m_wdc_sector, cylinder, m_wdc_head));
+            SLOG1(("DN300_DISK:    linearized as logical sector address %d", sector));
+
+            m_cursor = 0;
+
+            // 0x10 for the first operation
+            for (int i = 0; i < 0x10; i++) {
+                PULSE_DRQ();
+            }
+
+            // 0x200 for the second operation
+            for (int i = 0; i < 0x200; i++) {
+                PULSE_DRQ();
+            }
+
+            disk->m_image->fseek(sector * HARD_DISK_SECTOR_SIZE, SEEK_SET);
+            disk->m_image->fwrite(m_buffer, HARD_DISK_SECTOR_SIZE);
+
+		    SLOG1(("DN300_DISK:    done with synchronous write"));
+            m_wdc_general_status &= ~WDC_GS_BUSY_EXECUTING;
+            m_wdc_general_status |= WDC_GS_NORMAL_COMPLETE;
+
+			if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_END_OF_OP) {
+	            m_controller_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
+				SLOG1(("DN300_DISK:    irqctrl end of op set, interrupting in 1ms"));
+                need_interrupt = true;
+				command_duration = 1;
+            }
+            if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_STATUS_AVAIL) {
+                m_controller_status_high |= CONTROLLER_STATUS_HIGH_STATUS_AVAILABLE_INTERRUPT;
+				SLOG1(("DN300_DISK:    irqctrl status avail set, interrupting in 1ms"));
+                need_interrupt = true;
+				command_duration = 1;
+			}
+
+			if (!need_interrupt) {
+				SLOG1(("DN300_DISK:    irqctrl not set, not interrupting"));
+                m_controller_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
+            }
+
             break;
+		}
 
         case WDC_CONTROLLER_CMD_FORMAT_TRACK:
             SLOG1(("DN300_DISK:    CMD_FORMAT_TRACK unimplemented"))
@@ -1106,14 +1155,15 @@ uint8_t apollo_dn300_disk_ctrlr_device::read_byte(offs_t offset)
 		SLOG1(("DN300_DISK: reading disk DMA from FDC FIFO offset %d.  data = %02x", offset, data));
 		return data;
 	}
-    // SLOG1(("reading disk DMA from offset %02x -> %02x", m_read_cursor, _unused_offset));
-    // send back the byte pointed to by the read cursor
-    return m_read_buffer[m_read_cursor++];
+    // SLOG1(("reading disk DMA from offset %02x -> %02x", m_cursor, _unused_offset));
+    // send back the byte pointed to by the cursor
+    return m_buffer[m_cursor++];
 }
 
 void apollo_dn300_disk_ctrlr_device::write_byte(offs_t offset, uint8_t data)
 {
     SLOG1(("writing disk DMA at offset %02x = %02x", offset, data));
+	m_buffer[m_cursor++] = data;
 }
 
 

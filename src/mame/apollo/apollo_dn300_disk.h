@@ -100,8 +100,8 @@ private:
 	bool m_wdc_write_enabled;
 	bool m_wdc_attention_enabled;
 
-	uint32_t m_read_cursor;
-	char m_read_buffer[2000];
+	uint32_t m_cursor;
+	char m_buffer[2000]; // really only need 1056 here.
 
 	uint8 m_calendar_ctrl;
 };
