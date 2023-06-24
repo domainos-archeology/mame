@@ -396,7 +396,7 @@ void hd63450_device::single_transfer(int x)
 					datasize = 1;
 					break;
 				case 0x10:   // 16 bit
-					LOG("DMA#%i: word transfer %08lx -> %08lx\n",x,m_reg[x].mar,m_reg[x].dar);				data = space.read_word(m_reg[x].dar);  // read from device address
+					LOG("DMA#%i: word transfer %08lx -> %08lx\n",x,m_reg[x].mar,m_reg[x].dar);
 					data = m_dma_read[x](m_reg[x].mar);
 					if (data == -1)
 						return;  // not ready to receive data
@@ -437,7 +437,8 @@ void hd63450_device::single_transfer(int x)
 				datasize = 1;
 				break;
 			case 0x10:  // 16 bit
-              LOG("DMA#%i: word transfer %08lx -> %08lx\n",x,m_reg[x].mar,m_reg[x].dar);				data = space.read_word(m_reg[x].dar);  // read from device address
+              LOG("DMA#%i: word transfer %08lx -> %08lx\n",x,m_reg[x].mar,m_reg[x].dar);
+				data = space.read_word(m_reg[x].dar);  // read from device address
 				space.write_word(m_reg[x].mar, data);  // write to memory address
 				datasize = 2;
 				break;
@@ -549,6 +550,7 @@ void hd63450_device::single_transfer(int x)
 			m_reg[x].mar = m_reg[x].bar;
 			m_reg[x].mtc = m_reg[x].btc;
 			m_reg[x].csr |= 0x40;
+			m_reg[x].ccr &= ~0x40;
 			set_irq(x);
 			return;
 		}
