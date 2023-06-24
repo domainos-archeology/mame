@@ -119,6 +119,8 @@
 // NOTES from EH87:
 //  Except for BROADCAST, these bits are software defined.
 
+#define DEFAULT_NODE_ID 0x12345
+
 DEFINE_DEVICE_TYPE(APOLLO_DN300_RING_CTRLR, apollo_dn300_ring_ctrlr_device, APOLLO_DN300_RING_TAG, "Apollo DN300 Ring controller")
 
 apollo_dn300_ring_ctrlr_device::apollo_dn300_ring_ctrlr_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock):
@@ -128,6 +130,10 @@ apollo_dn300_ring_ctrlr_device::apollo_dn300_ring_ctrlr_device(const machine_con
 	rcv_data_drq_wr_cb(*this),
 	transmit_data_drq_wr_cb(*this)
 {
+	m_id[3] = 0x00;
+	m_id[2] = 0x01;
+	m_id[1] = 0x23;
+	m_id[0] = 0x45;
 }
 
 void
@@ -241,7 +247,7 @@ apollo_dn300_ring_ctrlr_device::id_r(offs_t offset, uint8_t mem_mask)
 {
 	uint8_t data = m_id[offset / 2] & mem_mask;
     SLOG1(("DN300_RING: reading node_id at offset %02x & %08x = %02x", offset, mem_mask, data));
-    return 0;
+    return data;
 }
 
 uint8_t
