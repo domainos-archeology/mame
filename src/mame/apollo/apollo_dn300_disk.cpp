@@ -28,6 +28,7 @@
 #define DN300_DISK0_TAG "dn300_disk0"
 #define DN300_DISK1_TAG "dn300_disk1"
 
+#define PULSE_DRQ() do { drq_cb(true); drq_cb(false); } while (0)
 
 static void floppies(device_slot_interface &device)
 {
@@ -297,7 +298,7 @@ apollo_dn300_disk_ctrlr_device::map(address_map &map)
 
 	// standard floppy controller
 	map(0x10, 0x11).r(FUNC(apollo_dn300_disk_ctrlr_device::fdc_msr_r));
-	map(0x12, 0x13).rw(m_fdc, FUNC(upd765a_device::fifo_r), FUNC(upd765a_device::fifo_w));
+	map(0x12, 0x12).rw(m_fdc, FUNC(upd765a_device::fifo_r), FUNC(upd765a_device::fifo_w));
 	map(0x14, 0x15).w(FUNC(apollo_dn300_disk_ctrlr_device::fdc_control_w));
 
     // our rtc
@@ -315,6 +316,7 @@ TIMER_CALLBACK_MEMBER(apollo_dn300_disk_ctrlr_device::trigger_interrupt)
 void
 apollo_dn300_disk_ctrlr_device::fdc_irq(int state)
 {
+	SLOG1(("DN300_DISK: floppy irq %d", state));
 	if (state) {
 		m_controller_status_high |= CONTROLLER_STATUS_HIGH_FLOPPY_INTERRUPTING;
 	}
@@ -327,7 +329,7 @@ uint8_t
 apollo_dn300_disk_ctrlr_device::fdc_msr_r(offs_t, uint8_t mem_mask)
 {
 	uint8_t fdc_status = m_fdc->msr_r();
-	SLOG1(("DN300_DISK: floppy msr = %02x (mask %02x)", fdc_status, mem_mask));
+	SLOG1(("DN300_DISK: floppy msr read= %02x (mask %02x)", fdc_status, mem_mask));
 
 	// EH87 says reading the floppy status reg clears this bit, but I wonder if
 	// it shouldn't be a side effect of the controller clearing the irq line?
@@ -340,16 +342,27 @@ void
 apollo_dn300_disk_ctrlr_device::fdc_control_w(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
 	SLOG1(("DN300_DISK: floppy control write = %02x (mask %02x)", data, mem_mask));
-	if (data & 0x02) {
+
+	m_fdc_control = data;
+
+	if (m_fdc_control & 0x02) {
 		SLOG1(("DN300_DISK:   floppy interrupt enabled"));
 	}
-	if (data & 0x01) {
+	if (m_fdc_control & 0x01) {
 		SLOG1(("DN300_DISK:   floppy WRITE"));
 	} else {
 		SLOG1(("DN300_DISK:   floppy READ"));
+
+		// 0x200 for the second operation
+		for (int i = 0; i < 0x200; i++) {
+			PULSE_DRQ();
+		}
 	}
 
-	m_fdc_control = data;
+	// if irq is enabled we should trigger it here
+	if (m_fdc_control & 0x02) {
+		irq_cb(ASSERT_LINE);
+	}
 }
 
 void
@@ -461,6 +474,8 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
     SLOG1(("DN300_DISK: execute_command %02x (%s)", m_controller_command, command_names[m_controller_command]))
     switch (m_controller_command) {
         case WDC_CONTROLLER_CMD_NOOP:
+			// clear pending interrupts?
+			m_timer->adjust(attotime::never);
             break;
 
         case WDC_CONTROLLER_CMD_READ_RECORD: {
@@ -481,7 +496,6 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
 
             m_cursor = 0;
 
-#define PULSE_DRQ() do { drq_cb(true); drq_cb(false); } while (0)
             // 0x10 for the first operation
             for (int i = 0; i < 0x10; i++) {
                 PULSE_DRQ();
@@ -498,15 +512,15 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
 
 			if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_END_OF_OP) {
 	            m_controller_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
-				SLOG1(("DN300_DISK:    irqctrl end of op set, interrupting in 1ms"));
+				SLOG1(("DN300_DISK:    irqctrl end of op set, interrupting in 10ms"));
                 need_interrupt = true;
-				command_duration = 1;
+				command_duration = 10;
             }
             if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_STATUS_AVAIL) {
                 m_controller_status_high |= CONTROLLER_STATUS_HIGH_STATUS_AVAILABLE_INTERRUPT;
-				SLOG1(("DN300_DISK:    irqctrl status avail set, interrupting in 1ms"));
+				SLOG1(("DN300_DISK:    irqctrl status avail set, interrupting in 10ms"));
                 need_interrupt = true;
-				command_duration = 1;
+				command_duration = 10;
 			}
 
 			if (!need_interrupt) {
@@ -550,15 +564,15 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
 
 			if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_END_OF_OP) {
 	            m_controller_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
-				SLOG1(("DN300_DISK:    irqctrl end of op set, interrupting in 1ms"));
+				SLOG1(("DN300_DISK:    irqctrl end of op set, interrupting in 10ms"));
                 need_interrupt = true;
-				command_duration = 1;
+				command_duration = 10;
             }
             if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_STATUS_AVAIL) {
                 m_controller_status_high |= CONTROLLER_STATUS_HIGH_STATUS_AVAILABLE_INTERRUPT;
-				SLOG1(("DN300_DISK:    irqctrl status avail set, interrupting in 1ms"));
+				SLOG1(("DN300_DISK:    irqctrl status avail set, interrupting in 10ms"));
                 need_interrupt = true;
-				command_duration = 1;
+				command_duration = 10;
 			}
 
 			if (!need_interrupt) {

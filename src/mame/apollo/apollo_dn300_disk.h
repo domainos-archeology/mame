@@ -65,7 +65,7 @@ private:
 
 	required_device<msm5832_device> m_rtc;
 	required_device<upd765a_device> m_fdc;
-	optional_device_array<floppy_connector, 2> m_floppy;
+	optional_device_array<floppy_connector, 1> m_floppy;
 	bool m_floppy_drq_state;
 
 	uint8_t m_wdc_ansi_cmd;
