@@ -186,13 +186,13 @@ void hd63450_device::write(offs_t offset, uint16_t data, uint16_t mem_mask)
 			m_reg[channel].ocr = data & 0x00ff;
 			LOG("DMA#%i:  Operation Control write : %02x\n",channel,m_reg[channel].ocr);
 			if ((m_reg[channel].ocr & 0x30) == 0) {
-				LOG("DMA#%i:  data size = byte\n");
+				LOG("DMA#%i:  data size = byte\n", channel);
 			} else if ((m_reg[channel].ocr & 0x30) == 0x10) {
-				LOG("DMA#%i:  data size = word\n");
+				LOG("DMA#%i:  data size = word\n", channel);
 			} else if ((m_reg[channel].ocr & 0x30) == 0x20) {
-				LOG("DMA#%i:  data size = long\n");
+				LOG("DMA#%i:  data size = long\n", channel);
 			} else if ((m_reg[channel].ocr & 0x30) == 0x30) {
-				LOG("DMA#%i:  data size = 8 bit packed?\n");
+				LOG("DMA#%i:  data size = 8 bit packed?\n", channel);
 			}
 		}
 		break;
@@ -326,7 +326,7 @@ void hd63450_device::dma_transfer_start(int channel)
 
 	m_transfer_size[channel] = m_reg[channel].mtc;
 
-	LOG("DMA: Transfer begins: size=0x%08x\n",m_transfer_size[channel]);
+	LOG("DMA#%i: Transfer begins: size=0x%08x\n",channel,m_transfer_size[channel]);
 }
 
 void hd63450_device::set_timer(int channel, const attotime &tm)
