@@ -69,16 +69,20 @@ private:
 	devcb_write_line transmit_data_drq_wr_cb;
 
 	uint16_t m_xmit_status;
-	//uint16_t m_xmit_command;
+	uint16_t m_xmit_command;
 	uint16_t m_rcv_status;
-	//uint16_t m_rcv_command;
+	uint16_t m_rcv_command;
 	uint8_t m_tmask;
 	uint16_t m_diag_status;
-	//uint16_t m_diag_command;
+	uint16_t m_diag_command;
 	uint16_t m_ring_id_msb;
 	uint16_t m_ring_id_lsb;
 	// 4 bytes of id, msb first
 	uint8_t m_id[4];
+
+
+	uint8_t m_buffer[2000];
+	int m_cursor;
 };
 
 // device type definition

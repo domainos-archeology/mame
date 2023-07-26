@@ -121,6 +121,8 @@
 
 #define DEFAULT_NODE_ID 0x12345
 
+#define PULSE_DRQ(cb) do { cb(true); cb(false); } while (0)
+
 DEFINE_DEVICE_TYPE(APOLLO_DN300_RING_CTRLR, apollo_dn300_ring_ctrlr_device, APOLLO_DN300_RING_TAG, "Apollo DN300 Ring controller")
 
 apollo_dn300_ring_ctrlr_device::apollo_dn300_ring_ctrlr_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock):
@@ -128,17 +130,30 @@ apollo_dn300_ring_ctrlr_device::apollo_dn300_ring_ctrlr_device(const machine_con
 	irq_cb(*this),
 	rcv_header_drq_wr_cb(*this),
 	rcv_data_drq_wr_cb(*this),
-	transmit_data_drq_wr_cb(*this)
+	transmit_data_drq_wr_cb(*this),
+	m_xmit_status(0),
+	m_xmit_command(0),
+	m_rcv_status(0),
+	m_rcv_command(0),
+	m_tmask(0),
+	m_diag_status(0),
+	m_diag_command(0),
+	m_ring_id_msb(0),
+	m_ring_id_lsb(0),
+	m_cursor(0)
 {
-	m_id[3] = 0x00;
-	m_id[2] = 0x01;
-	m_id[1] = 0x23;
-	m_id[0] = 0x45;
+	m_id[3] = 0x8a;
+	m_id[2] = 0x46;
+	m_id[1] = 0x02;
+	m_id[0] = 0x00;
 }
 
 void
 apollo_dn300_ring_ctrlr_device::device_start()
 {
+	rcv_header_drq_wr_cb.resolve();
+	rcv_data_drq_wr_cb.resolve();
+	transmit_data_drq_wr_cb.resolve();
 }
 
 void
@@ -162,6 +177,28 @@ void
 apollo_dn300_ring_ctrlr_device::xmit_command_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
     SLOG1(("DN300_RING: writing xmit_command at offset %02x = %04x & %08x", offset, data, mem_mask));
+
+	uint16_t old_command = m_xmit_command;
+	m_xmit_command = data; // XXX find the macro that aggregates it
+	if ((old_command & XMIT_COMMAND_ENABLE) == 0 && (m_xmit_command & XMIT_COMMAND_ENABLE) != 0) {
+		// starting a transmit.  we'll do it synchronously.
+
+		m_xmit_status = XMIT_STATUS_BUSY;
+
+		m_cursor = 0;
+		for (int i = 0; i < 0x14; i ++) {
+			SLOG1(("pulsing #%i", i));
+			PULSE_DRQ(transmit_data_drq_wr_cb);
+		}
+
+		for (int i = 0; i < 0x14; i ++) {
+			SLOG1(("pkt[%02x] = %02x", i, m_buffer[i]));
+		}
+
+		// skip the WACK and just say someone got it?
+
+		m_xmit_status = XMIT_STATUS_IOCOPY | XMIT_STATUS_COPY;
+	}
 }
 
 uint16_t
@@ -169,13 +206,18 @@ apollo_dn300_ring_ctrlr_device::xmit_status_r(offs_t offset, uint16_t mem_mask)
 {
 	uint16_t data = m_xmit_status & mem_mask;
     SLOG1(("DN300_RING: reading xmit_status at offset %02x & %08x = %04x", offset, mem_mask, data));
-    return 0;
+    return data;
 }
 
 void
 apollo_dn300_ring_ctrlr_device::rcv_command_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
     SLOG1(("DN300_RING: writing rcv_command at offset %02x = %04x & %08x", offset, data, mem_mask));
+	uint16_t old_command = m_rcv_command;
+	m_rcv_command = data; // XXX find the macro that aggregates it
+	if ((old_command & RCV_COMMAND_ENABLE) == 0 && (m_rcv_command & RCV_COMMAND_ENABLE) != 0) {
+		// receiving
+	}
 }
 
 uint16_t
@@ -183,7 +225,7 @@ apollo_dn300_ring_ctrlr_device::rcv_status_r(offs_t offset, uint16_t mem_mask)
 {
 	uint16_t data = m_rcv_status & mem_mask;
     SLOG1(("DN300_RING: reading rcv_status at offset %02x & %08x = %04x", offset, mem_mask, data));
-    return 0;
+    return data;
 }
 
 void
@@ -197,7 +239,7 @@ apollo_dn300_ring_ctrlr_device::tmask_r(offs_t offset, uint8_t mem_mask)
 {
 	uint8_t data = m_tmask & mem_mask;
     SLOG1(("DN300_RING: reading tmask at offset %02x & %08x = %02x", offset, mem_mask, data));
-    return 0;
+    return data;
 }
 
 void
@@ -225,7 +267,7 @@ apollo_dn300_ring_ctrlr_device::diag_status_r(offs_t offset, uint16_t mem_mask)
 {
 	uint16_t data = m_diag_status & mem_mask;
     SLOG1(("DN300_RING: reading diag_status at offset %02x & %08x = %04x", offset, mem_mask, data));
-    return 0;
+    return data;
 }
 
 void
@@ -239,7 +281,7 @@ apollo_dn300_ring_ctrlr_device::ring_id_r(offs_t offset, uint16_t mem_mask)
 {
 	uint8_t data = (offset == 0 ? m_ring_id_msb : m_ring_id_lsb) & mem_mask;
     SLOG1(("DN300_RING: reading ring_id at offset %02x & %08x = %04x", offset, mem_mask, data));
-    return 0;
+    return data;
 }
 
 uint8_t
@@ -253,7 +295,7 @@ apollo_dn300_ring_ctrlr_device::id_r(offs_t offset, uint8_t mem_mask)
 uint8_t
 apollo_dn300_ring_ctrlr_device::rcv_header_read_byte(offs_t offset)
 {
-	uint8_t data = 0;
+	uint8_t data = m_buffer[m_cursor++];
     SLOG1(("DN300_RING: ring rcv_header_read_byte offset %02x = %02x", offset, data));
 	return data;
 }
@@ -262,12 +304,13 @@ void
 apollo_dn300_ring_ctrlr_device::rcv_header_write_byte(offs_t offset, uint8_t data)
 {
     SLOG1(("ring rcv_header_write_byte at offset %02x = %02x", offset, data));
+	m_buffer[m_cursor++] = data;
 }
 
 uint8_t
 apollo_dn300_ring_ctrlr_device::rcv_data_read_byte(offs_t offset)
 {
-	uint8_t data = 0;
+	uint8_t data = m_buffer[m_cursor++];
     SLOG1(("DN300_RING: ring rcv_data_read_byte offset %02x = %02x & %08x", offset, data));
 	return data;
 }
@@ -276,12 +319,13 @@ void
 apollo_dn300_ring_ctrlr_device::rcv_data_write_byte(offs_t offset, uint8_t data)
 {
     SLOG1(("DN300_RING: ring rcv_data_write_byte at offset %02x = %02x", offset, data));
+	m_buffer[m_cursor++] = data;
 }
 
 uint8_t
 apollo_dn300_ring_ctrlr_device::transmit_read_byte(offs_t offset)
 {
-	uint8_t data = 0;
+	uint8_t data = m_buffer[m_cursor++];
     SLOG1(("DN300_RING: ring transmit_read_byte offset %02x = %02x & %08x", offset, data));
 	return data;
 }
@@ -290,4 +334,6 @@ void
 apollo_dn300_ring_ctrlr_device::transmit_write_byte(offs_t offset, uint8_t data)
 {
     SLOG1(("DN300_RING: ring transmit_write_byte at offset %02x = %02x", offset, data));
+	SLOG1(("cursor = %d, m_buffer = %p", m_cursor, m_buffer))
+	m_buffer[m_cursor++] = data;
 }

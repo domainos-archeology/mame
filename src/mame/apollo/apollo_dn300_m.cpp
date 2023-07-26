@@ -441,7 +441,7 @@ void apollo_dn300_ni::set_node_id_from_disk()
 }
 
 //##########################################################################
-// machine/apollo_dn300.c - APOLLO_DN300 DS3500 CPU Board
+// machine/apollo_dn300.c - APOLLO_DN300 CPU Board
 //##########################################################################
 
 #undef VERBOSE
