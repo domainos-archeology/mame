@@ -463,9 +463,34 @@ void hd63450_device::single_transfer(int x)
 	{
 		if (!m_dma_write[x].isnull())
 		{
-			data = space.read_byte(m_reg[x].mar);
-			m_dma_write[x]((offs_t)m_reg[x].mar,data);
-			datasize = 1;
+			switch(m_reg[x].ocr & 0x30)  // operation size
+			{
+			case 0x00:  // 8 bit
+				data = space.read_byte(m_reg[x].mar);
+				m_dma_write[x]((offs_t)m_reg[x].mar,data);
+				datasize = 1;
+				break;
+			case 0x10:  // 16 bit
+				data = space.read_word(m_reg[x].mar);
+				m_dma_write[x]((offs_t)m_reg[x].mar,data >> 8);
+				m_dma_write[x]((offs_t)m_reg[x].mar+1,data & 0xff);
+				datasize = 2;
+				break;
+			case 0x20:  // 32 bit
+				data = space.read_word(m_reg[x].mar) << 16;
+				data |= space.read_word(m_reg[x].mar+2);
+				m_dma_write[x]((offs_t)m_reg[x].mar,data >> 24);
+				m_dma_write[x]((offs_t)m_reg[x].mar+1,(data >> 16) & 0xff);
+				m_dma_write[x]((offs_t)m_reg[x].mar+2,(data >> 8) & 0xff);
+				m_dma_write[x]((offs_t)m_reg[x].mar+3,data & 0xff);
+				datasize = 4;
+				break;
+			case 0x30:  // 8 bit packed (?)
+				data = space.read_byte(m_reg[x].mar);
+				m_dma_write[x]((offs_t)m_reg[x].mar,data);
+				datasize = 1;
+				break;
+			}
 		}
 		else
 		{
