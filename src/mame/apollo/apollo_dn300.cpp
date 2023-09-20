@@ -148,6 +148,10 @@ uint8_t apollo_dn300_get_ram_config_byte(void) {
 
 void apollo_dn300_state::apollo_bus_error(offs_t fault_addr, u8 rw)
 {
+	if (machine().side_effects_disabled()) {
+		return;
+	}
+
 	SLOG1(("apollo_bus_error: fault_addr = %08x, rw = %d", fault_addr, rw));
 
 	// a non-restartable bus error
@@ -475,12 +479,6 @@ void apollo_dn300_state::machine_reset()
 	MLOG1(("machine_reset"));
 
 	MACHINE_RESET_CALL_MEMBER(apollo_dn300);
-
-	if (apollo_dn300_config(APOLLO_DN300_CONF_NODE_ID))
-	{
-		// set node ID from UID of logical volume 1 of logical unit 0
-		m_node_id->set_node_id_from_disk();
-	}
 }
 
 WRITE_LINE_MEMBER(apollo_dn300_state::apollo_reset_instr_callback)
@@ -638,7 +636,7 @@ ROM_END
     GAME DRIVERS
  ***************************************************************************/
 
-#define DN_FLAGS MACHINE_NO_SOUND
+#define DN_FLAGS 0
 
 /*    YEAR  NAME       PARENT  COMPAT  MACHINE  INPUT   CLASS               INIT         COMPANY   FULLNAME         FLAGS */
 COMP( 1983, dn300,     0,      0,      dn300,   dn300,  apollo_dn300_state, init_dn300,  "Apollo", "Apollo DN300",  DN_FLAGS )

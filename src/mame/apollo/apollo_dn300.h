@@ -93,7 +93,6 @@ void apollo_dn300_set_cache_status_register(device_t *device,uint8_t mask, uint8
 #define APOLLO_DN300_RTC_TAG  "rtc"
 #define APOLLO_DN300_SIO_TAG  "sio"
 #define APOLLO_DN300_ACIA_TAG  "acia"
-#define APOLLO_DN300_NI_TAG  "node_id"
 #define APOLLO_DN300_SCREEN_TAG "apollo_dn300_screen"
 #define APOLLO_DN300_KBD_TAG  "keyboard"
 #define APOLLO_DN300_MMU_TAG "apollo_dn300_mmu"
@@ -116,7 +115,6 @@ void apollo_dn300_set_cache_status_register(device_t *device,uint8_t mask, uint8
 #define APOLLO_DN300_DMA_DISK 3
 
 // forward declaration
-class apollo_dn300_ni;
 class apollo_dn300_graphics;
 class apollo_dn300_kbd_device;
 class apollo_dn300_mmu_device;
@@ -136,7 +134,6 @@ public:
 		m_sio(*this, APOLLO_DN300_SIO_TAG),
 		m_acia(*this, APOLLO_DN300_ACIA_TAG),
 		m_rtc(*this, APOLLO_DN300_RTC_TAG),
-		m_node_id(*this, APOLLO_DN300_NI_TAG),
 		m_graphics(*this, APOLLO_DN300_SCREEN_TAG),
 		m_keyboard(*this, APOLLO_DN300_KBD_TAG),
 		m_mmu(*this, APOLLO_DN300_MMU_TAG),
@@ -167,7 +164,6 @@ public:
 	required_device<scn2681_device> m_sio;
 	required_device<acia6850_device> m_acia;
 	optional_device<mc146818_device> m_rtc;
-	required_device<apollo_dn300_ni> m_node_id;
 	required_device<apollo_dn300_graphics> m_graphics;
 	optional_device<apollo_dn300_kbd_device> m_keyboard;
 	required_device<apollo_dn300_mmu_device> m_mmu;
@@ -270,50 +266,6 @@ INPUT_PORTS_EXTERN(apollo_dn300_config);
 uint8_t apollo_dn300_mcsr_get_control_register(void);
 uint16_t apollo_dn300_mcsr_get_status_register(void);
 void apollo_dn300_mcsr_set_status_register(uint16_t mask, uint16_t data);
-
-/*----------- machine/apollo_dn300_ni.cpp -----------*/
-
-
-/*** Apollo_dn300 Node ID device ***/
-
-class apollo_dn300_ni: public device_t, public device_image_interface
-{
-public:
-	// construction/destruction
-	apollo_dn300_ni(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-	virtual ~apollo_dn300_ni();
-
-	// image-level overrides
-	virtual bool is_readable()  const noexcept override { return true; }
-	virtual bool is_writeable() const noexcept override { return true; }
-	virtual bool is_creatable() const noexcept override { return true; }
-	virtual bool is_reset_on_load() const noexcept override { return false; }
-	virtual bool support_command_line_image_creation() const noexcept override { return true; }
-	virtual const char *file_extensions() const noexcept override { return "ani,bin"; }
-
-	virtual image_init_result call_load() override;
-	virtual image_init_result call_create(int format_type, util::option_resolution *format_options) override;
-	virtual void call_unload() override;
-	virtual const char *image_type_name() const noexcept override { return "node_id"; }
-	virtual const char *image_brief_type_name() const noexcept override { return "ni"; }
-
-	void write(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
-	uint16_t read(offs_t offset, uint16_t mem_mask = ~0);
-
-	void set_node_id_from_disk();
-
-protected:
-	// device-level overrides
-	virtual void device_start() override;
-	virtual void device_reset() override;
-
-private:
-	void set_node_id(uint32_t node_id);
-	uint32_t m_node_id;
-};
-
-// device type definition
-DECLARE_DEVICE_TYPE(APOLLO_DN300_NI, apollo_dn300_ni)
 
 /*----------- video/apollo_dn300.cpp -----------*/
 
