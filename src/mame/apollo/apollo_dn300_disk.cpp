@@ -88,7 +88,7 @@ apollo_dn300_disk_ctrlr_device::apollo_dn300_disk_ctrlr_device(const machine_con
     , drq_cb(*this)
     , m_rtc(*this, APOLLO_DN300_RTC_TAG)
 	, m_fdc(*this, APOLLO_DN300_FLOPPY_TAG)
-    , m_floppy(*this, APOLLO_DN300_FLOPPY_TAG":%u", 0U)
+    , m_floppy(*this, APOLLO_DN300_FLOPPY_TAG":0")
 	, m_floppy_drq_state(false)
     , m_wdc_ansi_cmd(0)
     , m_wdc_ansi_parm(0)
