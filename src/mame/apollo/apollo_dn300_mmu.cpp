@@ -172,6 +172,7 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset, int intention) {
         cur_ppn = pfte_link;
     }
 
+#if VERBOSE > 0
     SLOG1(("failed to find mapping for address %08x, asid %d, ppn %d, xsvpn %d", byte_offset, m_asid, ppn, xsvpn));
     SLOG1(("pft chain:"));
     cur_ppn = ppn;
@@ -214,15 +215,18 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset, int intention) {
 
         cur_ppn = pfte_link;
     }
+#endif
 
-	SLOG1(("bus error due to PTT miss"));
-	// when we can't find a physical page, add this bit (Page fault) to our
-	// status so the FIM can tell why we bus errored.
-	m_status |= 0x40;
-	m_status |= 0x80;
-	// interrupt pending too?
+	if (!machine().side_effects_disabled()) {
+		SLOG1(("bus error due to PTT miss"));
+		// when we can't find a physical page, add this bit (Page fault) to our
+		// status so the FIM can tell why we bus errored.
+		m_status |= 0x40;
+		m_status |= 0x80;
+		// interrupt pending too?
 
-	m_cpu->set_buserror_details(byte_offset, (intention & TRANSLATE_READ) ? 1 : 0, m_cpu->get_fc(), false);
+		m_cpu->set_buserror_details(byte_offset, (intention & TRANSLATE_READ) ? 1 : 0, m_cpu->get_fc(), false);
+	}
     return 0;
 }
 
