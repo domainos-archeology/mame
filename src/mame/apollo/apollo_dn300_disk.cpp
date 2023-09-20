@@ -29,10 +29,10 @@
 #define DN300_DISK1_TAG "dn300_disk1"
 
 #define PULSE_DRQ() do { drq_cb(true); drq_cb(false); } while (0)
+#define PULSE_FLOPPY_DRQ(fdc) do { drq_cb(true); drq_cb(false); } while (0)
 
 static void floppies(device_slot_interface &device)
 {
-	device.option_add("8ssdd", FLOPPY_8_SSDD);
 	device.option_add("8dsdd", FLOPPY_8_DSDD);
 }
 
@@ -126,7 +126,7 @@ void apollo_dn300_disk_ctrlr_device::device_add_mconfig(machine_config &config)
 		m_floppy_drq_state = state;
 		drq_cb(state);
 	});
-	FLOPPY_CONNECTOR(config, m_floppy[0], floppies, "8dsdd", apollo_dn300_disk_ctrlr_device::floppy_formats);
+	FLOPPY_CONNECTOR(config, m_floppy, floppies, "8dsdd", apollo_dn300_disk_ctrlr_device::floppy_formats);
 
     MSM5832(config, m_rtc, 16_MHz_XTAL /* not sure about this clock.  there may be dividers.. */ );
 }
@@ -146,10 +146,19 @@ void apollo_dn300_disk_ctrlr_device::device_start()
     // save_item(NAME(drq));
     our_disks[0] = subdevice<ansi_disk_image_device>(DN300_DISK0_TAG);
     our_disks[1] = subdevice<ansi_disk_image_device>(DN300_DISK1_TAG);
+
+	// floppy_image_device *floppy = m_floppy->get_device();
+	// if (floppy != nullptr) {
+	// 	m_fdc->set_floppy(floppy);
+	// }
 }
 
 void apollo_dn300_disk_ctrlr_device::device_reset()
 {
+	// floppy_image_device *floppy = m_floppy->get_device();
+	// if (floppy != nullptr) {
+	// 	m_fdc->set_floppy(floppy);
+	// }
 }
 
 // winchester registers
@@ -353,15 +362,16 @@ apollo_dn300_disk_ctrlr_device::fdc_control_w(offs_t offset, uint8_t data, uint8
 	} else {
 		SLOG1(("DN300_DISK:   floppy READ"));
 
-		// 0x200 for the second operation
-		for (int i = 0; i < 0x200; i++) {
-			PULSE_DRQ();
-		}
-	}
+		// we shouldn't need these pulses here.  the upd765a emulator will do it for us.
 
-	// if irq is enabled we should trigger it here
-	if (m_fdc_control & 0x02) {
-		irq_cb(ASSERT_LINE);
+		// 0x200 * 2 for a 1k read.
+		// for (int i = 0; i < 0x200; i++) {
+		// 	PULSE_FLOPPY_DRQ(m_fdc);
+		// }
+		// if irq is enabled we should trigger it here
+		// if (m_fdc_control & 0x02) {
+		// 	irq_cb(ASSERT_LINE);
+		// }
 	}
 }
 
@@ -370,6 +380,27 @@ apollo_dn300_disk_ctrlr_device::calendar_ctrl_w(offs_t, uint8_t data, uint8_t me
 {
 	SLOG1(("DN300_DISK: calendar_ctrl write = %02x", data));
 	COMBINE_DATA(&m_calendar_ctrl);
+
+	// not sure if this CS line handling is correct.  I expect if I trace the CS
+	// line on the board I'll find that it routes directly to Vcc/GND depending
+	// on its sense.  But this should be ~the same.
+	if (m_calendar_ctrl) {
+		m_rtc->cs_w(1);
+	} else {
+		m_rtc->cs_w(0);
+	}
+
+	// I think this is wrong, but it's as close as I can get without more local
+	// handling of the read/write data registers.  The timing diagrams in the
+	// MSM5832 datasheet give the order in which these lines should be asserted,
+	// but in the write case the data lines need to be holding their value
+	// before the write line is asserted.  This will only happen if the emulated
+	// code writes the data before writing to this control address, and I'm not
+	// sure we can guarantee that happens.
+	m_rtc->hold_w(m_calendar_ctrl & 0x01);
+	m_rtc->read_w((m_calendar_ctrl >> 2) & 0x01);
+	m_rtc->address_w(m_calendar_ctrl >> 4);
+	m_rtc->write_w((m_calendar_ctrl >> 1) & 0x01);
 }
 
 void apollo_dn300_disk_ctrlr_device::wdc_write(offs_t offset, uint8_t data, uint8_t mem_mask)
@@ -491,6 +522,12 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
             SLOG1(("DN300_DISK:    CMD_READ_RECORD for drive %d sector %d on cylinder %d and head %d", m_wdc_selected_drive, m_wdc_sector, cylinder, m_wdc_head));
             SLOG1(("DN300_DISK:    linearized as logical sector address %d", sector));
 
+			if (!disk) {
+				SLOG1(("%p: disk is null?", this));
+			}
+			if (!disk->m_image) {
+				SLOG1(("%p: disk image is null?", this));
+			}
             disk->m_image->fseek(sector * HARD_DISK_SECTOR_SIZE, SEEK_SET);
             disk->m_image->fread(m_buffer, HARD_DISK_SECTOR_SIZE);
 
@@ -554,6 +591,20 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
             for (int i = 0; i < 0x200; i++) {
                 PULSE_DRQ();
             }
+
+			SLOG1(("writing buffer to disk:"))
+			int idx = 0;
+			for (int i = 0; i < 1056/16; i++) {
+				std::ostringstream line;
+				// util::string_format(line, "%08x: ", idx + 0x420);
+				for (int j = 0; j < 16; j ++) {
+					util::stream_format(line, "%02x ", m_buffer[idx++]);
+					if (j == 7) {
+						line << " ";
+					}
+				}
+				SLOG1((line.str().c_str()));
+			}
 
             disk->m_image->fseek(sector * HARD_DISK_SECTOR_SIZE, SEEK_SET);
             disk->m_image->fwrite(m_buffer, HARD_DISK_SECTOR_SIZE);
@@ -644,6 +695,7 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
 
         case WDC_CONTROLLER_CMD_EXEC_DRIVE_SELECT:
             m_wdc_selected_drive = m_wdc_ansi_parm;
+			SLOG1(("DN300_DISK: selecting disk %d\n", m_wdc_selected_drive))
             break;
 
         case WDC_CONTROLLER_CMD_EXEC_ATTENTION:
@@ -835,15 +887,17 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
             m_wdc_ansi_parm = m_wdc_general_status;
             break;
 
-        case ANSI_CMD_REPORT_ATTRIBUTE:
+        case ANSI_CMD_REPORT_ATTRIBUTE: {
 			SLOG1(("DN300_DISK:    ansicmd REPORT_ATTRIBUTE"));
             // This command shall cause the selected device to return a byte of
             // information that is the Device Attribute whose number was defined
             // in the Load Attribute Number Command (see Section 4.1.6). The
             // contents of the byte is defined by Table 4-3 and Section 4.3.
             SLOG1(("ANSI_CMD_REPORT_ATTRIBUTE attribute=%02x", m_wdc_ansi_attribute_number));
-            m_wdc_ansi_parm = our_disks[m_wdc_selected_drive]->report_attribute(m_wdc_ansi_attribute_number);
+            ansi_disk_image_device *disk = our_disks[m_wdc_selected_drive-1];
+            m_wdc_ansi_parm = disk->report_attribute(m_wdc_ansi_attribute_number);
             break;
+		}
 
         case ANSI_CMD_SET_ATTENTION:
 			SLOG1(("DN300_DISK:    ansicmd SET_ATTENTION"));
@@ -1063,16 +1117,18 @@ void apollo_dn300_disk_ctrlr_device::execute_ansi_command()
 			m_wdc_ansi_attribute_number = m_wdc_ansi_parm;
             break;
 
-        case ANSI_CMD_LOAD_ATTRIBUTE:
+        case ANSI_CMD_LOAD_ATTRIBUTE: {
 			SLOG1(("DN300_DISK:    ansicmd LOAD_ATTRIBUTE"));
             // This command shall condition the selected device to accept the
             // Parameter Byte as the new value of a Device Attribute. The number
             // of the Device Attribute must have been previously defined by the
             // Load Attribute Number Command (see Section 4.1.6).
             SLOG1(("ANSI_CMD_LOAD_ATTRIBUTE attribute=%02x, value=%02x", m_wdc_ansi_attribute_number, m_wdc_ansi_parm))
-            our_disks[m_wdc_selected_drive]->load_attribute(m_wdc_ansi_attribute_number, m_wdc_ansi_parm);
+            ansi_disk_image_device *disk = our_disks[m_wdc_selected_drive-1];
+            disk->load_attribute(m_wdc_ansi_attribute_number, m_wdc_ansi_parm);
 			SLOG1(("  + done"));
             break;
+		}
 
         case ANSI_CMD_SPIN_CONTROL:
 			SLOG1(("DN300_DISK:    ansicmd SPIN_CONTROL"));
@@ -1169,7 +1225,7 @@ uint8_t apollo_dn300_disk_ctrlr_device::read_byte(offs_t offset)
 		SLOG1(("DN300_DISK: reading disk DMA from FDC FIFO offset %d.  data = %02x", offset, data));
 		return data;
 	}
-    // SLOG1(("reading disk DMA from offset %02x -> %02x", m_cursor, _unused_offset));
+    SLOG1(("DN300_DISK: reading disk DMA from offset %02x -> %02x", m_cursor, offset));
     // send back the byte pointed to by the cursor
     return m_buffer[m_cursor++];
 }
@@ -1248,6 +1304,7 @@ void ansi_disk_image_device::logerror(Format &&fmt, Params &&... args) const
 
 void ansi_disk_image_device::device_start()
 {
+	logerror("ansi_disk_image_device(%p)::device_start\n", this);
 	m_image = this;
 
 	if (!m_image->is_open())
@@ -1269,7 +1326,7 @@ void ansi_disk_image_device::device_start()
 
 void ansi_disk_image_device::device_reset()
 {
-	logerror("device_reset_ansi_disk\n");
+	logerror("ansi_disk_image_device(%p)::device_reset\n", this);
 
 	if (exists() && !fseek(0, SEEK_END))
 	{

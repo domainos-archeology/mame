@@ -47,8 +47,8 @@ protected:
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
-	static constexpr unsigned DN300_MAX_DISK = 1;
-	ansi_disk_image_device *our_disks[DN300_MAX_DISK+1];
+	static constexpr unsigned DN300_MAX_DISK = 2;
+	ansi_disk_image_device *our_disks[DN300_MAX_DISK];
 
 private:
 	static void floppy_formats(format_registration &fr);
@@ -65,7 +65,7 @@ private:
 
 	required_device<msm5832_device> m_rtc;
 	required_device<upd765a_device> m_fdc;
-	optional_device_array<floppy_connector, 1> m_floppy;
+	required_device<floppy_connector> m_floppy;
 	bool m_floppy_drq_state;
 
 	uint8_t m_wdc_ansi_cmd;
