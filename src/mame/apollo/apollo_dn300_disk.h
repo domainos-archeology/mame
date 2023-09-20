@@ -32,6 +32,8 @@ public:
 	void fdc_control_w(offs_t offset, uint8_t data, uint8_t mem_mask);
 
 	void calendar_ctrl_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
+	void calendar_data_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
+	uint8_t calendar_data_r(offs_t offset, uint8_t mem_mask = ~0);
 
 	auto irq_callback() { return irq_cb.bind(); }
 	auto drq_wr_callback() { return drq_cb.bind(); }

@@ -312,8 +312,8 @@ apollo_dn300_disk_ctrlr_device::map(address_map &map)
 
     // our rtc
 	map(0x20, 0x21).w(FUNC(apollo_dn300_disk_ctrlr_device::calendar_ctrl_w));
-	map(0x22,0x23).w(m_rtc, FUNC(msm5832_device::data_w));
-	map(0x24,0x25).r(m_rtc, FUNC(msm5832_device::data_r));
+	map(0x22, 0x23).w(FUNC(apollo_dn300_disk_ctrlr_device::calendar_data_w));
+	map(0x24, 0x25).r(FUNC(apollo_dn300_disk_ctrlr_device::calendar_data_r));
 }
 
 TIMER_CALLBACK_MEMBER(apollo_dn300_disk_ctrlr_device::trigger_interrupt)
@@ -401,6 +401,18 @@ apollo_dn300_disk_ctrlr_device::calendar_ctrl_w(offs_t, uint8_t data, uint8_t me
 	m_rtc->read_w((m_calendar_ctrl >> 2) & 0x01);
 	m_rtc->address_w(m_calendar_ctrl >> 4);
 	m_rtc->write_w((m_calendar_ctrl >> 1) & 0x01);
+}
+
+void
+apollo_dn300_disk_ctrlr_device::calendar_data_w(offs_t offset, uint8_t data, uint8_t mem_mask)
+{
+	m_rtc->data_w(~data);
+}
+
+uint8_t
+apollo_dn300_disk_ctrlr_device::calendar_data_r(offs_t offset, uint8_t mem_mask)
+{
+	return ~m_rtc->data_r();
 }
 
 void apollo_dn300_disk_ctrlr_device::wdc_write(offs_t offset, uint8_t data, uint8_t mem_mask)
