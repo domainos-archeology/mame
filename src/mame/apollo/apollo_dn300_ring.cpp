@@ -119,6 +119,7 @@
 // NOTES from EH87:
 //  Except for BROADCAST, these bits are software defined.
 
+// TODO decompose this down into m_id below.
 #define DEFAULT_NODE_ID 0x12345
 
 #define PULSE_DRQ(cb) do { cb(true); cb(false); } while (0)
@@ -142,10 +143,10 @@ apollo_dn300_ring_ctrlr_device::apollo_dn300_ring_ctrlr_device(const machine_con
 	m_ring_id_lsb(0),
 	m_cursor(0)
 {
-	m_id[3] = 0x8a;
-	m_id[2] = 0x46;
-	m_id[1] = 0x02;
 	m_id[0] = 0x00;
+	m_id[1] = 0x01;
+	m_id[2] = 0x23;
+	m_id[3] = 0x45;
 }
 
 void
