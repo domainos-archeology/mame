@@ -253,13 +253,17 @@ void apollo_ansi_disk_image_device::read_record(uint8_t sector)
 
     // 0x10 words for the first operation
     for (int i = 0; i < 0x10; i++) {
+        osd_sleep(osd_ticks_per_second() / (1e6) * 1.1);
         cur_read_data_cb(this, m_buffer[m_cursor++]);
+        osd_sleep(osd_ticks_per_second() / (1e6) * 1.1);
         cur_read_data_cb(this, m_buffer[m_cursor++]);
     }
 
     // 0x200 words for the second operation
     for (int i = 0; i < 0x200; i++) {
+        osd_sleep(osd_ticks_per_second() / (1e6) * 1.1);
         cur_read_data_cb(this, m_buffer[m_cursor++]);
+        osd_sleep(osd_ticks_per_second() / (1e6) * 1.1);
         cur_read_data_cb(this, m_buffer[m_cursor++]);
     }
 

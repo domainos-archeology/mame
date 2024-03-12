@@ -168,6 +168,13 @@ void apollo_dn300_disk_ctrlr_device::ansi_disk0_read_data(apollo_ansi_disk_image
     if (m_cursor == 2) {
         m_cursor = 0;
         PULSE_DRQ();
+
+        m_read_record_word_count++;
+        if (m_read_record_word_count == HARD_DISK_SECTOR_SIZE / 2) {
+            // we're done with the read.  let the cpu know
+            end_of_controller_op();
+            return;
+        }
     }
 }
 
@@ -177,6 +184,15 @@ void apollo_dn300_disk_ctrlr_device::ansi_disk1_attention(apollo_ansi_disk_image
         m_controller_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
     } else {
         m_controller_status_high &= ~CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
+    }
+}
+
+void apollo_dn300_disk_ctrlr_device::end_of_controller_op() {
+    m_controller_status_high &= ~CONTROLLER_STATUS_HIGH_CONTROLLER_BUSY;
+    if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_END_OF_OP) {
+        SLOG1(("DN300_DISK_CTRLR:    irqctrl end of op set"));
+        m_controller_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
+        irq_cb(ASSERT_LINE);
     }
 }
 
@@ -443,31 +459,13 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
 
         case WDC_CONTROLLER_CMD_READ_RECORD: {
             apollo_ansi_disk_image_device *disk = our_disks[m_wdc_selected_drive-1];
+
+            // we're busy reading
+            m_controller_status_high |= CONTROLLER_STATUS_HIGH_CONTROLLER_BUSY;
+
+            // we'll signal the end of the op in our ansi_disk#_read_data callbacks
+            m_read_record_word_count = 0;
             disk->read_record(m_wdc_sector);
-
-/* this should go away.. */
-		    SLOG1(("DN300_DISK:    done with synchronous read"));
-            m_wdc_general_status &= ~GS_BUSY_EXECUTING;
-            m_wdc_general_status |= GS_NORMAL_COMPLETE;
-
-			if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_END_OF_OP) {
-	            m_controller_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
-				SLOG1(("DN300_DISK:    irqctrl end of op set, interrupting in 10ms"));
-                need_interrupt = true;
-				command_duration = 10;
-            }
-            if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_STATUS_AVAIL) {
-                m_controller_status_high |= CONTROLLER_STATUS_HIGH_STATUS_AVAILABLE_INTERRUPT;
-				SLOG1(("DN300_DISK:    irqctrl status avail set, interrupting in 10ms"));
-                need_interrupt = true;
-				command_duration = 10;
-			}
-
-			if (!need_interrupt) {
-				SLOG1(("DN300_DISK:    irqctrl not set, not interrupting"));
-                m_controller_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
-            }
-/* down to here. */
             break;
         }
 #if 0

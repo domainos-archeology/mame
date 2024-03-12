@@ -60,6 +60,8 @@ private:
 
 	void ansi_disk1_attention(apollo_ansi_disk_image_device *disk, bool state);
 
+	void end_of_controller_op();
+	
 	DECLARE_WRITE_LINE_MEMBER(fdc_irq);
 	uint8_t fdc_msr_r(offs_t, uint8_t mem_mask);
 
@@ -104,6 +106,7 @@ private:
 	char m_buffer[2000]; // really only need 1056 here.
 
 	uint8_t m_wdc_read_data_byte;
+	int m_read_record_word_count;
 
 	uint8 m_calendar_ctrl;
 };
