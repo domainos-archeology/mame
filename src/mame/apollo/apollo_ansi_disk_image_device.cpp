@@ -6,10 +6,10 @@
 // XXX dedup this with the one in apollo_dn300_disk.cpp
 #define HARD_DISK_SECTOR_SIZE 1056
 
-DEFINE_DEVICE_TYPE(ANSI_DISK, apollo_ansi_disk_image_device, "ansi_disk_image", "DN300 ANSI disk")
+DEFINE_DEVICE_TYPE(APOLLO_ANSI_DISK, apollo_ansi_disk_image_device, "ansi_disk_image", "DN300 ANSI disk")
 
 apollo_ansi_disk_image_device::apollo_ansi_disk_image_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: harddisk_image_base_device(mconfig, ANSI_DISK, tag, owner, clock)
+	: harddisk_image_base_device(mconfig, APOLLO_ANSI_DISK, tag, owner, clock)
     , cur_attention_cb()
 	, m_type(0)
 	, m_cylinders(0)
@@ -336,7 +336,7 @@ uint8_t apollo_ansi_disk_image_device::execute_command(uint8_t command, uint8_t 
             // Upon completion of any seek (including a zero length seek) the
             // device shall clear the Busy Executing bit in the General Status
             // Byte and set the Attention Condition.
-            
+
 			m_current_cylinder_high = m_load_cylinder_high;
 			m_current_cylinder_low = m_load_cylinder_low;
 
@@ -692,7 +692,7 @@ uint8_t apollo_ansi_disk_image_device::execute_command(uint8_t command, uint8_t 
         case ANSI_CMD_LOAD_TEST_BYTE:
 		    SLOG1(("DN300_DISK:    ansicmd LOAD_TEST_BYTE %02x", parameter));
 			return parameter;
-            
+
         default:
             SLOG1(("unknown ANSI command %02x", command));
             return parameter;
@@ -718,7 +718,7 @@ void apollo_ansi_disk_image_device::set_sb2(uint8_t value) {
         if (value | (
             SB2_INITIAL_STATE |
             SB2_READY_TRANSITION |
-            SB2_FORCED_RELEASE | 
+            SB2_FORCED_RELEASE |
             SB2_DEVICE_ATTR_TABLE_MODIFIED |
             SB2_VENDOR_ATTNS
         )) {
