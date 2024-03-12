@@ -1,4 +1,4 @@
-#include "apollo_ansi_disk_image_device.h"
+#include "ansi_disk_device.h"
 
 #define VERBOSE 1
 #include "apollo_dn300.h"
@@ -6,10 +6,10 @@
 // XXX dedup this with the one in apollo_dn300_disk.cpp
 #define HARD_DISK_SECTOR_SIZE 1056
 
-DEFINE_DEVICE_TYPE(APOLLO_ANSI_DISK, apollo_ansi_disk_image_device, "ansi_disk_image", "DN300 ANSI disk")
+DEFINE_DEVICE_TYPE(ANSI_DISK_DEVICE, ansi_disk_device, "ansi_disk_device", "ANSI disk")
 
-apollo_ansi_disk_image_device::apollo_ansi_disk_image_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: harddisk_image_base_device(mconfig, APOLLO_ANSI_DISK, tag, owner, clock)
+ansi_disk_device::ansi_disk_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: harddisk_image_base_device(mconfig, ANSI_DISK_DEVICE, tag, owner, clock)
     , cur_attention_cb()
 	, m_type(0)
 	, m_cylinders(0)
@@ -34,12 +34,12 @@ apollo_ansi_disk_image_device::apollo_ansi_disk_image_device(const machine_confi
 {
 }
 
-void apollo_ansi_disk_image_device::set_attention_cb(attention_cb cb)
+void ansi_disk_device::set_attention_cb(attention_cb cb)
 {
     cur_attention_cb = cb;
 }
 
-void apollo_ansi_disk_image_device::set_read_data_cb(read_data_cb cb)
+void ansi_disk_device::set_read_data_cb(read_data_cb cb)
 {
     cur_read_data_cb = cb;
 }
@@ -48,7 +48,7 @@ void apollo_ansi_disk_image_device::set_read_data_cb(read_data_cb cb)
  ansi_disk_config - configure disk parameters
  ***************************************************************************/
 
-void apollo_ansi_disk_image_device::ansi_disk_config(uint16_t disk_type)
+void ansi_disk_device::ansi_disk_config(uint16_t disk_type)
 {
 	logerror("ansi_disk_config: configuring disk with type %x\n", disk_type);
 
@@ -83,23 +83,23 @@ void apollo_ansi_disk_image_device::ansi_disk_config(uint16_t disk_type)
  -------------------------------------------------*/
 
 template <typename Format, typename... Params>
-void apollo_ansi_disk_image_device::logerror(Format &&fmt, Params &&... args) const
+void ansi_disk_device::logerror(Format &&fmt, Params &&... args) const
 {
 	machine().logerror(std::forward<Format>(fmt), std::forward<Params>(args)...);
 }
 
-void apollo_ansi_disk_image_device::device_resolve_objects()
+void ansi_disk_device::device_resolve_objects()
 {
-    SLOG1(("apollo_ansi_disk_image_device(%s/%p)::device_resolve_objects", tag(), this));
+    SLOG1(("ansi_disk_device(%s/%p)::device_resolve_objects", tag(), this));
 }
 
 /*-------------------------------------------------
     device start callback
 -------------------------------------------------*/
 
-void apollo_ansi_disk_image_device::device_start()
+void ansi_disk_device::device_start()
 {
-	logerror("apollo_ansi_disk_image_device(%p)::device_start\n", this);
+	logerror("ansi_disk_device(%p)::device_start\n", this);
 
 	m_image = this;
 
@@ -114,16 +114,16 @@ void apollo_ansi_disk_image_device::device_start()
 
 	// default disk type
 	ansi_disk_config(ANSI_DISK_TYPE_DEFAULT);
-    m_time_dependent_timer = timer_alloc(FUNC(apollo_ansi_disk_image_device::finish_time_dependent_command), this);
+    m_time_dependent_timer = timer_alloc(FUNC(ansi_disk_device::finish_time_dependent_command), this);
 }
 
 /*-------------------------------------------------
     device reset callback
 -------------------------------------------------*/
 
-void apollo_ansi_disk_image_device::device_reset()
+void ansi_disk_device::device_reset()
 {
-	logerror("apollo_ansi_disk_image_device(%p)::device_reset\n", this);
+	logerror("ansi_disk_device(%p)::device_reset\n", this);
 
 	if (exists() && !fseek(0, SEEK_END))
 	{
@@ -148,7 +148,7 @@ void apollo_ansi_disk_image_device::device_reset()
    disk image create callback
 -------------------------------------------------*/
 
-image_init_result apollo_ansi_disk_image_device::call_create(int format_type, util::option_resolution *format_options)
+image_init_result ansi_disk_device::call_create(int format_type, util::option_resolution *format_options)
 {
 	logerror("device_create_ansi_disk: creating ANSI Disk with %d blocks\n", m_sector_count);
 
@@ -170,7 +170,7 @@ image_init_result apollo_ansi_disk_image_device::call_create(int format_type, ut
 /*
 
 */
-uint8_t apollo_ansi_disk_image_device::report_attribute()
+uint8_t ansi_disk_device::report_attribute()
 {
     /* ensure our attributes have been initialized */
     if (!m_attributes_initialized) {
@@ -223,7 +223,7 @@ uint8_t apollo_ansi_disk_image_device::report_attribute()
     return m_ansi_attributes[m_attribute_number];
 }
 
-void apollo_ansi_disk_image_device::load_attribute(uint8_t attribute_value)
+void ansi_disk_device::load_attribute(uint8_t attribute_value)
 {
     if (m_attribute_number > 0x47) {
         SLOG1(("  + illegal attribute number %d", m_attribute_number))
@@ -232,7 +232,7 @@ void apollo_ansi_disk_image_device::load_attribute(uint8_t attribute_value)
     m_ansi_attributes[m_attribute_number] = attribute_value;
 }
 
-void apollo_ansi_disk_image_device::read_record(uint8_t sector)
+void ansi_disk_device::read_record(uint8_t sector)
 {
     int cylinder = (m_current_cylinder_high << 8) | m_current_cylinder_low;
     int track = cylinder * m_heads + m_selected_head;
@@ -272,7 +272,7 @@ void apollo_ansi_disk_image_device::read_record(uint8_t sector)
 
 // excepts both the command and a parameter out byte.  returns what should be the parameter in byte.
 // if the command doesn't require a parameter in byte, return m_general_status.
-uint8_t apollo_ansi_disk_image_device::execute_command(uint8_t command, uint8_t parameter)
+uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
 {
     switch (command) {
         case ANSI_CMD_REPORT_ILLEGAL_COMMAND:
@@ -703,7 +703,7 @@ uint8_t apollo_ansi_disk_image_device::execute_command(uint8_t command, uint8_t 
     }
 }
 
-void apollo_ansi_disk_image_device::set_sb1(uint8_t value) {
+void ansi_disk_device::set_sb1(uint8_t value) {
     if ((m_sense_byte_1 & value) == 0) {
         m_sense_byte_1 |= value;
         // all sb1 bits set attention on 0->1 transition
@@ -711,11 +711,11 @@ void apollo_ansi_disk_image_device::set_sb1(uint8_t value) {
     }
 }
 
-void apollo_ansi_disk_image_device::clear_sb1(uint8_t value) {
+void ansi_disk_device::clear_sb1(uint8_t value) {
     m_sense_byte_1 &= ~value;
 }
 
-void apollo_ansi_disk_image_device::set_sb2(uint8_t value) {
+void ansi_disk_device::set_sb2(uint8_t value) {
     if ((m_sense_byte_2 & value) == 0) {
         m_sense_byte_2 |= value;
         // only certain sb2 bits set attention on 0->1 transition
@@ -731,21 +731,21 @@ void apollo_ansi_disk_image_device::set_sb2(uint8_t value) {
     }
 }
 
-void apollo_ansi_disk_image_device::clear_sb2(uint8_t value) {
+void ansi_disk_device::clear_sb2(uint8_t value) {
     m_sense_byte_2 &= ~value;
 }
 
-void apollo_ansi_disk_image_device::start_time_dependent_command(attotime duration) {
+void ansi_disk_device::start_time_dependent_command(attotime duration) {
     m_general_status |= GS_BUSY_EXECUTING;
     m_time_dependent_timer->adjust(duration, 0);
 }
 
-void apollo_ansi_disk_image_device::set_attention_line(bool state) {
+void ansi_disk_device::set_attention_line(bool state) {
     cur_attention_cb(this, state);
 }
 
-TIMER_CALLBACK_MEMBER(apollo_ansi_disk_image_device::finish_time_dependent_command) {
-    SLOG1(("apollo_ansi_disk_image_device(%p)::finish_time_dependent_command", this));
+TIMER_CALLBACK_MEMBER(ansi_disk_device::finish_time_dependent_command) {
+    SLOG1(("ansi_disk_device(%p)::finish_time_dependent_command", this));
     m_general_status |= GS_NORMAL_COMPLETE;
     if (m_attention_enabled) {
         set_attention_line(true);

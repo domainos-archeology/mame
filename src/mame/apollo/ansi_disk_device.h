@@ -1,8 +1,8 @@
 #include "emu.h"
 #include "imagedev/harddriv.h"
 
-#ifndef MAME_MACHINE_APOLLO_ANSI_DISK_IMAGE_DEVICE_H
-#define MAME_MACHINE_APOLLO_ANSI_DISK_IMAGE_DEVICE_H
+#ifndef MAME_ANSI_DISK_DEVICE_H
+#define MAME_ANSI_DISK_DEVICE_H
 
 // software ends up sizing the micropolis to the same size as the priam, so we ignore it.
 // #define ANSI_DISK_TYPE_38_MB 0x103 // Micropolis 1203 (38MB unformatted Dtype = 103)
@@ -93,16 +93,16 @@
 
 
 // forward declaration of image class
-DECLARE_DEVICE_TYPE(APOLLO_ANSI_DISK, apollo_ansi_disk_image_device)
+DECLARE_DEVICE_TYPE(ANSI_DISK_DEVICE, ansi_disk_device)
 
-class apollo_ansi_disk_image_device : public harddisk_image_base_device
+class ansi_disk_device : public harddisk_image_base_device
 {
 public:
-	typedef delegate<void (apollo_ansi_disk_image_device *, bool)> attention_cb;
-	typedef delegate<void (apollo_ansi_disk_image_device *, uint8_t)> read_data_cb;
+	typedef delegate<void (ansi_disk_device *, bool)> attention_cb;
+	typedef delegate<void (ansi_disk_device *, uint8_t)> read_data_cb;
 
 	// construction/destruction
-	apollo_ansi_disk_image_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	ansi_disk_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	// image-level overrides
 	virtual bool support_command_line_image_creation() const noexcept override { return true; }
@@ -184,4 +184,4 @@ public:
 	char m_buffer[2000]; // really only need 1056 here.
 };
 
-#endif // MAME_MACHINE_APOLLO_ANSI_DISK_IMAGE_DEVICE_H
+#endif // MAME_ANSI_DISK_DEVICE_H

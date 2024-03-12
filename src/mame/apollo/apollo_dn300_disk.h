@@ -17,7 +17,7 @@
 #include "machine/msm5832.h"
 #include "imagedev/floppy.h"
 
-class apollo_ansi_disk_image_device;
+class ansi_disk_device;
 
 class apollo_dn300_disk_ctrlr_device :
     public device_t
@@ -50,15 +50,15 @@ protected:
 	virtual void device_reset() override;
 
 	static constexpr unsigned DN300_MAX_DISK = 2;
-	apollo_ansi_disk_image_device *our_disks[DN300_MAX_DISK];
+	ansi_disk_device *our_disks[DN300_MAX_DISK];
 
 private:
 	static void floppy_formats(format_registration &fr);
 
-	void ansi_disk0_attention(apollo_ansi_disk_image_device *disk, bool state);
-	void ansi_disk0_read_data(apollo_ansi_disk_image_device *disk, uint8_t data);
+	void ansi_disk0_attention(ansi_disk_device *disk, bool state);
+	void ansi_disk0_read_data(ansi_disk_device *disk, uint8_t data);
 
-	void ansi_disk1_attention(apollo_ansi_disk_image_device *disk, bool state);
+	void ansi_disk1_attention(ansi_disk_device *disk, bool state);
 
 	void end_of_controller_op();
 	

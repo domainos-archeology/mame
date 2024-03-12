@@ -12,7 +12,7 @@
 #define VERBOSE 1
 #include "apollo_dn300.h"
 #include "formats/apollo_dsk.h"
-#include "apollo_ansi_disk_image_device.h"
+#include "ansi_disk_device.h"
 
 #define HARD_DISK_SECTOR_SIZE 1056
 #define FLOPPY_DISK_SECTOR_SIZE 1024
@@ -112,11 +112,11 @@ apollo_dn300_disk_ctrlr_device::apollo_dn300_disk_ctrlr_device(const machine_con
 
 void apollo_dn300_disk_ctrlr_device::device_add_mconfig(machine_config &config)
 {
-    APOLLO_ANSI_DISK(config, DN300_DISK0_TAG, 0);
-	APOLLO_ANSI_DISK(config, DN300_DISK1_TAG, 0);
+    ANSI_DISK_DEVICE(config, DN300_DISK0_TAG, 0);
+	ANSI_DISK_DEVICE(config, DN300_DISK1_TAG, 0);
 
-    our_disks[0] = subdevice<apollo_ansi_disk_image_device>(DN300_DISK0_TAG);
-    our_disks[1] = subdevice<apollo_ansi_disk_image_device>(DN300_DISK1_TAG);
+    our_disks[0] = subdevice<ansi_disk_device>(DN300_DISK0_TAG);
+    our_disks[1] = subdevice<ansi_disk_device>(DN300_DISK1_TAG);
 
 	UPD765A(config, m_fdc, 48_MHz_XTAL, false, false);
 	m_fdc->intrq_wr_callback().set(FUNC(apollo_dn300_disk_ctrlr_device::fdc_irq));
@@ -143,8 +143,8 @@ void apollo_dn300_disk_ctrlr_device::device_start()
 	m_timer = timer_alloc(FUNC(apollo_dn300_disk_ctrlr_device::trigger_interrupt), this);
 
     // save_item(NAME(drq));
-    our_disks[0] = subdevice<apollo_ansi_disk_image_device>(DN300_DISK0_TAG);
-    our_disks[1] = subdevice<apollo_ansi_disk_image_device>(DN300_DISK1_TAG);
+    our_disks[0] = subdevice<ansi_disk_device>(DN300_DISK0_TAG);
+    our_disks[1] = subdevice<ansi_disk_device>(DN300_DISK1_TAG);
 
     SLOG1(("in apollo_dn300_disk_ctrlr_device::device_start: disks = [%p, %p]", our_disks[0], our_disks[1]));
 	// floppy_image_device *floppy = m_floppy->get_device();
@@ -153,7 +153,7 @@ void apollo_dn300_disk_ctrlr_device::device_start()
 	// }
 }
 
-void apollo_dn300_disk_ctrlr_device::ansi_disk0_attention(apollo_ansi_disk_image_device *device, bool state) {
+void apollo_dn300_disk_ctrlr_device::ansi_disk0_attention(ansi_disk_device *device, bool state) {
     SLOG1(("DN300_DISK: disk0 attn %s", state ? "asserted" : "cleared"));
     if (state) {
         m_controller_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
@@ -162,7 +162,7 @@ void apollo_dn300_disk_ctrlr_device::ansi_disk0_attention(apollo_ansi_disk_image
     }
 }
 
-void apollo_dn300_disk_ctrlr_device::ansi_disk0_read_data(apollo_ansi_disk_image_device *disk, uint8_t data) {
+void apollo_dn300_disk_ctrlr_device::ansi_disk0_read_data(ansi_disk_device *disk, uint8_t data) {
     SLOG1(("DN300_DISK: disk0 read data: m_buffer[%d] = %02x", m_cursor, data));
     m_buffer[m_cursor++] = data;
     if (m_cursor == 2) {
@@ -178,7 +178,7 @@ void apollo_dn300_disk_ctrlr_device::ansi_disk0_read_data(apollo_ansi_disk_image
     }
 }
 
-void apollo_dn300_disk_ctrlr_device::ansi_disk1_attention(apollo_ansi_disk_image_device *device, bool state) {
+void apollo_dn300_disk_ctrlr_device::ansi_disk1_attention(ansi_disk_device *device, bool state) {
     SLOG1(("DN300_DISK: disk1 attn %s", state ? "asserted" : "cleared"));
     if (state) {
         m_controller_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
@@ -200,15 +200,15 @@ void apollo_dn300_disk_ctrlr_device::device_reset()
 {
 	m_fdc->set_floppy(m_floppy->get_device());
 
-    our_disks[0] = subdevice<apollo_ansi_disk_image_device>(DN300_DISK0_TAG);
-    our_disks[1] = subdevice<apollo_ansi_disk_image_device>(DN300_DISK1_TAG);
+    our_disks[0] = subdevice<ansi_disk_device>(DN300_DISK0_TAG);
+    our_disks[1] = subdevice<ansi_disk_device>(DN300_DISK1_TAG);
 
     SLOG1(("in apollo_dn300_disk_ctrlr_device::device_reset: disks = [%p, %p]", our_disks[0], our_disks[1]));
 
     SLOG1(("DN300_DISK: registering attn callbacks"));
-    our_disks[0]->set_attention_cb(apollo_ansi_disk_image_device::attention_cb(&apollo_dn300_disk_ctrlr_device::ansi_disk0_attention, this));
-    our_disks[0]->set_read_data_cb(apollo_ansi_disk_image_device::read_data_cb(&apollo_dn300_disk_ctrlr_device::ansi_disk0_read_data, this));
-    our_disks[1]->set_attention_cb(apollo_ansi_disk_image_device::attention_cb(&apollo_dn300_disk_ctrlr_device::ansi_disk1_attention, this));
+    our_disks[0]->set_attention_cb(ansi_disk_device::attention_cb(&apollo_dn300_disk_ctrlr_device::ansi_disk0_attention, this));
+    our_disks[0]->set_read_data_cb(ansi_disk_device::read_data_cb(&apollo_dn300_disk_ctrlr_device::ansi_disk0_read_data, this));
+    our_disks[1]->set_attention_cb(ansi_disk_device::attention_cb(&apollo_dn300_disk_ctrlr_device::ansi_disk1_attention, this));
 
 	// floppy_image_device *floppy = m_floppy->get_device();
 	// if (floppy != nullptr) {
@@ -363,19 +363,19 @@ void apollo_dn300_disk_ctrlr_device::wdc_write(offs_t offset, uint8_t data, uint
             break;
         case WDC_REG_CYLINDER_HIGH: {
             SLOG1(("DN300_DISK: wdc CYLINDER_HIGH write = %02x", data));
-            apollo_ansi_disk_image_device *disk = our_disks[m_wdc_selected_drive-1];
+            ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
             disk->execute_command(ANSI_CMD_LOAD_CYL_ADDR_HIGH, data);
             break;
         }
         case WDC_REG_CYLINDER_LOW: {
             SLOG1(("DN300_DISK: wdc CYLINDER_LOW write = %02x", data));
-            apollo_ansi_disk_image_device *disk = our_disks[m_wdc_selected_drive-1];
+            ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
             disk->execute_command(ANSI_CMD_LOAD_CYL_ADDR_LOW, data);
             break;
         }
         case WDC_REG_HEAD: {
             SLOG1(("DN300_DISK: HEAD write = %02x", data));
-            apollo_ansi_disk_image_device *disk = our_disks[m_wdc_selected_drive-1];
+            ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
             disk->execute_command(ANSI_CMD_SELECT_HEAD, data);
             break;
         }
@@ -458,7 +458,7 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
             break;
 
         case WDC_CONTROLLER_CMD_READ_RECORD: {
-            apollo_ansi_disk_image_device *disk = our_disks[m_wdc_selected_drive-1];
+            ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
 
             // we're busy reading
             m_controller_status_high |= CONTROLLER_STATUS_HIGH_CONTROLLER_BUSY;
@@ -471,7 +471,7 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
 #if 0
             m_wdc_general_status |= GS_BUSY_EXECUTING;
 
-            apollo_ansi_disk_image_device *disk = our_disks[m_wdc_selected_drive-1];
+            ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
 
             int cylinder = (disk->m_current_cylinder_high << 8) | disk->m_current_cylinder_low;
             int track = cylinder * disk->m_heads + m_wdc_head;
@@ -530,7 +530,7 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
         case WDC_CONTROLLER_CMD_WRITE_RECORD: {
             m_wdc_general_status |= GS_BUSY_EXECUTING;
 
-            apollo_ansi_disk_image_device *disk = our_disks[m_wdc_selected_drive-1];
+            ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
 
             int cylinder = (disk->m_current_cylinder_high << 8) | disk->m_current_cylinder_low;
             int track = cylinder * disk->m_heads + m_wdc_head;
@@ -649,14 +649,14 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
             }
 #else
             {
-                apollo_ansi_disk_image_device *disk = our_disks[m_wdc_selected_drive-1];
+                ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
                 disk->execute_command(ANSI_CMD_SEEK, m_wdc_ansi_parm);
             }
 #endif
             break;
 
         case WDC_CONTROLLER_CMD_EXEC_ANSI_CMD: {
-            apollo_ansi_disk_image_device *disk = our_disks[m_wdc_selected_drive-1];
+            ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
             m_wdc_ansi_parm = disk->execute_command(m_wdc_ansi_cmd, m_wdc_ansi_parm);
             break;
         }
@@ -705,7 +705,7 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
             break;
         }
 #endif
-            apollo_ansi_disk_image_device *disk = our_disks[m_wdc_selected_drive-1];
+            ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
             m_wdc_ansi_parm = disk->execute_command(ANSI_CMD_SELECT_HEAD, m_wdc_head);
             break;
         }
