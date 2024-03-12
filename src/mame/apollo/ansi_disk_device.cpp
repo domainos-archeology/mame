@@ -10,7 +10,8 @@ DEFINE_DEVICE_TYPE(ANSI_DISK_DEVICE, ansi_disk_device, "ansi_disk_device", "ANSI
 
 ansi_disk_device::ansi_disk_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
 	: harddisk_image_base_device(mconfig, ANSI_DISK_DEVICE, tag, owner, clock)
-    , cur_attention_cb()
+	, m_attention(false)
+	, cur_attention_cb()
 	, m_type(0)
 	, m_cylinders(0)
 	, m_heads(0)
@@ -757,7 +758,10 @@ void ansi_disk_device::start_time_dependent_command(attotime duration) {
 }
 
 void ansi_disk_device::set_attention_line(bool state) {
-    cur_attention_cb(this, state);
+	if (m_attention != state) {
+	    m_attention = state;
+	    cur_attention_cb(this, state);
+	}
 }
 
 TIMER_CALLBACK_MEMBER(ansi_disk_device::finish_time_dependent_command) {

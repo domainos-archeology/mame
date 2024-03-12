@@ -134,6 +134,7 @@ public:
 	TIMER_CALLBACK_MEMBER(finish_time_dependent_command);
 
 	// our attention line
+	bool m_attention;
 	void set_attention_line(bool state);
 	attention_cb cur_attention_cb;
 
