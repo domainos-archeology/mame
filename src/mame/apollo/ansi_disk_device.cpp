@@ -30,6 +30,8 @@ ansi_disk_device::ansi_disk_device(const machine_config &mconfig, const char *ta
     , m_sense_byte_2(0)
     , m_write_enabled(true)
     , m_attention_enabled(true)
+    , m_read_gate(false)
+    , m_write_gate(false)
     // XXX more things here moved from the controller
 {
 }
@@ -246,6 +248,14 @@ void ansi_disk_device::read_record(uint8_t sector)
         SLOG1(("%p: disk image is null?", this));
     }
 
+	// one of the many fibs here.  the read gate is supposed to be activated
+	// by the host (indeed, that's what _triggers_ the read), but we do it
+	// here.
+	m_read_gate = true;
+
+	// eventually, make this read async so we can continue running cpu code
+	// while the read is happening.  as it is, we block everything until the
+	// read is complete.
     m_image->fseek(sector_offset * HARD_DISK_SECTOR_SIZE, SEEK_SET);
     m_image->fread(m_buffer, HARD_DISK_SECTOR_SIZE);
 
@@ -266,6 +276,9 @@ void ansi_disk_device::read_record(uint8_t sector)
         osd_sleep(osd_ticks_per_second() / (1e6) * 1.1);
         cur_read_data_cb(this, m_buffer[m_cursor++]);
     }
+
+	// clear the read gate after we're done
+	m_read_gate = false;
 
 	SLOG1(("DN300_DISK:    done with synchronous read"));
 }
@@ -303,6 +316,8 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             );
 
             clear_sb1(SB1_SEEK_ERROR | SB1_RW_FAULT | SB1_POWER_FAULT | SB1_COMMAND_REJECT);
+
+            set_attention_line(false);
 
             return m_general_status;
 
@@ -695,7 +710,8 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
 
         case ANSI_CMD_LOAD_TEST_BYTE:
 		    SLOG1(("DN300_DISK:    ansicmd LOAD_TEST_BYTE %02x", parameter));
-			return parameter;
+			m_test_byte = parameter;
+			return m_general_status;
 
         default:
             SLOG1(("unknown ANSI command %02x", command));

@@ -182,6 +182,9 @@ public:
 
 	uint32_t m_cursor;
 	char m_buffer[2000]; // really only need 1056 here.
+
+	bool m_read_gate;
+	bool m_write_gate;
 };
 
 #endif // MAME_ANSI_DISK_DEVICE_H
