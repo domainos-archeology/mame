@@ -115,7 +115,16 @@ public:
 	void set_attention_cb(attention_cb cb);
 	void set_read_data_cb(read_data_cb cb);
 
-	void read_record(uint8_t sector);
+	// this start/finish pair can be thought of as the two actions the controller would take to read a sector:
+	// start: once we've seen the correct number of index/sector pulses, the controller asserts read_gate
+	// ... as long as read_gate is held, the disk generates NRZ serial data clocked by the read clock pin
+	// end: after the last bit of the sector has been read, the controller deasserts read_gate
+	int start_read_sector(uint8_t sector);
+	void finish_read_sector(int read_id);
+
+	int start_write_sector();
+	void write_sector_next_byte(uint8_t data);
+	void finish_write_sector(uint8_t sector, int write_id);
 
     uint8_t execute_command(uint8_t command, uint8_t parameter);
 
@@ -132,6 +141,10 @@ public:
 	emu_timer *m_time_dependent_timer;
 	void start_time_dependent_command(attotime duration);
 	TIMER_CALLBACK_MEMBER(finish_time_dependent_command);
+
+	// the timer that drives the read_sector code
+	emu_timer *m_read_timer;
+	TIMER_CALLBACK_MEMBER(read_sector_next_byte);
 
 	// our attention line
 	bool m_attention;
@@ -183,9 +196,6 @@ public:
 
 	uint32_t m_cursor;
 	char m_buffer[2000]; // really only need 1056 here.
-
-	bool m_read_gate;
-	bool m_write_gate;
 };
 
 #endif // MAME_ANSI_DISK_DEVICE_H

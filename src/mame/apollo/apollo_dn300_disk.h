@@ -38,8 +38,8 @@ public:
 	auto irq_callback() { return irq_cb.bind(); }
 	auto drq_wr_callback() { return drq_cb.bind(); }
 
-	uint8_t read_byte(offs_t offset);
-	void write_byte(offs_t offset, uint8_t data);
+	uint8_t dma_read_byte(offs_t offset);
+	void dma_write_byte(offs_t offset, uint8_t data);
 
     void map(address_map &map);
 

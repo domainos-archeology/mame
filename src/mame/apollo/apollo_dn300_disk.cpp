@@ -172,6 +172,7 @@ void apollo_dn300_disk_ctrlr_device::ansi_disk0_read_data(ansi_disk_device *disk
         m_read_record_word_count++;
         if (m_read_record_word_count == HARD_DISK_SECTOR_SIZE / 2) {
             // we're done with the read.  let the cpu know
+            disk->finish_read_sector(0);
             end_of_controller_op();
             return;
         }
@@ -465,7 +466,7 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
 
             // we'll signal the end of the op in our ansi_disk#_read_data callbacks
             m_read_record_word_count = 0;
-            disk->read_record(m_wdc_sector);
+            disk->start_read_sector(m_wdc_sector);
             break;
         }
 #if 0
@@ -528,6 +529,33 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
         }
 #endif
         case WDC_CONTROLLER_CMD_WRITE_RECORD: {
+            ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
+
+            // we're busy writing
+            m_controller_status_high |= CONTROLLER_STATUS_HIGH_CONTROLLER_BUSY;
+
+            // we'll signal the end of the op in our ansi_disk#_read_data callbacks
+            m_read_record_word_count = 0;
+            disk->start_write_sector();
+
+            // XXX add a timer here to use as a write clock
+
+            // 0x10 for the first operation
+            for (int i = 0; i < 0x10; i++) {
+                PULSE_DRQ();
+            }
+
+            // 0x200 for the second operation
+            for (int i = 0; i < 0x200; i++) {
+                PULSE_DRQ();
+            }
+
+            disk->finish_write_sector(m_wdc_sector, 0);
+            end_of_controller_op();
+
+            break;
+        }
+#if 0
             m_wdc_general_status |= GS_BUSY_EXECUTING;
 
             ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
@@ -593,6 +621,7 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
 
             break;
 		}
+#endif
 
         case WDC_CONTROLLER_CMD_FORMAT_TRACK:
             SLOG1(("DN300_DISK:    CMD_FORMAT_TRACK unimplemented"))
@@ -728,7 +757,7 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
 	}
 }
 
-uint8_t apollo_dn300_disk_ctrlr_device::read_byte(offs_t offset)
+uint8_t apollo_dn300_disk_ctrlr_device::dma_read_byte(offs_t offset)
 {
 	if (m_floppy_drq_state) {
 		uint8_t data =  m_fdc->dma_r();
@@ -745,8 +774,11 @@ uint8_t apollo_dn300_disk_ctrlr_device::read_byte(offs_t offset)
     return rv;
 }
 
-void apollo_dn300_disk_ctrlr_device::write_byte(offs_t offset, uint8_t data)
+void apollo_dn300_disk_ctrlr_device::dma_write_byte(offs_t offset, uint8_t data)
 {
     SLOG1(("writing disk DMA at offset %02x = %02x", offset, data));
-	m_buffer[m_cursor++] = data;
+
+    ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
+   
+	disk->write_sector_next_byte(data);
 }

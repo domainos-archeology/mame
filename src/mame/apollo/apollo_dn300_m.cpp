@@ -273,8 +273,8 @@ void apollo_dn300_state::common(machine_config &config)
 	m_dmac->dma_write<APOLLO_DN300_DMA_RING_RCVDATA>().set(m_ring, FUNC(apollo_dn300_ring_ctrlr_device::rcv_data_write_byte));
 	m_dmac->dma_read<APOLLO_DN300_DMA_RING_XMIT>().set(m_ring, FUNC(apollo_dn300_ring_ctrlr_device::transmit_read_byte));
 	m_dmac->dma_write<APOLLO_DN300_DMA_RING_XMIT>().set(m_ring, FUNC(apollo_dn300_ring_ctrlr_device::transmit_write_byte));
-	m_dmac->dma_read<APOLLO_DN300_DMA_DISK>().set(m_disk, FUNC(apollo_dn300_disk_ctrlr_device::read_byte));
-	m_dmac->dma_write<APOLLO_DN300_DMA_DISK>().set(m_disk, FUNC(apollo_dn300_disk_ctrlr_device::write_byte));
+	m_dmac->dma_read<APOLLO_DN300_DMA_DISK>().set(m_disk, FUNC(apollo_dn300_disk_ctrlr_device::dma_read_byte));
+	m_dmac->dma_write<APOLLO_DN300_DMA_DISK>().set(m_disk, FUNC(apollo_dn300_disk_ctrlr_device::dma_write_byte));
 }
 
 void apollo_dn300_state::apollo_dn300(machine_config &config)

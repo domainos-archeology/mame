@@ -31,8 +31,6 @@ ansi_disk_device::ansi_disk_device(const machine_config &mconfig, const char *ta
     , m_sense_byte_2(0)
     , m_write_enabled(true)
     , m_attention_enabled(true)
-    , m_read_gate(false)
-    , m_write_gate(false)
     // XXX more things here moved from the controller
 {
 }
@@ -118,6 +116,7 @@ void ansi_disk_device::device_start()
 	// default disk type
 	ansi_disk_config(ANSI_DISK_TYPE_DEFAULT);
     m_time_dependent_timer = timer_alloc(FUNC(ansi_disk_device::finish_time_dependent_command), this);
+    m_read_timer = timer_alloc(FUNC(ansi_disk_device::read_sector_next_byte), this);
 }
 
 /*-------------------------------------------------
@@ -235,7 +234,7 @@ void ansi_disk_device::load_attribute(uint8_t attribute_value)
     m_ansi_attributes[m_attribute_number] = attribute_value;
 }
 
-void ansi_disk_device::read_record(uint8_t sector)
+int ansi_disk_device::start_read_sector(uint8_t sector)
 {
     int cylinder = (m_current_cylinder_high << 8) | m_current_cylinder_low;
     int track = cylinder * m_heads + m_selected_head;
@@ -247,42 +246,90 @@ void ansi_disk_device::read_record(uint8_t sector)
 
     if (!m_image) {
         SLOG1(("%p: disk image is null?", this));
+        return 0;
     }
 
-	// one of the many fibs here.  the read gate is supposed to be activated
-	// by the host (indeed, that's what _triggers_ the read), but we do it
-	// here.
-	m_read_gate = true;
-
-	// eventually, make this read async so we can continue running cpu code
-	// while the read is happening.  as it is, we block everything until the
-	// read is complete.
+    // read from the image synchronously, but report the bytes back to the controller
+    // on a timer.
     m_image->fseek(sector_offset * HARD_DISK_SECTOR_SIZE, SEEK_SET);
     m_image->fread(m_buffer, HARD_DISK_SECTOR_SIZE);
 
     m_cursor = 0;
+    m_read_timer->adjust(attotime::from_usec(1), 0, attotime::from_usec(1));
 
-    // 0x10 words for the first operation
-    for (int i = 0; i < 0x10; i++) {
-        osd_sleep(osd_ticks_per_second() / (1e6) * 1.1);
-        cur_read_data_cb(this, m_buffer[m_cursor++]);
-        osd_sleep(osd_ticks_per_second() / (1e6) * 1.1);
-        cur_read_data_cb(this, m_buffer[m_cursor++]);
-    }
-
-    // 0x200 words for the second operation
-    for (int i = 0; i < 0x200; i++) {
-        osd_sleep(osd_ticks_per_second() / (1e6) * 1.1);
-        cur_read_data_cb(this, m_buffer[m_cursor++]);
-        osd_sleep(osd_ticks_per_second() / (1e6) * 1.1);
-        cur_read_data_cb(this, m_buffer[m_cursor++]);
-    }
-
-	// clear the read gate after we're done
-	m_read_gate = false;
-
-	SLOG1(("DN300_DISK:    done with synchronous read"));
+    // we only allow 1 read operation at a time, so always return 0 here
+    return 0;
 }
+
+TIMER_CALLBACK_MEMBER(ansi_disk_device::read_sector_next_byte)
+{
+    if (m_cursor > HARD_DISK_SECTOR_SIZE) {
+        SLOG1(("DN300_DISK:    done with read and the controller didn't finish the op"));
+        m_read_timer->adjust(attotime::never);
+        return;
+    }
+
+    cur_read_data_cb(this, m_buffer[m_cursor++]);
+
+}
+
+void ansi_disk_device::finish_read_sector(int read_id)
+{
+    if (read_id != 0) {
+        SLOG1(("DN300_DISK:    finish_read_sector called with invalid read_id %d", read_id));
+        return;
+    }
+
+    SLOG1(("DN300_DISK:  read finished"));
+    m_read_timer->reset();
+}
+
+int ansi_disk_device::start_write_sector()
+{
+    if (!m_image) {
+        SLOG1(("%p: disk image is null?", this));
+        return 0;
+    }
+
+    // write to the buffer until we've accumulated everything, then do a single write
+    // to the image.
+    m_cursor = 0;
+
+    // we only allow 1 write operation at a time, so always return 0 here
+    return 0;
+}
+
+void ansi_disk_device::write_sector_next_byte(uint8_t data)
+{
+    if (m_cursor > HARD_DISK_SECTOR_SIZE) {
+        SLOG1(("DN300_DISK:    done with write and the controller didn't finish the op"));
+        return;
+    }
+
+    m_buffer[m_cursor++] = data;
+}
+
+void ansi_disk_device::finish_write_sector(uint8_t sector, int write_id)
+{
+    if (write_id != 0) {
+        SLOG1(("DN300_DISK:    finish_write_sector called with invalid write_id %d", write_id));
+        return;
+    }
+
+    int cylinder = (m_current_cylinder_high << 8) | m_current_cylinder_low;
+    int track = cylinder * m_heads + m_selected_head;
+    int track_offset = track * m_sectors;
+    int sector_offset = track_offset + sector;
+
+    SLOG1(("DN300_DISK:    finish_write_sector for sector %d on cylinder %d and head %d", sector, cylinder, m_selected_head));
+    SLOG1(("DN300_DISK:    linearized as logical sector address %d", sector));
+
+    m_image->fseek(sector_offset * HARD_DISK_SECTOR_SIZE, SEEK_SET);
+    m_image->fwrite(m_buffer, HARD_DISK_SECTOR_SIZE);
+
+    SLOG1(("DN300_DISK:  write finished"));
+}
+
 
 // excepts both the command and a parameter out byte.  returns what should be the parameter in byte.
 // if the command doesn't require a parameter in byte, return m_general_status.
