@@ -12,6 +12,9 @@ ansi_disk_device::ansi_disk_device(const machine_config &mconfig, const char *ta
 	: harddisk_image_base_device(mconfig, ANSI_DISK_DEVICE, tag, owner, clock)
 	, m_attention(false)
 	, cur_attention_cb()
+	, cur_read_data_cb()
+	, cur_index_pulse_cb()
+	, cur_sector_pulse_cb()
 	, m_type(0)
 	, m_cylinders(0)
 	, m_heads(0)
@@ -45,6 +48,16 @@ void ansi_disk_device::set_read_data_cb(read_data_cb cb)
     cur_read_data_cb = cb;
 }
 
+void ansi_disk_device::set_index_pulse_cb(pulse_cb cb)
+{
+    cur_index_pulse_cb = cb;
+}
+
+void ansi_disk_device::set_sector_pulse_cb(pulse_cb cb)
+{
+    cur_sector_pulse_cb = cb;
+}
+
 /***************************************************************************
  ansi_disk_config - configure disk parameters
  ***************************************************************************/
@@ -55,22 +68,30 @@ void ansi_disk_device::ansi_disk_config(uint16_t disk_type)
 
 	switch (disk_type)
 	{
+		// Priam 8" disks used in the dn300 (7050 and 3040) both look to have the same rpm,
+		// so index pulse period = 16.67ms.  given 12 sectors, that's 1.39ms per sector.
         case ANSI_DISK_TYPE_64_MB: // Priam 7050 (Unformatted 70MB)
             m_cylinders = 1049;
             m_heads = 5;
             m_sectors = 12;
+			m_sector_clock_freq = attotime::from_usec(1390);
             break;
 
         case ANSI_DISK_TYPE_32_MB: // Priam 3450 (Unformatted 35MB)
             m_cylinders = 525;
             m_heads = 5;
             m_sectors = 12;
+			m_sector_clock_freq = attotime::from_usec(1390);
             break;
 
         case ANSI_DISK_TYPE_HACK_DN3500: // Maxtor 380 MB (348-MB FA formatted)
             m_cylinders = 1223;
             m_heads = 15;
             m_sectors = 18;
+			// XXX no clue what value to use here, so let's just keep it what the
+			// priam drives used.  just in case there's some code that depends on
+			// it.
+			m_sector_clock_freq = attotime::from_usec(1390);
             break;
     }
 
@@ -117,6 +138,9 @@ void ansi_disk_device::device_start()
 	ansi_disk_config(ANSI_DISK_TYPE_DEFAULT);
     m_time_dependent_timer = timer_alloc(FUNC(ansi_disk_device::finish_time_dependent_command), this);
     m_read_timer = timer_alloc(FUNC(ansi_disk_device::read_sector_next_byte), this);
+
+	m_pulsed_sector = 0;
+	m_sector_timer = timer_alloc(FUNC(ansi_disk_device::sector_callback), this);
 }
 
 /*-------------------------------------------------
@@ -169,9 +193,6 @@ image_init_result ansi_disk_device::call_create(int format_type, util::option_re
 	return image_init_result::PASS;
 }
 
-/*
-
-*/
 uint8_t ansi_disk_device::report_attribute()
 {
     /* ensure our attributes have been initialized */
@@ -234,8 +255,11 @@ void ansi_disk_device::load_attribute(uint8_t attribute_value)
     m_ansi_attributes[m_attribute_number] = attribute_value;
 }
 
-int ansi_disk_device::start_read_sector(uint8_t sector)
+void ansi_disk_device::assert_read_gate()
 {
+	m_sector_timer->enable(false);
+
+	int sector = m_pulsed_sector;
     int cylinder = (m_current_cylinder_high << 8) | m_current_cylinder_low;
     int track = cylinder * m_heads + m_selected_head;
     int track_offset = track * m_sectors;
@@ -246,7 +270,7 @@ int ansi_disk_device::start_read_sector(uint8_t sector)
 
     if (!m_image) {
         SLOG1(("%p: disk image is null?", this));
-        return 0;
+		return;
     }
 
     // read from the image synchronously, but report the bytes back to the controller
@@ -256,9 +280,6 @@ int ansi_disk_device::start_read_sector(uint8_t sector)
 
     m_cursor = 0;
     m_read_timer->adjust(attotime::from_usec(1), 0, attotime::from_usec(1));
-
-    // we only allow 1 read operation at a time, so always return 0 here
-    return 0;
 }
 
 TIMER_CALLBACK_MEMBER(ansi_disk_device::read_sector_next_byte)
@@ -270,33 +291,25 @@ TIMER_CALLBACK_MEMBER(ansi_disk_device::read_sector_next_byte)
     }
 
     cur_read_data_cb(this, m_buffer[m_cursor++]);
-
 }
 
-void ansi_disk_device::finish_read_sector(int read_id)
+void ansi_disk_device::deassert_read_gate()
 {
-    if (read_id != 0) {
-        SLOG1(("DN300_DISK:    finish_read_sector called with invalid read_id %d", read_id));
-        return;
-    }
-
     SLOG1(("DN300_DISK:  read finished"));
     m_read_timer->reset();
+	m_sector_timer->enable();
 }
 
-int ansi_disk_device::start_write_sector()
+void ansi_disk_device::assert_write_gate()
 {
     if (!m_image) {
         SLOG1(("%p: disk image is null?", this));
-        return 0;
+		return;
     }
 
     // write to the buffer until we've accumulated everything, then do a single write
     // to the image.
     m_cursor = 0;
-
-    // we only allow 1 write operation at a time, so always return 0 here
-    return 0;
 }
 
 void ansi_disk_device::write_sector_next_byte(uint8_t data)
@@ -309,13 +322,9 @@ void ansi_disk_device::write_sector_next_byte(uint8_t data)
     m_buffer[m_cursor++] = data;
 }
 
-void ansi_disk_device::finish_write_sector(uint8_t sector, int write_id)
+void ansi_disk_device::deassert_write_gate()
 {
-    if (write_id != 0) {
-        SLOG1(("DN300_DISK:    finish_write_sector called with invalid write_id %d", write_id));
-        return;
-    }
-
+	int sector = m_pulsed_sector;
     int cylinder = (m_current_cylinder_high << 8) | m_current_cylinder_low;
     int track = cylinder * m_heads + m_selected_head;
     int track_offset = track * m_sectors;
@@ -330,6 +339,16 @@ void ansi_disk_device::finish_write_sector(uint8_t sector, int write_id)
     SLOG1(("DN300_DISK:  write finished"));
 }
 
+void ansi_disk_device::select()
+{
+	SLOG1(("DN300_DISK:    select"));
+	m_sector_timer->adjust(m_sector_clock_freq, 0, m_sector_clock_freq);
+}
+
+void ansi_disk_device::deselect()
+{
+	m_sector_timer->reset();
+}
 
 // excepts both the command and a parameter out byte.  returns what should be the parameter in byte.
 // if the command doesn't require a parameter in byte, return m_general_status.
@@ -817,4 +836,13 @@ TIMER_CALLBACK_MEMBER(ansi_disk_device::finish_time_dependent_command) {
     if (m_attention_enabled) {
         set_attention_line(true);
     }
+}
+
+TIMER_CALLBACK_MEMBER(ansi_disk_device::sector_callback) {
+	m_pulsed_sector = (m_pulsed_sector+1) % m_sectors;
+	if (m_pulsed_sector == 0) {
+		cur_index_pulse_cb(this);
+	} else {
+		cur_sector_pulse_cb(this);
+	}
 }

@@ -100,6 +100,7 @@ class ansi_disk_device : public harddisk_image_base_device
 public:
 	typedef delegate<void (ansi_disk_device *, bool)> attention_cb;
 	typedef delegate<void (ansi_disk_device *, uint8_t)> read_data_cb;
+	typedef delegate<void (ansi_disk_device *)> pulse_cb;
 
 	// construction/destruction
 	ansi_disk_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
@@ -114,17 +115,19 @@ public:
 
 	void set_attention_cb(attention_cb cb);
 	void set_read_data_cb(read_data_cb cb);
+	void set_index_pulse_cb(pulse_cb cb);
+	void set_sector_pulse_cb(pulse_cb cb);
 
-	// this start/finish pair can be thought of as the two actions the controller would take to read a sector:
-	// start: once we've seen the correct number of index/sector pulses, the controller asserts read_gate
-	// ... as long as read_gate is held, the disk generates NRZ serial data clocked by the read clock pin
-	// end: after the last bit of the sector has been read, the controller deasserts read_gate
-	int start_read_sector(uint8_t sector);
-	void finish_read_sector(int read_id);
+	// I can't get dev_write_line's to work, so using these pairs of functions insteead.
+	void assert_read_gate();
+	void deassert_read_gate();
 
-	int start_write_sector();
+	void assert_write_gate();
 	void write_sector_next_byte(uint8_t data);
-	void finish_write_sector(uint8_t sector, int write_id);
+	void deassert_write_gate();
+
+	void select();
+	void deselect();
 
     uint8_t execute_command(uint8_t command, uint8_t parameter);
 
@@ -149,9 +152,11 @@ public:
 	// our attention line
 	bool m_attention;
 	void set_attention_line(bool state);
-	attention_cb cur_attention_cb;
 
+	attention_cb cur_attention_cb;
 	read_data_cb cur_read_data_cb;
+	pulse_cb cur_index_pulse_cb;
+	pulse_cb cur_sector_pulse_cb;
 
     template <typename Format, typename... Params> void logerror(Format &&fmt, Params &&... args) const;
 
@@ -196,6 +201,11 @@ public:
 
 	uint32_t m_cursor;
 	char m_buffer[2000]; // really only need 1056 here.
+
+	attotime m_sector_clock_freq;
+	emu_timer *m_sector_timer;
+	TIMER_CALLBACK_MEMBER(sector_callback);
+	int m_pulsed_sector;
 };
 
 #endif // MAME_ANSI_DISK_DEVICE_H

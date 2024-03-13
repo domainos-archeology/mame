@@ -61,7 +61,7 @@ private:
 	void ansi_disk1_attention(ansi_disk_device *disk, bool state);
 
 	void end_of_controller_op();
-	
+
 	DECLARE_WRITE_LINE_MEMBER(fdc_irq);
 	uint8_t fdc_msr_r(offs_t, uint8_t mem_mask);
 
@@ -109,6 +109,15 @@ private:
 	int m_read_record_word_count;
 
 	uint8 m_calendar_ctrl;
+
+	void ansi_index_pulse(ansi_disk_device *);
+	void ansi_sector_pulse(ansi_disk_device *);
+	int m_pulsed_sector;
+
+	bool m_start_read_sector;
+	bool m_start_write_sector;
+	void check_for_sector_read();
+	void check_for_sector_write();
 };
 
 // device type definition
