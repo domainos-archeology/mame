@@ -259,6 +259,17 @@ void ansi_disk_device::load_attribute(uint8_t attribute_value)
 
 void ansi_disk_device::assert_read_gate()
 {
+    // in a perfect world we wouldn't disable this timer, because the drive is sending data
+    // directly off the disk and it's still spinning at the same rate.  but we aren't clocking
+    // NRZ data, we're calling a callback (in read_sector_next_byte) to send the data to the
+    // controller, where it will result in drqs being asserted and the data being read, and I have no
+    // idea how long that'll take.
+    //
+    // so.. we disable the timer here and enable it again when the read gate is deasserted.  This
+    // happens to line up with the entire sector being read, but I'm not sure that's a hard
+    // requirement?  is it possible to leave the read gate asserted and just keep getting NRZ data
+    // from the disk?  will it include the postamble/preamble for the current/next sectors?  I don't
+    // think I've read anything that says one way or the other.
 	m_sector_timer->enable(false);
 
 	int sector = m_pulsed_sector;
@@ -299,6 +310,7 @@ void ansi_disk_device::deassert_read_gate()
 {
     SLOG1(("DN300_DISK:  read finished"));
     m_read_timer->reset();
+    // see the comment up in assert_read_gate.
 	m_sector_timer->enable();
 }
 
