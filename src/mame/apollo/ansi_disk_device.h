@@ -202,7 +202,7 @@ public:
 	uint8_t m_ansi_attributes[0x48];
 
 	uint32_t m_cursor;
-	char m_buffer[2000]; // really only need 1056 here.
+	char m_buffer[1056]; // really should be HARD_DISK_SECTOR_SIZE, once that moves someplace common.
 
 	attotime m_sector_clock_freq;
 	emu_timer *m_sector_timer;
