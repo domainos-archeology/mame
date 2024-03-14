@@ -158,6 +158,8 @@ public:
 	pulse_cb cur_index_pulse_cb;
 	pulse_cb cur_sector_pulse_cb;
 
+	bool m_selected;
+
     template <typename Format, typename... Params> void logerror(Format &&fmt, Params &&... args) const;
 
 	void set_sb1(uint8_t value);

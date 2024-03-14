@@ -17,6 +17,8 @@
 #define HARD_DISK_SECTOR_SIZE 1056
 #define FLOPPY_DISK_SECTOR_SIZE 1024
 
+#define UNKNOWN_SECTOR -50
+
 #define DN300_DISK0_TAG "dn300_disk0"
 #define DN300_DISK1_TAG "dn300_disk1"
 
@@ -107,7 +109,9 @@ apollo_dn300_disk_ctrlr_device::apollo_dn300_disk_ctrlr_device(const machine_con
     , m_wdc_write_enabled(false)
     , m_wdc_attention_enabled(true)
     , m_cursor(0)
-	, m_pulsed_sector(-1)
+	, m_pulsed_sector(UNKNOWN_SECTOR)
+    , m_start_read_sector(false)
+    , m_start_write_sector(false)
 {
 }
 
@@ -625,7 +629,7 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
         case WDC_CONTROLLER_CMD_EXEC_DRIVE_SELECT: {
             m_wdc_selected_drive = m_wdc_ansi_parm;
 			SLOG1(("DN300_DISK_CTRLR: selecting disk %d", m_wdc_selected_drive))
-			m_pulsed_sector = -1;
+			m_pulsed_sector = UNKNOWN_SECTOR;
             ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
 			disk->select();
             break;
@@ -692,8 +696,8 @@ void apollo_dn300_disk_ctrlr_device::ansi_index_pulse(ansi_disk_device *) {
 }
 
 void apollo_dn300_disk_ctrlr_device::ansi_sector_pulse(ansi_disk_device *) {
-	// -1 is "unknown".  we don't do anything until we've seen the index pulse
-	if (m_pulsed_sector == -1) {
+	// we don't do anything until we've seen the index pulse
+	if (m_pulsed_sector == UNKNOWN_SECTOR) {
 		return;
 	}
 

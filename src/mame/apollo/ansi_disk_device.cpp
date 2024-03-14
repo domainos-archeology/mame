@@ -10,30 +10,32 @@ DEFINE_DEVICE_TYPE(ANSI_DISK_DEVICE, ansi_disk_device, "ansi_disk_device", "ANSI
 
 ansi_disk_device::ansi_disk_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
 	: harddisk_image_base_device(mconfig, ANSI_DISK_DEVICE, tag, owner, clock)
-	, m_attention(false)
-	, cur_attention_cb()
-	, cur_read_data_cb()
-	, cur_index_pulse_cb()
-	, cur_sector_pulse_cb()
-	, m_type(0)
-	, m_cylinders(0)
-	, m_heads(0)
-	, m_sectors(0)
-	, m_sectorbytes(0)
-	, m_sector_count(0)
-	, m_image(nullptr)
+    , m_attention(false)
+    , cur_attention_cb()
+    , cur_read_data_cb()
+    , cur_index_pulse_cb()
+    , cur_sector_pulse_cb()
+    , m_selected(false)
+    , m_type(0)
+    , m_cylinders(0)
+    , m_heads(0)
+    , m_sectors(0)
+    , m_sectorbytes(0)
+    , m_sector_count(0)
+    , m_image(nullptr)
     , m_current_cylinder_high(0)
     , m_current_cylinder_low(0)
     , m_load_cylinder_high(0)
     , m_load_cylinder_low(0)
     , m_attribute_number(0)
-	, m_test_byte(0)
+    , m_test_byte(0)
     , m_selected_head(0)
     , m_general_status(0)
     , m_sense_byte_1(0)
     , m_sense_byte_2(0)
     , m_write_enabled(true)
     , m_attention_enabled(true)
+    , m_pulsed_sector(0)
     // XXX more things here moved from the controller
 {
 }
@@ -139,8 +141,8 @@ void ansi_disk_device::device_start()
     m_time_dependent_timer = timer_alloc(FUNC(ansi_disk_device::finish_time_dependent_command), this);
     m_read_timer = timer_alloc(FUNC(ansi_disk_device::read_sector_next_byte), this);
 
-	m_pulsed_sector = 0;
 	m_sector_timer = timer_alloc(FUNC(ansi_disk_device::sector_callback), this);
+	m_sector_timer->adjust(m_sector_clock_freq, 0, m_sector_clock_freq); // XXX do we need ::device_stop to reset this timer?
 }
 
 /*-------------------------------------------------
@@ -342,12 +344,13 @@ void ansi_disk_device::deassert_write_gate()
 void ansi_disk_device::select()
 {
 	SLOG1(("DN300_DISK:    select"));
-	m_sector_timer->adjust(m_sector_clock_freq, 0, m_sector_clock_freq);
+	m_selected = true;
 }
 
 void ansi_disk_device::deselect()
 {
-	m_sector_timer->reset();
+	SLOG1(("DN300_DISK:    deselect"));
+	m_selected = false;
 }
 
 // excepts both the command and a parameter out byte.  returns what should be the parameter in byte.
@@ -840,6 +843,12 @@ TIMER_CALLBACK_MEMBER(ansi_disk_device::finish_time_dependent_command) {
 
 TIMER_CALLBACK_MEMBER(ansi_disk_device::sector_callback) {
 	m_pulsed_sector = (m_pulsed_sector+1) % m_sectors;
+
+    // if we aren't selected we shouldn't be generating pulses, but the platters are still a'spinnin'
+    if (!m_selected) {
+        return;
+    }
+
 	if (m_pulsed_sector == 0) {
 		cur_index_pulse_cb(this);
 	} else {
