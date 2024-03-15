@@ -278,7 +278,7 @@ void ansi_disk_device::assert_read_gate()
     int track_offset = track * m_sectors;
     int sector_offset = track_offset + sector;
 
-    SLOG1(("DN300_DISK:    CMD_READ_RECORD for sector %d on cylinder %d and head %d", sector, cylinder, m_selected_head));
+    SLOG1(("DN300_DISK:    sector %d on cylinder %d and head %d", sector, cylinder, m_selected_head));
     SLOG1(("DN300_DISK:    linearized as logical sector address %d", sector));
 
     if (!m_image) {
@@ -316,6 +316,10 @@ void ansi_disk_device::deassert_read_gate()
 
 void ansi_disk_device::assert_write_gate()
 {
+    // similar to the read gate, we disable the sector pulse while doing the write so we
+    // don't get confusing events happening.
+    m_sector_timer->enable(false);
+
     if (!m_image) {
         SLOG1(("%p: disk image is null?", this));
 		return;
@@ -329,7 +333,7 @@ void ansi_disk_device::assert_write_gate()
 void ansi_disk_device::write_sector_next_byte(uint8_t data)
 {
     if (m_cursor > HARD_DISK_SECTOR_SIZE) {
-        SLOG1(("DN300_DISK:    done with write and the controller didn't finish the op"));
+        SLOG1(("DN300_DISK:    done with write and the controller didn't finish the op.  ignoring."));
         return;
     }
 
@@ -351,6 +355,9 @@ void ansi_disk_device::deassert_write_gate()
     m_image->fwrite(m_buffer, HARD_DISK_SECTOR_SIZE);
 
     SLOG1(("DN300_DISK:  write finished"));
+
+    // relight the sector timer
+    m_sector_timer->enable();
 }
 
 void ansi_disk_device::select()
