@@ -55,10 +55,8 @@ protected:
 private:
 	static void floppy_formats(format_registration &fr);
 
-	void ansi_disk0_attention(ansi_disk_device *disk, bool state);
-	void ansi_disk0_read_data(ansi_disk_device *disk, uint8_t data);
-
-	void ansi_disk1_attention(ansi_disk_device *disk, bool state);
+	void ansi_disk_attention(ansi_disk_device *disk, bool state);
+	void ansi_disk_read_data(ansi_disk_device *disk, uint8_t data);
 
 	void end_of_controller_op();
 
@@ -79,9 +77,7 @@ private:
 
 	uint8_t m_wdc_ansi_cmd;
 	uint8_t m_wdc_ansi_parm;
-	uint8_t m_wdc_ansi_test_byte;
 	uint8_t m_wdc_sector;
-
 	uint8_t m_wdc_head;
 	uint8_t m_wdc_interrupt_control;
 	uint8_t m_controller_command;
@@ -96,7 +92,7 @@ private:
 	uint8_t m_controller_status_low;
 	uint8_t m_wdc_selected_head;
 	uint8_t m_wdc_selected_drive;
-	uint8_t m_wdc_general_status;
+	uint8_t m_wdc_general_status; // this seems wrong - this is the attention status on the controller, not general status
 	uint8_t m_wdc_sense_byte_1;
 	uint8_t m_wdc_sense_byte_2;
 	bool m_wdc_write_enabled;
