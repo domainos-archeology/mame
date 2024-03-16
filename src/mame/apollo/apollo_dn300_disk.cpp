@@ -384,7 +384,7 @@ void apollo_dn300_disk_ctrlr_device::wdc_write(offs_t offset, uint8_t data, uint
         case WDC_REG_HEAD: {
             SLOG1(("DN300_DISK_CTRLR: HEAD write = %02x", data));
             ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
-            disk->execute_command(ANSI_CMD_SELECT_HEAD, data);
+            disk->m_wdc_head = data;
             break;
         }
         case WDC_REG_INTERRUPT_CONTROL:
@@ -474,65 +474,6 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
 			m_start_read_sector = true;
             break;
         }
-#if 0
-            m_wdc_general_status |= GS_BUSY_EXECUTING;
-
-            ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
-
-            int cylinder = (disk->m_current_cylinder_high << 8) | disk->m_current_cylinder_low;
-            int track = cylinder * disk->m_heads + m_wdc_head;
-            int sector_offset = track * disk->m_sectors;
-            int sector = sector_offset + m_wdc_sector;
-
-            SLOG1(("DN300_DISK_CTRLR:    CMD_READ_RECORD for drive %d sector %d on cylinder %d and head %d", m_wdc_selected_drive, m_wdc_sector, cylinder, m_wdc_head));
-            SLOG1(("DN300_DISK_CTRLR:    linearized as logical sector address %d", sector));
-
-			if (!disk) {
-				SLOG1(("%p: disk is null?", this));
-			}
-			if (!disk->m_image) {
-				SLOG1(("%p: disk image is null?", this));
-			}
-            disk->m_image->fseek(sector * HARD_DISK_SECTOR_SIZE, SEEK_SET);
-            disk->m_image->fread(m_buffer, HARD_DISK_SECTOR_SIZE);
-
-            m_cursor = 0;
-
-            // 0x10 for the first operation
-            for (int i = 0; i < 0x10; i++) {
-                PULSE_DRQ();
-            }
-
-            // 0x200 for the second operation
-            for (int i = 0; i < 0x200; i++) {
-                PULSE_DRQ();
-            }
-
-		    SLOG1(("DN300_DISK_CTRLR:    done with synchronous read"));
-            m_wdc_general_status &= ~GS_BUSY_EXECUTING;
-            m_wdc_general_status |= GS_NORMAL_COMPLETE;
-
-			if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_END_OF_OP) {
-	            m_controller_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
-				SLOG1(("DN300_DISK_CTRLR:    irqctrl end of op set, interrupting in 10ms"));
-                need_interrupt = true;
-				command_duration = 10;
-            }
-            if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_STATUS_AVAIL) {
-                m_controller_status_high |= CONTROLLER_STATUS_HIGH_STATUS_AVAILABLE_INTERRUPT;
-				SLOG1(("DN300_DISK_CTRLR:    irqctrl status avail set, interrupting in 10ms"));
-                need_interrupt = true;
-				command_duration = 10;
-			}
-
-			if (!need_interrupt) {
-				SLOG1(("DN300_DISK_CTRLR:    irqctrl not set, not interrupting"));
-                m_controller_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
-            }
-
-            break;
-        }
-#endif
         case WDC_CONTROLLER_CMD_WRITE_RECORD: {
             // we're busy writing
             m_controller_status_high |= CONTROLLER_STATUS_HIGH_CONTROLLER_BUSY;
@@ -542,73 +483,6 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
 			m_start_read_sector = true;
             break;
         }
-#if 0
-            m_wdc_general_status |= GS_BUSY_EXECUTING;
-
-            ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
-
-            int cylinder = (disk->m_current_cylinder_high << 8) | disk->m_current_cylinder_low;
-            int track = cylinder * disk->m_heads + m_wdc_head;
-            int sector_offset = track * disk->m_sectors;
-            int sector = sector_offset + m_wdc_sector;
-
-            SLOG1(("DN300_DISK_CTRLR:    CMD_WRITE_RECORD for drive %d sector %d on cylinder %d and head %d", m_wdc_selected_drive, m_wdc_sector, cylinder, m_wdc_head));
-            SLOG1(("DN300_DISK_CTRLR:    linearized as logical sector address %d", sector));
-
-            m_cursor = 0;
-
-            // 0x10 for the first operation
-            for (int i = 0; i < 0x10; i++) {
-                PULSE_DRQ();
-            }
-
-            // 0x200 for the second operation
-            for (int i = 0; i < 0x200; i++) {
-                PULSE_DRQ();
-            }
-
-			SLOG1(("writing buffer to disk:"))
-			int idx = 0;
-			for (int i = 0; i < 1056/16; i++) {
-				std::ostringstream line;
-				// util::string_format(line, "%08x: ", idx + 0x420);
-				for (int j = 0; j < 16; j ++) {
-					util::stream_format(line, "%02x ", m_buffer[idx++]);
-					if (j == 7) {
-						line << " ";
-					}
-				}
-				SLOG1((line.str().c_str()));
-			}
-
-            disk->m_image->fseek(sector * HARD_DISK_SECTOR_SIZE, SEEK_SET);
-            disk->m_image->fwrite(m_buffer, HARD_DISK_SECTOR_SIZE);
-
-		    SLOG1(("DN300_DISK_CTRLR:    done with synchronous write"));
-            m_wdc_general_status &= ~GS_BUSY_EXECUTING;
-            m_wdc_general_status |= GS_NORMAL_COMPLETE;
-
-			if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_END_OF_OP) {
-	            m_controller_status_high |= CONTROLLER_STATUS_HIGH_END_OF_OP_INTERRUPT;
-				SLOG1(("DN300_DISK_CTRLR:    irqctrl end of op set, interrupting in 10ms"));
-                need_interrupt = true;
-				command_duration = 10;
-            }
-            if (m_wdc_interrupt_control & WDC_IRQCTRL_ENABLE_STATUS_AVAIL) {
-                m_controller_status_high |= CONTROLLER_STATUS_HIGH_STATUS_AVAILABLE_INTERRUPT;
-				SLOG1(("DN300_DISK_CTRLR:    irqctrl status avail set, interrupting in 10ms"));
-                need_interrupt = true;
-				command_duration = 10;
-			}
-
-			if (!need_interrupt) {
-				SLOG1(("DN300_DISK_CTRLR:    irqctrl not set, not interrupting"));
-                m_controller_status_high |= CONTROLLER_STATUS_HIGH_DRIVE_ATTENTION;
-            }
-
-            break;
-		}
-#endif
 
         case WDC_CONTROLLER_CMD_FORMAT_TRACK:
             SLOG1(("DN300_DISK_CTRLR:    CMD_FORMAT_TRACK unimplemented"))
