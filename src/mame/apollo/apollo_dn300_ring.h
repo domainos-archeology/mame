@@ -74,7 +74,7 @@ private:
 	uint16_t m_rcv_command;
 	uint8_t m_tmask;
 	uint16_t m_diag_status;
-	uint16_t m_diag_command;
+	// uint16_t m_diag_command;
 	uint16_t m_ring_id_msb;
 	uint16_t m_ring_id_lsb;
 	// 4 bytes of id, msb first

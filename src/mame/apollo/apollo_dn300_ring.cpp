@@ -138,7 +138,7 @@ apollo_dn300_ring_ctrlr_device::apollo_dn300_ring_ctrlr_device(const machine_con
 	m_rcv_command(0),
 	m_tmask(0),
 	m_diag_status(0),
-	m_diag_command(0),
+	// m_diag_command(0),
 	m_ring_id_msb(0),
 	m_ring_id_lsb(0),
 	m_cursor(0)
