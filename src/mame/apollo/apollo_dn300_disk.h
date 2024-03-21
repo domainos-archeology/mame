@@ -56,14 +56,16 @@ private:
 	static void floppy_formats(format_registration &fr);
 
 	void ansi_disk_attention(ansi_disk_device *disk, bool state);
+	void ansi_disk_busy(ansi_disk_device *disk, bool state);
 	void ansi_disk_read_data(ansi_disk_device *disk, uint8_t data);
+	void ansi_disk_ref_clock_tick(ansi_disk_device *disk);
 
 	void end_of_controller_op();
 
 	DECLARE_WRITE_LINE_MEMBER(fdc_irq);
 	uint8_t fdc_msr_r(offs_t, uint8_t mem_mask);
 
-	emu_timer *m_timer;
+	bool m_interrupting;
 
 	devcb_write_line irq_cb;
 	devcb_write_line drq_cb;
@@ -92,17 +94,17 @@ private:
 	uint8_t m_controller_status_low;
 	uint8_t m_wdc_selected_head;
 	uint8_t m_wdc_selected_drive;
-	uint8_t m_wdc_general_status; // this seems wrong - this is the attention status on the controller, not general status
+	uint8_t m_wdc_attention_status;
+	uint8_t m_wdc_drive_num_of_status;
 	uint8_t m_wdc_sense_byte_1;
 	uint8_t m_wdc_sense_byte_2;
 	bool m_wdc_write_enabled;
-	bool m_wdc_attention_enabled;
 
 	uint32_t m_cursor;
 	char m_buffer[2000]; // really only need 1056 here.
 
 	uint8_t m_wdc_read_data_byte;
-	int m_read_record_word_count;
+	int m_word_transfer_count;
 
 	uint8 m_calendar_ctrl;
 

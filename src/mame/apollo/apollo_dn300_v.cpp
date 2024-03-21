@@ -214,7 +214,7 @@ void apollo_dn300_graphics::blt()
 	bool is_rom_char = bits_per_line == 7 && lines == 13 && m_wssx > 500;
 
 	if (VERBOSE > 2 || !is_rom_char) {
-		MLOG1(("BLT s=% 4d, % 4d  d=% 4d, % 4d sz=% 4d, % 4d (w: %d) -- "
+		MLOG2(("BLT s=% 4d, % 4d  d=% 4d, % 4d sz=% 4d, % 4d (w: %d) -- "
 			"CR=%04x DCX=%04x DCY=%04x DEB=%04X (%s, %s, %s, %s)",
 			m_wssx, m_wssy,
 			m_wsdx, m_wsdy,

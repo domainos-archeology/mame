@@ -159,24 +159,6 @@ void apollo_dn300_state::apollo_bus_error(offs_t fault_addr, u8 rw)
 	m_maincpu->set_input_line(M68K_LINE_BUSERROR, CLEAR_LINE);
 }
 
-void apollo_dn300_state::cpu_space_map(address_map &map)
-{
-	map(0xfffff0, 0xffffff).r(FUNC(apollo_dn300_state::apollo_irq_acknowledge));
-}
-
-u16 apollo_dn300_state::apollo_irq_acknowledge(offs_t offset)
-{
-	MLOG2(("apollo_irq_acknowledge: interrupt level=%d", offset));
-	// the previous non-dn300 code does this; but I don't think this is correct.
-	// there's no PIC, and with this getting cleared, I get TBLT errors about
-	// BLT interrupt misses.
-	// m_maincpu->set_input_line(offset, CLEAR_LINE);
-	// if (offset == APOLLO_DN300_IRQ_DISK) {
-	// 	m_maincpu->set_input_line(offset, CLEAR_LINE);
-	// }
-	return m68000_base_device::autovector(offset);
-}
-
 WRITE_LINE_MEMBER( apollo_dn300_state::dma_irq )
 {
 	MLOG2(("dma_irq: state=%d", state));
@@ -551,7 +533,6 @@ void apollo_dn300_state::dn300(machine_config &config)
 	/* basic machine hardware */
 	M68010EMMU(config, m_maincpu, 16000000); /* 16 MHz 68010 with an external mmu */
 	m_maincpu->set_addrmap(AS_PROGRAM, &apollo_dn300_state::dn300_physical_map);
-	m_maincpu->set_addrmap(m68000_base_device::AS_CPU_SPACE, &apollo_dn300_state::cpu_space_map);
 	m_maincpu->reset_cb().set(FUNC(apollo_dn300_state::apollo_reset_instr_callback));
 
 	config.set_maximum_quantum(attotime::from_hz(60));
@@ -584,7 +565,6 @@ void apollo_dn300_state::dn320(machine_config &config)
 	/* basic machine hardware */
 	M68010EMMU(config, m_maincpu, 16000000); /* 16 MHz 68010 with an external mmu */
 	m_maincpu->set_addrmap(AS_PROGRAM, &apollo_dn300_state::dn300_physical_map);
-	m_maincpu->set_addrmap(m68000_base_device::AS_CPU_SPACE, &apollo_dn300_state::cpu_space_map);
 
 	config.set_maximum_quantum(attotime::from_hz(60));
 

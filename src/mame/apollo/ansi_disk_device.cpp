@@ -12,6 +12,7 @@ ansi_disk_device::ansi_disk_device(const machine_config &mconfig, const char *ta
 	: harddisk_image_base_device(mconfig, ANSI_DISK_DEVICE, tag, owner, clock)
     , m_attention(false)
     , cur_attention_cb()
+	, cur_busy_cb()
     , cur_read_data_cb()
     , cur_index_pulse_cb()
     , cur_sector_pulse_cb()
@@ -40,14 +41,24 @@ ansi_disk_device::ansi_disk_device(const machine_config &mconfig, const char *ta
 {
 }
 
-void ansi_disk_device::set_attention_cb(attention_cb cb)
+void ansi_disk_device::set_attention_cb(bool_cb cb)
 {
     cur_attention_cb = cb;
+}
+
+void ansi_disk_device::set_busy_cb(bool_cb cb)
+{
+    cur_busy_cb = cb;
 }
 
 void ansi_disk_device::set_read_data_cb(read_data_cb cb)
 {
     cur_read_data_cb = cb;
+}
+
+void ansi_disk_device::set_ref_clock_tick_cb(pulse_cb cb)
+{
+	cur_ref_clock_tick_cb = cb;
 }
 
 void ansi_disk_device::set_index_pulse_cb(pulse_cb cb)
@@ -139,7 +150,8 @@ void ansi_disk_device::device_start()
 	// default disk type
 	ansi_disk_config(ANSI_DISK_TYPE_DEFAULT);
     m_time_dependent_timer = timer_alloc(FUNC(ansi_disk_device::finish_time_dependent_command), this);
-    m_read_timer = timer_alloc(FUNC(ansi_disk_device::read_sector_next_byte), this);
+    m_read_timer = timer_alloc(FUNC(ansi_disk_device::read_clock_tick), this);
+    m_ref_timer = timer_alloc(FUNC(ansi_disk_device::ref_clock_tick), this);
 
 	m_sector_timer = timer_alloc(FUNC(ansi_disk_device::sector_callback), this);
 	m_sector_timer->adjust(m_sector_clock_freq, 0, m_sector_clock_freq); // XXX do we need ::device_stop to reset this timer?
@@ -261,7 +273,7 @@ void ansi_disk_device::assert_read_gate()
 {
     // in a perfect world we wouldn't disable this timer, because the drive is sending data
     // directly off the disk and it's still spinning at the same rate.  but we aren't clocking
-    // NRZ data, we're calling a callback (in read_sector_next_byte) to send the data to the
+    // NRZ data, we're calling a callback (in read_clock_tick) to send the data to the
     // controller, where it will result in drqs being asserted and the data being read, and I have no
     // idea how long that'll take.
     //
@@ -292,10 +304,10 @@ void ansi_disk_device::assert_read_gate()
     m_image->fread(m_buffer, HARD_DISK_SECTOR_SIZE);
 
     m_cursor = 0;
-    m_read_timer->adjust(attotime::from_usec(1), 0, attotime::from_usec(1));
+    m_read_timer->adjust(attotime::from_nsec(960), 0, attotime::from_nsec(960));
 }
 
-TIMER_CALLBACK_MEMBER(ansi_disk_device::read_sector_next_byte)
+TIMER_CALLBACK_MEMBER(ansi_disk_device::read_clock_tick)
 {
     if (m_cursor > HARD_DISK_SECTOR_SIZE) {
         SLOG1(("DN300_DISK:    done with read and the controller didn't finish the op"));
@@ -328,6 +340,12 @@ void ansi_disk_device::assert_write_gate()
     // write to the buffer until we've accumulated everything, then do a single write
     // to the image.
     m_cursor = 0;
+	m_ref_timer->adjust(attotime::from_usec(1), 0, attotime::from_usec(1));
+}
+
+TIMER_CALLBACK_MEMBER(ansi_disk_device::ref_clock_tick)
+{
+	cur_ref_clock_tick_cb(this);
 }
 
 void ansi_disk_device::write_sector_next_byte(uint8_t data)
@@ -356,6 +374,7 @@ void ansi_disk_device::deassert_write_gate()
 
     SLOG1(("DN300_DISK:  write finished"));
 
+	m_ref_timer->reset();
     // relight the sector timer
     m_sector_timer->enable();
 }
@@ -376,6 +395,11 @@ void ansi_disk_device::deselect()
 // if the command doesn't require a parameter in byte, return m_general_status.
 uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
 {
+	if (m_busy) {
+		SLOG1(("DN300_DISK:    busy, ignoring command"));
+		return 0;
+	}
+
     switch (command) {
         case ANSI_CMD_REPORT_ILLEGAL_COMMAND:
 			SLOG1(("DN300_DISK:    ansicmd REPORT_ILLEGAL_COMMAND"));
@@ -841,23 +865,35 @@ void ansi_disk_device::clear_sb2(uint8_t value) {
 }
 
 void ansi_disk_device::start_time_dependent_command(attotime duration) {
+	set_busy_line(true);
     m_general_status |= GS_BUSY_EXECUTING;
     m_time_dependent_timer->adjust(duration, 0);
 }
 
 void ansi_disk_device::set_attention_line(bool state) {
+	SLOG1(("ansi_disk_device(%p)::set_attention_line(%d, cur=%d)", this, state, m_attention));
 	if (m_attention != state) {
 	    m_attention = state;
 	    cur_attention_cb(this, state);
 	}
 }
 
+void ansi_disk_device::set_busy_line(bool state) {
+	SLOG1(("ansi_disk_device(%p)::set_busy_line(%d, cur=%d)", this, state, m_busy));
+	if (m_busy != state) {
+	    m_busy = state;
+	    cur_busy_cb(this, state);
+
+		if (!m_busy && m_attention_enabled) {
+	        set_attention_line(true);
+		}
+	}
+}
+
 TIMER_CALLBACK_MEMBER(ansi_disk_device::finish_time_dependent_command) {
     SLOG1(("ansi_disk_device(%p)::finish_time_dependent_command", this));
     m_general_status |= GS_NORMAL_COMPLETE;
-    if (m_attention_enabled) {
-        set_attention_line(true);
-    }
+	set_busy_line(false);
 }
 
 TIMER_CALLBACK_MEMBER(ansi_disk_device::sector_callback) {

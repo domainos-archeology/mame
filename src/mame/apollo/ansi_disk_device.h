@@ -10,7 +10,7 @@
 #define ANSI_DISK_TYPE_64_MB 0x105 // Priam 7050 (70MB unformatted Dtype = 105)
 // There's another (unknown) disk type supported in /sau2/disk (Dtype low = 35, 4 heads, 502 cylinders, 15 blocks/track)
 #define ANSI_DISK_TYPE_DEFAULT ANSI_DISK_TYPE_64_MB  // new disks will have this type (and size)
-#define ANSI_DISK_TYPE_HACK_DN3500 0xffff// allow us to do the right thing at bootup sharing the disk image with a big esdi disk
+#define ANSI_DISK_TYPE_HACK_DN3500 0xffff// allow us to do the right thing at bootup sharing the disk image with a big esdi disk from a dn3500
 
 
 // ANSI commands
@@ -98,7 +98,7 @@ DECLARE_DEVICE_TYPE(ANSI_DISK_DEVICE, ansi_disk_device)
 class ansi_disk_device : public harddisk_image_base_device
 {
 public:
-	typedef delegate<void (ansi_disk_device *, bool)> attention_cb;
+	typedef delegate<void (ansi_disk_device *, bool)> bool_cb;
 	typedef delegate<void (ansi_disk_device *, uint8_t)> read_data_cb;
 	typedef delegate<void (ansi_disk_device *)> pulse_cb;
 
@@ -113,8 +113,10 @@ public:
 
 	virtual image_init_result call_create(int format_type, util::option_resolution *format_options) override;
 
-	void set_attention_cb(attention_cb cb);
+	void set_attention_cb(bool_cb cb);
+	void set_busy_cb(bool_cb cb);
 	void set_read_data_cb(read_data_cb cb);
+	void set_ref_clock_tick_cb(pulse_cb cb);
 	void set_index_pulse_cb(pulse_cb cb);
 	void set_sector_pulse_cb(pulse_cb cb);
 
@@ -147,14 +149,23 @@ public:
 
 	// the timer that drives the read_sector code
 	emu_timer *m_read_timer;
-	TIMER_CALLBACK_MEMBER(read_sector_next_byte);
+	TIMER_CALLBACK_MEMBER(read_clock_tick);
+
+	// the timer that drives the write_sector code
+	emu_timer *m_ref_timer;
+	TIMER_CALLBACK_MEMBER(ref_clock_tick);
 
 	// our attention line
 	bool m_attention;
 	void set_attention_line(bool state);
 
-	attention_cb cur_attention_cb;
+	bool m_busy;
+	void set_busy_line(bool state);
+
+	bool_cb cur_attention_cb;
+	bool_cb cur_busy_cb;
 	read_data_cb cur_read_data_cb;
+	pulse_cb cur_ref_clock_tick_cb;
 	pulse_cb cur_index_pulse_cb;
 	pulse_cb cur_sector_pulse_cb;
 

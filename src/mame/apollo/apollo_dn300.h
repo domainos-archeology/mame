@@ -208,7 +208,7 @@ public:
 	DECLARE_MACHINE_RESET(apollo_dn300);
 	DECLARE_MACHINE_START(apollo_dn300);
 
-	void cpu_space_map(address_map &map);
+	// void cpu_space_map(address_map &map);
 	u16 apollo_irq_acknowledge(offs_t offset);
 	u16 apollo_pic_get_vector();
 	void apollo_bus_error(offs_t fault_addr, u8 rw);
