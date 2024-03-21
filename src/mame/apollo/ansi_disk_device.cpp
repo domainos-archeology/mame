@@ -290,8 +290,8 @@ void ansi_disk_device::assert_read_gate()
     int track_offset = track * m_sectors;
     int sector_offset = track_offset + sector;
 
-    SLOG1(("DN300_DISK:    sector %d on cylinder %d and head %d", sector, cylinder, m_selected_head));
-    SLOG1(("DN300_DISK:    linearized as logical sector address %d", sector));
+    SLOG1(("ANSI_DISK:    sector %d on cylinder %d and head %d", sector, cylinder, m_selected_head));
+    SLOG1(("ANSI_DISK:    linearized as logical sector address %d", sector));
 
     if (!m_image) {
         SLOG1(("%p: disk image is null?", this));
@@ -310,7 +310,7 @@ void ansi_disk_device::assert_read_gate()
 TIMER_CALLBACK_MEMBER(ansi_disk_device::read_clock_tick)
 {
     if (m_cursor > HARD_DISK_SECTOR_SIZE) {
-        SLOG1(("DN300_DISK:    done with read and the controller didn't finish the op"));
+        SLOG1(("ANSI_DISK:    done with read and the controller didn't finish the op"));
         m_read_timer->adjust(attotime::never);
         return;
     }
@@ -320,7 +320,7 @@ TIMER_CALLBACK_MEMBER(ansi_disk_device::read_clock_tick)
 
 void ansi_disk_device::deassert_read_gate()
 {
-    SLOG1(("DN300_DISK:  read finished"));
+    SLOG1(("ANSI_DISK:  read finished"));
     m_read_timer->reset();
     // see the comment up in assert_read_gate.
 	m_sector_timer->enable();
@@ -351,7 +351,7 @@ TIMER_CALLBACK_MEMBER(ansi_disk_device::ref_clock_tick)
 void ansi_disk_device::write_sector_next_byte(uint8_t data)
 {
     if (m_cursor > HARD_DISK_SECTOR_SIZE) {
-        SLOG1(("DN300_DISK:    done with write and the controller didn't finish the op.  ignoring."));
+        SLOG1(("ANSI_DISK:    done with write and the controller didn't finish the op.  ignoring."));
         return;
     }
 
@@ -366,13 +366,13 @@ void ansi_disk_device::deassert_write_gate()
     int track_offset = track * m_sectors;
     int sector_offset = track_offset + sector;
 
-    SLOG1(("DN300_DISK:    finish_write_sector for sector %d on cylinder %d and head %d", sector, cylinder, m_selected_head));
-    SLOG1(("DN300_DISK:    linearized as logical sector address %d", sector));
+    SLOG1(("ANSI_DISK:    finish_write_sector for sector %d on cylinder %d and head %d", sector, cylinder, m_selected_head));
+    SLOG1(("ANSI_DISK:    linearized as logical sector address %d", sector));
 
     m_image->fseek(sector_offset * HARD_DISK_SECTOR_SIZE, SEEK_SET);
     m_image->fwrite(m_buffer, HARD_DISK_SECTOR_SIZE);
 
-    SLOG1(("DN300_DISK:  write finished"));
+    SLOG1(("ANSI_DISK:  write finished"));
 
 	m_ref_timer->reset();
     // relight the sector timer
@@ -381,13 +381,13 @@ void ansi_disk_device::deassert_write_gate()
 
 void ansi_disk_device::select()
 {
-	SLOG1(("DN300_DISK:    select"));
+	SLOG1(("ANSI_DISK:    select"));
 	m_selected = true;
 }
 
 void ansi_disk_device::deselect()
 {
-	SLOG1(("DN300_DISK:    deselect"));
+	SLOG1(("ANSI_DISK:    deselect"));
 	m_selected = false;
 }
 
@@ -396,13 +396,13 @@ void ansi_disk_device::deselect()
 uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
 {
 	if (m_busy) {
-		SLOG1(("DN300_DISK:    busy, ignoring command"));
+		SLOG1(("ANSI_DISK:    busy, ignoring command"));
 		return 0;
 	}
 
     switch (command) {
         case ANSI_CMD_REPORT_ILLEGAL_COMMAND:
-			SLOG1(("DN300_DISK:    ansicmd REPORT_ILLEGAL_COMMAND"));
+			SLOG1(("ANSI_DISK:    ansicmd REPORT_ILLEGAL_COMMAND"));
             // This command shall force the Illegal Command Bit to be set in the
             // General Status Byte (see Section 4.4). The General Status Byte,
             // with the Illegal Command Bit equal to one, is returned to the host
@@ -411,7 +411,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             return m_general_status;
 
         case ANSI_CMD_CLEAR_FAULT:
-			SLOG1(("DN300_DISK:    ansicmd CLEAR_FAULT"));
+			SLOG1(("ANSI_DISK:    ansicmd CLEAR_FAULT"));
             // This command shall cause all fault status bits of the selected
             // device to be reset, provided the fault condition has passed. If
             // the fault condition persits the appropriate status bit shall
@@ -435,7 +435,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             return m_general_status;
 
         case ANSI_CMD_CLEAR_ATTENTION:
-			SLOG1(("DN300_DISK:    ansicmd CLEAR_ATTENTION"));
+			SLOG1(("ANSI_DISK:    ansicmd CLEAR_ATTENTION"));
             // This command shall cause the Attention Condition to be reset in the
             // selected device. The General Status Byte shall be returned by the
             // Parameter Byte of the command sequence.
@@ -455,7 +455,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             return m_general_status;
 
         case ANSI_CMD_SEEK:
-			SLOG1(("DN300_DISK:    ansicmd SEEK"));
+			SLOG1(("ANSI_DISK:    ansicmd SEEK"));
             // This command shall cause the selected device to seek to the
             // cylinder identified as the target cylinder by the Load Cylinder
             // Address Commands (see Sections 4.1.3 and 4.1.4). The General
@@ -476,7 +476,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             return m_general_status;
 
         case ANSI_CMD_REZERO:
-			SLOG1(("DN300_DISK:    ansicmd REZERO"));
+			SLOG1(("ANSI_DISK:    ansicmd REZERO"));
             // This command shall cause the selected device to position the moving
             // head(s) over cylinder zero. The General Status byte shall be
             // returned to the host by the Parameter Byte of the command sequence
@@ -492,21 +492,21 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             return m_general_status;
 
         case ANSI_CMD_REPORT_SENSE_BYTE_2:
-			SLOG1(("DN300_DISK:    ansicmd REPORT_SENSE_BYTE_2"));
+			SLOG1(("ANSI_DISK:    ansicmd REPORT_SENSE_BYTE_2"));
             // The command shall cause the selected device to return Sense Byte 2
             // by the Parameter Byte of the command sequence. No other action
             // shall be taken in the device.
             return m_sense_byte_2;
 
         case ANSI_CMD_REPORT_SENSE_BYTE_1:
-			SLOG1(("DN300_DISK:    ansicmd REPORT_SENSE_BYTE_1"));
+			SLOG1(("ANSI_DISK:    ansicmd REPORT_SENSE_BYTE_1"));
             // This command shall cause the selected device to return Sense Byte 1
             // by the Parameter Byte of the command sequence. No other action
             // shall be taken in the device.
             return m_sense_byte_1;
 
         case ANSI_CMD_REPORT_GENERAL_STATUS:
-			SLOG1(("DN300_DISK:    ansicmd REPORT_GENERAL_STATUS"));
+			SLOG1(("ANSI_DISK:    ansicmd REPORT_GENERAL_STATUS"));
             // This command shall cause the selected device to return the general
             // Status Byte by the Parameter Byte of the command sequence. This
             // command shall not perform any other function in the device and acts
@@ -515,7 +515,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             return m_general_status;
 
         case ANSI_CMD_REPORT_ATTRIBUTE:
-			SLOG1(("DN300_DISK:    ansicmd REPORT_ATTRIBUTE"));
+			SLOG1(("ANSI_DISK:    ansicmd REPORT_ATTRIBUTE"));
             // This command shall cause the selected device to return a byte of
             // information that is the Device Attribute whose number was defined
             // in the Load Attribute Number Command (see Section 4.1.6). The
@@ -524,7 +524,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             return report_attribute();
 
         case ANSI_CMD_SET_ATTENTION:
-			SLOG1(("DN300_DISK:    ansicmd SET_ATTENTION"));
+			SLOG1(("ANSI_DISK:    ansicmd SET_ATTENTION"));
             // This command shall cause the selected device to set the Attention
             // Condition. No other action shall be caused.
             // The General Status Byte shall be transferred to the host by the
@@ -534,7 +534,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             return m_general_status; // XXX is this supposed to be returned with the BUSY_EXECUTING bit or not?
 
         case ANSI_CMD_SELECTIVE_RESET:
-			SLOG1(("DN300_DISK:    ansicmd SELECTIVE_RESET"));
+			SLOG1(("ANSI_DISK:    ansicmd SELECTIVE_RESET"));
             // This command shall cause the selected device to reach Initial State
             // (see Section 3.2.1). This is a time dependent command and as such
             // shall set the Busy Executing bit prior to the assertion of the
@@ -552,7 +552,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             return parameter;
 
         case ANSI_CMD_REFORMAT_TRACK:
-			SLOG1(("DN300_DISK:    ansicmd REFORMAT_TRACK"));
+			SLOG1(("ANSI_DISK:    ansicmd REFORMAT_TRACK"));
             // This command shall cause the selected device to reconfigure the
             // arrangement of Sector Pulse generation according to parameters
             // received via the Load Sector Pulses Per Track Commands (see
@@ -582,7 +582,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             return m_general_status; // XXX is this supposed to be returned with the BUSY_EXECUTING bit or not?
 
         case ANSI_CMD_REPORT_CYL_ADDR_HIGH:
-			SLOG1(("DN300_DISK:    ansicmd REPORT_CYL_ADDR_HIGH"));
+			SLOG1(("ANSI_DISK:    ansicmd REPORT_CYL_ADDR_HIGH"));
             // This command shall cause the selected device to return a byte of
             // information that is the most significant byte of a 16 bit .number
             // that, indicates the cylinder address of the current position of the
@@ -598,7 +598,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
 			return m_current_cylinder_high;
 
         case ANSI_CMD_REPORT_CYL_ADDR_LOW:
-			SLOG1(("DN300_DISK:    ansicmd REPORT_CYL_ADDR_LOW"));
+			SLOG1(("ANSI_DISK:    ansicmd REPORT_CYL_ADDR_LOW"));
             // This command shall cause the selected device to return a byte of
             // information that is the least significant byte of a 16 bit number
             // that indicates the cylinder address of the current position of the
@@ -615,7 +615,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             return m_current_cylinder_low;
 
         case ANSI_CMD_REPORT_TEST_BYTE:
-			SLOG1(("DN300_DISK:    ansicmd REPORT_TEST_BYTE"));
+			SLOG1(("ANSI_DISK:    ansicmd REPORT_TEST_BYTE"));
             // This command shall cause the selected device to return a copy of
             // the Test Byte transferred to the device via the Load 'Test Byte
             // Command. (See Section 4.1.12.)
@@ -627,7 +627,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
 			return m_test_byte;
 
         case ANSI_CMD_ATTENTION_CONTROL:
-			SLOG1(("DN300_DISK:    ansicmd ATTENTION_CONTROL"));
+			SLOG1(("ANSI_DISK:    ansicmd ATTENTION_CONTROL"));
             // This command shall condition the selected device to enable or
             // disable its attention circuitry based on the value of the Parameter
             // Byte as shown below.
@@ -654,7 +654,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             return parameter;
 
         case ANSI_CMD_WRITE_CONTROL:
-			SLOG1(("DN300_DISK:    ansicmd WRITE_CONTROL"));
+			SLOG1(("ANSI_DISK:    ansicmd WRITE_CONTROL"));
             // This command shall condition the selected device to enable or
             // disable its write circuitry based on the value of the parameter
             // Byte as shown below:
@@ -677,7 +677,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             return parameter;
 
         case ANSI_CMD_LOAD_CYL_ADDR_HIGH:
-			SLOG1(("DN300_DISK:    ansicmd LOAD_CYL_ADDR_HIGH"));
+			SLOG1(("ANSI_DISK:    ansicmd LOAD_CYL_ADDR_HIGH"));
             // This command shall condition the selected device to accept the
             // Parameter Byte as the most significant Byte of a cylinder address.
             // This command is used in conjunction with the Seek Command (see
@@ -695,7 +695,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             return parameter;
 
         case ANSI_CMD_LOAD_CYL_ADDR_LOW:
-			SLOG1(("DN300_DISK:    ansicmd LOAD_CYL_ADDR_LOW"));
+			SLOG1(("ANSI_DISK:    ansicmd LOAD_CYL_ADDR_LOW"));
             // This command shall condition the selected device to accept the
             // Parameter Byte as the least signficant byte of a cylinder address.
             // This command is used in conjunction with the Seek Command (see
@@ -713,7 +713,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             return parameter;
 
         case ANSI_CMD_SELECT_HEAD:
-			SLOG1(("DN300_DISK:    ansicmd SELECT_HEAD"));
+			SLOG1(("ANSI_DISK:    ansicmd SELECT_HEAD"));
             // This command shall condition the selected device to. accept the
             // Parameter Byte as the binary address of the head selected for read
             // or write operations. This command shall enable the moving heads
@@ -728,7 +728,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             return parameter;
 
         case ANSI_CMD_LOAD_ATTRIBUTE_NUMBER:
-			SLOG1(("DN300_DISK:    ansicmd LOAD_ATTRIBUTE_NUMBER"));
+			SLOG1(("ANSI_DISK:    ansicmd LOAD_ATTRIBUTE_NUMBER"));
             // This command shall condition the selected device to accept the
             // Parameter Byte as the number of a Device Attribute as defined in
             // Table 4-3. This command prepares the device for a subsequent Load
@@ -738,7 +738,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             return parameter;
 
         case ANSI_CMD_LOAD_ATTRIBUTE:
-			SLOG1(("DN300_DISK:    ansicmd LOAD_ATTRIBUTE"));
+			SLOG1(("ANSI_DISK:    ansicmd LOAD_ATTRIBUTE"));
             // This command shall condition the selected device to accept the
             // Parameter Byte as the new value of a Device Attribute. The number
             // of the Device Attribute must have been previously defined by the
@@ -749,7 +749,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             return parameter;
 
         case ANSI_CMD_SPIN_CONTROL:
-			SLOG1(("DN300_DISK:    ansicmd SPIN_CONTROL"));
+			SLOG1(("ANSI_DISK:    ansicmd SPIN_CONTROL"));
             // This command shall condition the seleted device to enter a spin up
             // or spin down cycle based on the value of the Parameter Byte as
             // shown below.
@@ -782,47 +782,47 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             return parameter;
 
         case ANSI_CMD_LOAD_SECT_PER_TRACK_HIGH:
-            SLOG1(("DN300_DISK:    ansicmd LOAD_SECT_PER_TRACK_HIGH unimplemented"))
+            SLOG1(("ANSI_DISK:    ansicmd LOAD_SECT_PER_TRACK_HIGH unimplemented"))
             return parameter;
 
         case ANSI_CMD_LOAD_SECT_PER_TRACK_MEDIUM:
-		    SLOG1(("DN300_DISK:    ansicmd LOAD_SECT_PER_TRACK_MEDIUM unimplemented"))
+		    SLOG1(("ANSI_DISK:    ansicmd LOAD_SECT_PER_TRACK_MEDIUM unimplemented"))
             return parameter;
 
         case ANSI_CMD_LOAD_SECT_PER_TRACK_LOW:
-		    SLOG1(("DN300_DISK:    ansicmd LOAD_SECT_PER_TRACK_LOW unimplemented"))
+		    SLOG1(("ANSI_DISK:    ansicmd LOAD_SECT_PER_TRACK_LOW unimplemented"))
             return parameter;
 
         case ANSI_CMD_LOAD_BYTES_PER_SECT_HIGH:
-		    SLOG1(("DN300_DISK:    ansicmd LOAD_BYTES_PER_SECT_HIGH unimplemented"))
+		    SLOG1(("ANSI_DISK:    ansicmd LOAD_BYTES_PER_SECT_HIGH unimplemented"))
             return parameter;
 
         case ANSI_CMD_LOAD_BYTES_PER_SECT_MEDIUM:
-		    SLOG1(("DN300_DISK:    ansicmd LOAD_BYTES_PER_SECT_MEDIUM unimplemented"))
+		    SLOG1(("ANSI_DISK:    ansicmd LOAD_BYTES_PER_SECT_MEDIUM unimplemented"))
             return parameter;
 
         case ANSI_CMD_LOAD_BYTES_PER_SECT_LOW:
-		    SLOG1(("DN300_DISK:    ansicmd LOAD_BYTES_PER_SECT_LOW unimplemented"))
+		    SLOG1(("ANSI_DISK:    ansicmd LOAD_BYTES_PER_SECT_LOW unimplemented"))
             return parameter;
 
         case ANSI_CMD_LOAD_READ_PERMIT_HIGH:
-		    SLOG1(("DN300_DISK:    ansicmd LOAD_READ_PERMIT_HIGH unimplemented"))
+		    SLOG1(("ANSI_DISK:    ansicmd LOAD_READ_PERMIT_HIGH unimplemented"))
             return parameter;
 
         case ANSI_CMD_LOAD_READ_PERMIT_LOW:
-		    SLOG1(("DN300_DISK:    ansicmd LOAD_READ_PERMIT_LOW unimplemented"))
+		    SLOG1(("ANSI_DISK:    ansicmd LOAD_READ_PERMIT_LOW unimplemented"))
             return parameter;
 
         case ANSI_CMD_LOAD_WRITE_PERMIT_HIGH:
-		    SLOG1(("DN300_DISK:    ansicmd LOAD_WRITE_PERMIT_HIGH unimplemented"))
+		    SLOG1(("ANSI_DISK:    ansicmd LOAD_WRITE_PERMIT_HIGH unimplemented"))
             return parameter;
 
         case ANSI_CMD_LOAD_WRITE_PERMIT_LOW:
-		    SLOG1(("DN300_DISK:    ansicmd LOAD_WRITE_PERMIT_LOW unimplemented"))
+		    SLOG1(("ANSI_DISK:    ansicmd LOAD_WRITE_PERMIT_LOW unimplemented"))
             return parameter;
 
         case ANSI_CMD_LOAD_TEST_BYTE:
-		    SLOG1(("DN300_DISK:    ansicmd LOAD_TEST_BYTE %02x", parameter));
+		    SLOG1(("ANSI_DISK:    ansicmd LOAD_TEST_BYTE %02x", parameter));
 			m_test_byte = parameter;
 			return m_general_status;
 
