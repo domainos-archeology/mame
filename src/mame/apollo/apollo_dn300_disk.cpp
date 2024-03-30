@@ -334,12 +334,6 @@ apollo_dn300_disk_ctrlr_device::map(address_map &map)
 	map(0x24, 0x25).r(FUNC(apollo_dn300_disk_ctrlr_device::calendar_data_r));
 }
 
-TIMER_CALLBACK_MEMBER(apollo_dn300_disk_ctrlr_device::trigger_interrupt)
-{
-	m_controller_status_high &= ~CONTROLLER_STATUS_HIGH_CONTROLLER_BUSY;
-	irq_cb(ASSERT_LINE);
-}
-
 void
 apollo_dn300_disk_ctrlr_device::fdc_irq(int state)
 {

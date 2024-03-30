@@ -69,8 +69,6 @@ private:
 	devcb_write_line irq_cb;
 	devcb_write_line drq_cb;
 
-	TIMER_CALLBACK_MEMBER(trigger_interrupt);
-
 	required_device<msm5832_device> m_rtc;
 	required_device<upd765a_device> m_fdc;
 	required_device<floppy_connector> m_floppy;
