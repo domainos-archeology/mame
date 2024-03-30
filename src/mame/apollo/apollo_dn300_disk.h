@@ -44,28 +44,9 @@ protected:
 	ansi_disk_device *our_disks[DN300_MAX_DISK];
 
 private:
-	void wdc_write(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
-    uint8_t wdc_read(offs_t offset, uint8_t mem_mask = ~0);
-
-	void fdc_control_w(offs_t offset, uint8_t data, uint8_t mem_mask);
-
-	void calendar_ctrl_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
-	void calendar_data_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
-	uint8_t calendar_data_r(offs_t offset, uint8_t mem_mask = ~0);
-
-
-	static void floppy_formats(format_registration &fr);
-
-	void ansi_disk_attention(ansi_disk_device *disk, bool state);
-	void ansi_disk_busy(ansi_disk_device *disk, bool state);
-	void ansi_disk_read_data(ansi_disk_device *disk, uint8_t data);
-	void ansi_disk_ref_clock_tick(ansi_disk_device *disk);
-
 	void end_of_controller_op();
 
-	DECLARE_WRITE_LINE_MEMBER(fdc_irq);
-	uint8_t fdc_msr_r(offs_t, uint8_t mem_mask);
-
+	// controller-level irq/drq signals
 	devcb_write_line irq_cb;
 	devcb_write_line drq_cb;
 
@@ -74,6 +55,9 @@ private:
 	required_device<floppy_connector> m_floppy;
 
 	// WDC-specific
+	void wdc_write(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
+    uint8_t wdc_read(offs_t offset, uint8_t mem_mask = ~0);
+
 	uint8_t m_wdc_selected_drive;
 
 	// write registers
@@ -107,6 +91,7 @@ private:
 	// (to assert/deassert the gate lines and start a read/write operation.)
 	void ansi_index_pulse(ansi_disk_device *);
 	void ansi_sector_pulse(ansi_disk_device *);
+
 	int m_pulsed_sector;
 
 	bool m_start_read_sector;
@@ -114,10 +99,28 @@ private:
 	void check_for_sector_read();
 	void check_for_sector_write();
 
+	// callbacks representing other ansi disk signal lines - these should be line members,
+	// but I couldn't get that to work
+	void ansi_disk_attention(ansi_disk_device *disk, bool state);
+	void ansi_disk_busy(ansi_disk_device *disk, bool state);
+	void ansi_disk_ref_clock_tick(ansi_disk_device *disk);
+
+	// for our simulated reading, we consume a byte at a time, instead of doing the NRZ
+	// clocked reading that the real hardware does.  This function is called by the ansi_disk_device
+	// for each byte of data in a sector via a timer tick, to make everything async.  The timer
+	// is ticked to roughly how fast the real hardware would be reading the data, so... maybe that's
+	// good enough?
+	void ansi_disk_read_data(ansi_disk_device *disk, uint8_t data);
+
 
 	// FDC-specific
+	DECLARE_WRITE_LINE_MEMBER(fdc_irq);
+	static void floppy_formats(format_registration &fr);
+
 	// these might not really be necessary, as the controller card
 	// uses a NEC 765A.
+	void fdc_control_w(offs_t offset, uint8_t data, uint8_t mem_mask);
+	uint8_t fdc_msr_r(offs_t, uint8_t mem_mask);
 
 	bool m_floppy_drq_state;
 
@@ -133,6 +136,9 @@ private:
 	// Calendar-specific
 	// these might not really be necessary, as the controller card
 	// uses an OKI MSM5832. TODO(toshok) verify this.
+	void calendar_ctrl_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
+	void calendar_data_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
+	uint8_t calendar_data_r(offs_t offset, uint8_t mem_mask = ~0);
 
 	// write registers
 	uint8 m_calendar_ctrl;
