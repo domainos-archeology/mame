@@ -89,9 +89,6 @@ apollo_dn300_disk_ctrlr_device::apollo_dn300_disk_ctrlr_device(const machine_con
     : device_t(mconfig, APOLLO_DN300_DISK_CTRLR, tag, owner, clock)
 	, irq_cb(*this)
     , drq_cb(*this)
-    , m_rtc(*this, APOLLO_DN300_RTC_TAG)
-	, m_fdc(*this, APOLLO_DN300_FLOPPY_TAG)
-    , m_floppy(*this, APOLLO_DN300_FLOPPY_TAG":0")
 	// WDC-specific
     , m_wdc_selected_drive(0)
     , m_wdc_ansi_cmd(0)
@@ -112,9 +109,12 @@ apollo_dn300_disk_ctrlr_device::apollo_dn300_disk_ctrlr_device(const machine_con
     , m_start_read_sector(false)
     , m_start_write_sector(false)
 	// FDC-specific
+	, m_fdc(*this, APOLLO_DN300_FLOPPY_TAG)
+    , m_floppy(*this, APOLLO_DN300_FLOPPY_TAG":0")
 	, m_floppy_drq_state(false)
     , m_fdc_control(0)
 	// Calendar-specific
+    , m_rtc(*this, APOLLO_DN300_RTC_TAG)
     , m_calendar_ctrl(0)
 {
 }

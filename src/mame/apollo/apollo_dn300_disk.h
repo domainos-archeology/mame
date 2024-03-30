@@ -50,10 +50,6 @@ private:
 	devcb_write_line irq_cb;
 	devcb_write_line drq_cb;
 
-	required_device<msm5832_device> m_rtc;
-	required_device<upd765a_device> m_fdc;
-	required_device<floppy_connector> m_floppy;
-
 	// WDC-specific
 	void wdc_write(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
     uint8_t wdc_read(offs_t offset, uint8_t mem_mask = ~0);
@@ -114,6 +110,8 @@ private:
 
 
 	// FDC-specific
+	required_device<upd765a_device> m_fdc;
+	required_device<floppy_connector> m_floppy;
 	DECLARE_WRITE_LINE_MEMBER(fdc_irq);
 	static void floppy_formats(format_registration &fr);
 
@@ -134,6 +132,8 @@ private:
 
 
 	// Calendar-specific
+	required_device<msm5832_device> m_rtc;
+
 	// these might not really be necessary, as the controller card
 	// uses an OKI MSM5832. TODO(toshok) verify this.
 	void calendar_ctrl_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
