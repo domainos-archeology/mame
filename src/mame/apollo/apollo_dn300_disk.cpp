@@ -87,34 +87,35 @@ DEFINE_DEVICE_TYPE(APOLLO_DN300_DISK_CTRLR, apollo_dn300_disk_ctrlr_device, APOL
 
 apollo_dn300_disk_ctrlr_device::apollo_dn300_disk_ctrlr_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
     : device_t(mconfig, APOLLO_DN300_DISK_CTRLR, tag, owner, clock)
-	, m_interrupting(false)
 	, irq_cb(*this)
     , drq_cb(*this)
     , m_rtc(*this, APOLLO_DN300_RTC_TAG)
 	, m_fdc(*this, APOLLO_DN300_FLOPPY_TAG)
     , m_floppy(*this, APOLLO_DN300_FLOPPY_TAG":0")
-	, m_floppy_drq_state(false)
+	// WDC-specific
+    , m_wdc_selected_drive(0)
     , m_wdc_ansi_cmd(0)
     , m_wdc_ansi_parm(0)
     , m_wdc_sector(0)
+	, m_wdc_cylinder_hi(0)
+	, m_wdc_cylinder_lo(0)
     , m_wdc_head(0)
     , m_wdc_interrupt_control(0)
     , m_controller_command(0)
-    , m_fdc_control(0)
-    , m_controller_status_high(0)
-    , m_controller_status_low(0)
-    , m_wdc_selected_drive(0)
     , m_wdc_attention_status(0)
     , m_wdc_drive_num_of_status(0)
-    , m_wdc_sense_byte_1(0)
-    , m_wdc_sense_byte_2(0)
-    , m_wdc_write_enabled(false)
-    , m_cursor(0)
+    , m_controller_status_high(0)
+    , m_controller_status_low(0)
+    , m_bytes_read(0)
     , m_word_transfer_count(0)
-    , m_calendar_ctrl(0)
 	, m_pulsed_sector(UNKNOWN_SECTOR)
     , m_start_read_sector(false)
     , m_start_write_sector(false)
+	// FDC-specific
+	, m_floppy_drq_state(false)
+    , m_fdc_control(0)
+	// Calendar-specific
+    , m_calendar_ctrl(0)
 {
 }
 
@@ -229,13 +230,13 @@ void apollo_dn300_disk_ctrlr_device::ansi_disk_busy(ansi_disk_device *disk, bool
 void apollo_dn300_disk_ctrlr_device::ansi_disk_read_data(ansi_disk_device *disk, uint8_t data) {
     int idx = disk == our_disks[0] ? 0 : 1;
     if (idx != m_wdc_selected_drive-1) {
-        SLOG1(("DN300_DISK_CTRLR: disk%d read data: m_buffer[%d] = %02x, but it's not the selected drive", idx, m_cursor, data));
+        SLOG1(("DN300_DISK_CTRLR: disk%d read data: m_buffer[%d] = %02x, but it's not the selected drive", idx, m_bytes_read, data));
         return;
     }
-    SLOG2(("DN300_DISK_CTRLR: disk%d read data: m_buffer[%d] = %02x", idx, m_cursor, data));
-    m_buffer[m_cursor++] = data;
-    if (m_cursor == 2) {
-        m_cursor = 0;
+    SLOG2(("DN300_DISK_CTRLR: disk%d read data: m_buffer[%d] = %02x", idx, m_bytes_read, data));
+    m_buffer[m_bytes_read++] = data;
+    if (m_bytes_read == 2) {
+        m_bytes_read = 0;
         PULSE_DRQ();
 
         m_word_transfer_count++;
@@ -448,14 +449,12 @@ void apollo_dn300_disk_ctrlr_device::wdc_write(offs_t offset, uint8_t data, uint
             break;
         case WDC_REG_CYLINDER_HIGH: {
             SLOG1(("DN300_DISK_CTRLR: wdc CYLINDER_HIGH write = %02x", data));
-            ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
-            disk->execute_command(ANSI_CMD_LOAD_CYL_ADDR_HIGH, data);
+			m_wdc_cylinder_hi = data;
             break;
         }
         case WDC_REG_CYLINDER_LOW: {
             SLOG1(("DN300_DISK_CTRLR: wdc CYLINDER_LOW write = %02x", data));
-            ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
-            disk->execute_command(ANSI_CMD_LOAD_CYL_ADDR_LOW, data);
+			m_wdc_cylinder_lo = data;
             break;
         }
         case WDC_REG_HEAD: {
@@ -576,7 +575,11 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
 
         case WDC_CONTROLLER_CMD_SEEK: {
             ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
+
+            disk->execute_command(ANSI_CMD_LOAD_CYL_ADDR_HIGH, m_wdc_cylinder_hi);
+            disk->execute_command(ANSI_CMD_LOAD_CYL_ADDR_LOW, m_wdc_cylinder_lo);
             disk->execute_command(ANSI_CMD_SEEK, m_wdc_ansi_parm);
+
             break;
         }
 
@@ -618,17 +621,19 @@ uint8_t apollo_dn300_disk_ctrlr_device::dma_read_byte(offs_t offset)
 		return data;
 	}
     // send back the byte pointed to by the cursor
-    uint8_t rv = m_buffer[m_cursor++];
+    uint8_t rv = m_buffer[m_bytes_read++];
     SLOG2(("DN300_DISK_CTRLR: reading disk DMA: %02x", rv));
-    if (m_cursor == 2) {
+    if (m_bytes_read == 2) {
         // we've read the last byte of the buffer
-        m_cursor = 0;
+        m_bytes_read = 0;
     }
     return rv;
 }
 
 void apollo_dn300_disk_ctrlr_device::dma_write_byte(offs_t offset, uint8_t data)
 {
+	// XXX handle floppy case
+
     SLOG2(("writing disk DMA at offset %02x = %02x", offset, data));
 
     ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];

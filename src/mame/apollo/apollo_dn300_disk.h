@@ -26,15 +26,6 @@ public:
 	//construction/destruction
 	apollo_dn300_disk_ctrlr_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	void wdc_write(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
-    uint8_t wdc_read(offs_t offset, uint8_t mem_mask = ~0);
-
-	void fdc_control_w(offs_t offset, uint8_t data, uint8_t mem_mask);
-
-	void calendar_ctrl_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
-	void calendar_data_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
-	uint8_t calendar_data_r(offs_t offset, uint8_t mem_mask = ~0);
-
 	auto irq_callback() { return irq_cb.bind(); }
 	auto drq_wr_callback() { return drq_cb.bind(); }
 
@@ -53,6 +44,16 @@ protected:
 	ansi_disk_device *our_disks[DN300_MAX_DISK];
 
 private:
+	void wdc_write(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
+    uint8_t wdc_read(offs_t offset, uint8_t mem_mask = ~0);
+
+	void fdc_control_w(offs_t offset, uint8_t data, uint8_t mem_mask);
+
+	void calendar_ctrl_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
+	void calendar_data_w(offs_t offset, uint8_t data, uint8_t mem_mask = ~0);
+	uint8_t calendar_data_r(offs_t offset, uint8_t mem_mask = ~0);
+
+
 	static void floppy_formats(format_registration &fr);
 
 	void ansi_disk_attention(ansi_disk_device *disk, bool state);
@@ -65,8 +66,6 @@ private:
 	DECLARE_WRITE_LINE_MEMBER(fdc_irq);
 	uint8_t fdc_msr_r(offs_t, uint8_t mem_mask);
 
-	bool m_interrupting;
-
 	devcb_write_line irq_cb;
 	devcb_write_line drq_cb;
 
@@ -75,38 +74,39 @@ private:
 	required_device<msm5832_device> m_rtc;
 	required_device<upd765a_device> m_fdc;
 	required_device<floppy_connector> m_floppy;
-	bool m_floppy_drq_state;
 
+	// WDC-specific
+	uint8_t m_wdc_selected_drive;
+
+	// write registers
 	uint8_t m_wdc_ansi_cmd;
-	uint8_t m_wdc_ansi_parm;
+	uint8_t m_wdc_ansi_parm; // should be _out
 	uint8_t m_wdc_sector;
+	uint8_t m_wdc_cylinder_hi;
+	uint8_t m_wdc_cylinder_lo;
 	uint8_t m_wdc_head;
 	uint8_t m_wdc_interrupt_control;
 	uint8_t m_controller_command;
 
-	uint8_t m_fdc_control;
-
-	void execute_command();
-	void execute_ansi_command();
-
-	// our current state
+	// read registers
+	uint8_t m_wdc_attention_status;
+	// XXX 	uint8_t m_wdc_ansi_parm_in;
+	uint8_t m_wdc_drive_num_of_status;
 	uint8_t m_controller_status_high;
 	uint8_t m_controller_status_low;
-	uint8_t m_wdc_selected_drive;
-	uint8_t m_wdc_attention_status;
-	uint8_t m_wdc_drive_num_of_status;
-	uint8_t m_wdc_sense_byte_1;
-	uint8_t m_wdc_sense_byte_2;
-	bool m_wdc_write_enabled;
 
-	uint32_t m_cursor;
-	char m_buffer[1056];
+	void execute_command();
 
-	uint8_t m_wdc_read_data_byte;
+	// internal buffer to help with our simulated reading (we read a byte
+	// at a time, but the dma is done a word at a time.)
+	uint8_t m_bytes_read;
+	char m_buffer[2];
+
 	int m_word_transfer_count;
 
-	uint8 m_calendar_ctrl;
-
+	// our ansi disks generate sector/index pulses, which we need to
+	// listen for in order to tell when the head is over the correct spot
+	// (to assert/deassert the gate lines and start a read/write operation.)
 	void ansi_index_pulse(ansi_disk_device *);
 	void ansi_sector_pulse(ansi_disk_device *);
 	int m_pulsed_sector;
@@ -115,6 +115,33 @@ private:
 	bool m_start_write_sector;
 	void check_for_sector_read();
 	void check_for_sector_write();
+
+
+	// FDC-specific
+	// these might not really be necessary, as the controller card
+	// uses a NEC 765A.
+
+	bool m_floppy_drq_state;
+
+	// write registers
+	// XXX 	uint8_t m_fdc_write_data;
+	uint8_t m_fdc_control;
+
+	// read registers
+	// XXX uint8_t m_fdc_status;
+	// XXX uint8_t m_fdc_read_data;
+
+
+	// Calendar-specific
+	// these might not really be necessary, as the controller card
+	// uses an OKI MSM5832. TODO(toshok) verify this.
+
+	// write registers
+	uint8 m_calendar_ctrl;
+	// XXX uint8 m_calendar_write_data;
+
+	// read registers
+	// XXX uint8 m_calendar_read_data;
 };
 
 // device type definition
