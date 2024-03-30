@@ -133,7 +133,6 @@ public:
 		m_ptm(*this, APOLLO_DN300_PTM_TAG),
 		m_sio(*this, APOLLO_DN300_SIO_TAG),
 		m_acia(*this, APOLLO_DN300_ACIA_TAG),
-		m_rtc(*this, APOLLO_DN300_RTC_TAG),
 		m_graphics(*this, APOLLO_DN300_SCREEN_TAG),
 		m_keyboard(*this, APOLLO_DN300_KBD_TAG),
 		m_mmu(*this, APOLLO_DN300_MMU_TAG),
@@ -163,7 +162,6 @@ public:
 	required_device<ptm6840_device> m_ptm;
 	required_device<scn2681_device> m_sio;
 	required_device<acia6850_device> m_acia;
-	optional_device<mc146818_device> m_rtc;
 	required_device<apollo_dn300_graphics> m_graphics;
 	optional_device<apollo_dn300_kbd_device> m_keyboard;
 	required_device<apollo_dn300_mmu_device> m_mmu;
@@ -193,12 +191,6 @@ public:
 
 	void apollo_rtc_w(offs_t offset, uint8_t data);
 	uint8_t apollo_rtc_r(offs_t offset);
-	void cache_control_register_w(offs_t offset, uint8_t data);
-	uint8_t cache_status_register_r(offs_t offset);
-	void task_alias_register_w(offs_t offset, uint8_t data);
-	uint8_t task_alias_register_r(offs_t offset);
-	void latch_page_on_parity_error_register_w(offs_t offset, uint16_t data);
-	uint16_t latch_page_on_parity_error_register_r(offs_t offset);
 	uint16_t ram_with_parity_r(offs_t offset, uint16_t mem_mask = ~0);
 	void ram_with_parity_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	uint16_t apollo_unmapped_r(offs_t offset, uint16_t mem_mask = ~0);
@@ -208,12 +200,7 @@ public:
 	DECLARE_MACHINE_RESET(apollo_dn300);
 	DECLARE_MACHINE_START(apollo_dn300);
 
-	// void cpu_space_map(address_map &map);
-	u16 apollo_irq_acknowledge(offs_t offset);
-	u16 apollo_pic_get_vector();
 	void apollo_bus_error(offs_t fault_addr, u8 rw);
-	DECLARE_READ_LINE_MEMBER( apollo_kbd_is_german );
-	DECLARE_WRITE_LINE_MEMBER( apollo_rtc_irq_function );
 
 	DECLARE_WRITE_LINE_MEMBER( dma_irq );
 	void dma_end(offs_t offset, uint8_t data);
@@ -224,9 +211,6 @@ public:
 	void apollo_dn300(machine_config &config);
 
 	void dn300_physical_map(address_map &map);
-
-	int m_dma_channel;
-	bool m_cur_eop;
 };
 
 /*----------- machine/apollo_dn300_config.cpp -----------*/
@@ -283,8 +267,6 @@ public:
 	void mem_w(offs_t offset, uint16_t data, uint16_t mem_mask);
 
     uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
-
-	int is_mono() { return 1; }
 
 	auto irq_callback() { return m_irq_cb.bind(); }
 

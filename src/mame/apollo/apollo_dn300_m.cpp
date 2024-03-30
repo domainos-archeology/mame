@@ -194,43 +194,8 @@ uint16_t apollo_dn300_state::apollo_dn300_mcsr_status_register_r(offs_t offset, 
 	return mem_status_register & mem_mask;
 }
 
-//##########################################################################
-// machine/apollo_dn300_rtc.c - APOLLO_DN300 DS3500 RTC MC146818
-//##########################################################################
-
 #undef VERBOSE
 #define VERBOSE 0
-
-#ifdef notyet
-/***************************************************************************
- DN3000/DN3500 Realtime Calendar MC146818 at 0x8900/0x10900
- ***************************************************************************/
-
-void apollo_dn300_state::apollo_rtc_w(offs_t offset, uint8_t data)
-{
-	m_rtc->write_direct(offset, data);
-	if (offset >= 0x0b && offset <= 0x0c)
-	{
-		SLOG2(("writing MC146818 at offset %02x = %02x", offset, data));
-	}
-}
-
-uint8_t apollo_dn300_state::apollo_rtc_r(offs_t offset)
-{
-	uint8_t data;
-	data = m_rtc->read_direct(offset);
-	if (offset >= 0x0b && offset <= 0x0c)
-	{
-		SLOG2(("reading MC146818 at offset %02x = %02x", offset, data));
-	}
-	return data;
-}
-
-WRITE_LINE_MEMBER(apollo_dn300_state::apollo_rtc_irq_function)
-{
-	apollo_dn300_pic_set_irq_line(APOLLO_DN300_IRQ_RTC, state);
-}
-#endif
 
 //##########################################################################
 // machine/apollo_dn300.c - APOLLO_DN300 CPU Board
@@ -300,9 +265,6 @@ void apollo_dn300_state::init_apollo()
 MACHINE_START_MEMBER(apollo_dn300_state,apollo_dn300)
 {
 	MLOG1(("machine_start_apollo_dn300"));
-
-	m_dma_channel = -1;
-	m_cur_eop = false;
 
 	m_internal_leds.resolve();
 }

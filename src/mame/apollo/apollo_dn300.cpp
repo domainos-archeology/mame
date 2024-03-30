@@ -58,16 +58,10 @@
 
 #define DEFAULT_NODE_ID 0x12345
 
-static uint8_t cache_control_register = 0x00;
-static uint8_t cache_status_register = 0xff;
-static uint8_t task_alias_register = 0x00;
-
 static offs_t parity_error_offset = 0;
 static uint16_t parity_error_byte_mask = 0;
 // static int parity_error_handler_is_installed = 0;
 // static int parity_error_handler_install_counter = 0;
-
-static uint16_t latch_page_on_parity_error_register = 0x0000;
 
 static uint32_t ram_base_address;
 static uint32_t ram_end_address;
@@ -171,63 +165,6 @@ void apollo_dn300_state::dma_end(offs_t offset, uint8_t data)
 
 
 /***************************************************************************
- DN390 Cache Control/Status Register at 0x10200 // FIXME(toshok)
- ***************************************************************************/
-
-void apollo_dn300_state::cache_control_register_w(offs_t offset, uint8_t data){
-		cache_control_register = data;
-		cache_status_register = (cache_status_register & 0x7f) | (cache_control_register & 0x80);
-		SLOG2(("writing Cache Control Register at offset %02x = %02x", offset, data));
-}
-
-uint8_t apollo_dn300_state::cache_status_register_r(offs_t offset){
-	uint8_t data = cache_status_register;
-
-	SLOG2(("reading Cache Status Register at offset %02x = %02x", offset, data));
-	return data;
-}
-
-void apollo_dn300_set_cache_status_register(device_t *device,uint8_t mask, uint8_t data) {
-	uint16_t new_value = (cache_status_register & ~mask) | (data & mask);
-	if (new_value != cache_status_register) {
-		cache_status_register = new_value;
-		DLOG2(("setting Cache Status Register with data=%02x and mask=%02x to %02x",
-				data, mask, cache_status_register));
-	}
-}
-
-/***************************************************************************
- DN3500 Task Alias Register at 0x10300
- ***************************************************************************/
-
-void apollo_dn300_state::task_alias_register_w(offs_t offset, uint8_t data){
-	task_alias_register = data;
-	apollo_dn300_set_cache_status_register(this,0x07,  data);
-	SLOG(("writing Task Alias Register at offset %02x = %02x",offset, data));
-}
-
-uint8_t apollo_dn300_state::task_alias_register_r(offs_t offset){
-	uint8_t data = 0xff;
-	SLOG(("reading Task Alias Register at offset %02x = %02x", offset, data));
-	return data;
-}
-
-/***************************************************************************
- DN3000/DN3500 Latch Page on Parity Error Register at 0x9300/0x11300
- ***************************************************************************/
-
-void apollo_dn300_state::latch_page_on_parity_error_register_w(offs_t offset, uint16_t data){
-	latch_page_on_parity_error_register = data;
-	SLOG1(("writing Latch Page on Error Parity Register at offset %02x = %04x", offset*2, data));
-}
-
-uint16_t apollo_dn300_state::latch_page_on_parity_error_register_r(offs_t offset){
-	uint16_t data = latch_page_on_parity_error_register;
-	SLOG2(("reading Latch Page on Error Parity Register at offset %02x = %04x", offset*2, data));
-	return data;
-}
-
-/***************************************************************************
  DN3000/DN3500 RAM with parity (and null proc loop delay for DomainOS)
  ***************************************************************************/
 
@@ -237,19 +174,6 @@ uint16_t apollo_dn300_state::ram_with_parity_r(offs_t offset, uint16_t mem_mask)
 	SLOG2(("memory dword read with parity error at %08x = %08x & %08x parity_byte=%04x",
 			ram_base_address + parity_error_offset*4 + offset*4,data, mem_mask, parity_error_byte_mask));
 
-#ifdef notyet
-	if (parity_error_byte_mask != 0) {
-		latch_page_on_parity_error_register = (ram_base_address + parity_error_offset * 4) >> 10;
-
-		apollo_dn300_csr_set_status_register(APOLLO_DN300_CSR_CR_PARITY_BYTE_MASK,  apollo_dn300_csr_get_status_register() |parity_error_byte_mask);
-
-		if (apollo_dn300_csr_get_control_register() & APOLLO_DN300_CSR_CR_INTERRUPT_ENABLE) {
-			// force parity error (if NMI is enabled)
-			m_maincpu->set_input_line(7, ASSERT_LINE);
-
-		}
-	}
-#endif
 	return data;
 }
 
