@@ -92,7 +92,6 @@ private:
 	// our current state
 	uint8_t m_controller_status_high;
 	uint8_t m_controller_status_low;
-	uint8_t m_wdc_selected_head;
 	uint8_t m_wdc_selected_drive;
 	uint8_t m_wdc_attention_status;
 	uint8_t m_wdc_drive_num_of_status;
@@ -101,7 +100,7 @@ private:
 	bool m_wdc_write_enabled;
 
 	uint32_t m_cursor;
-	char m_buffer[2000]; // really only need 1056 here.
+	char m_buffer[1056];
 
 	uint8_t m_wdc_read_data_byte;
 	int m_word_transfer_count;

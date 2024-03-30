@@ -88,7 +88,7 @@ DEFINE_DEVICE_TYPE(APOLLO_DN300_DISK_CTRLR, apollo_dn300_disk_ctrlr_device, APOL
 apollo_dn300_disk_ctrlr_device::apollo_dn300_disk_ctrlr_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
     : device_t(mconfig, APOLLO_DN300_DISK_CTRLR, tag, owner, clock)
 	, m_interrupting(false)
-	, irq_cb(*this)
+	, irq_cb(*this)e
     , drq_cb(*this)
     , m_rtc(*this, APOLLO_DN300_RTC_TAG)
 	, m_fdc(*this, APOLLO_DN300_FLOPPY_TAG)
@@ -103,7 +103,6 @@ apollo_dn300_disk_ctrlr_device::apollo_dn300_disk_ctrlr_device(const machine_con
     , m_fdc_control(0)
     , m_controller_status_high(0)
     , m_controller_status_low(0)
-    , m_wdc_selected_head(0)
     , m_wdc_selected_drive(0)
     , m_wdc_attention_status(0)
     , m_wdc_drive_num_of_status(0)
