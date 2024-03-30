@@ -237,15 +237,7 @@ void apollo_dn300_disk_ctrlr_device::ansi_disk_read_data(ansi_disk_device *disk,
     m_buffer[m_bytes_read++] = data;
     if (m_bytes_read == 2) {
         m_bytes_read = 0;
-        PULSE_DRQ();
-
-        m_word_transfer_count++;
-        if (m_word_transfer_count == HARD_DISK_SECTOR_SIZE / 2) {
-            // we're done with the read.  let the cpu know
-            disk->deassert_read_gate();
-            end_of_controller_op();
-            return;
-        }
+		drq_cb(true);
     }
 }
 
@@ -620,6 +612,16 @@ uint8_t apollo_dn300_disk_ctrlr_device::dma_read_byte(offs_t offset)
     if (m_bytes_read == 2) {
         // we've read the last byte of the buffer
         m_bytes_read = 0;
+
+		drq_cb(false);
+
+        m_word_transfer_count++;
+        if (m_word_transfer_count == HARD_DISK_SECTOR_SIZE / 2) {
+            // we're done with the read.  let the cpu know
+		    ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
+            disk->deassert_read_gate();
+            end_of_controller_op();
+        }
     }
     return rv;
 }
