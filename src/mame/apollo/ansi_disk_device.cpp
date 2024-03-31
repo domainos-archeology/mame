@@ -291,7 +291,7 @@ void ansi_disk_device::assert_read_gate()
     int sector_offset = track_offset + sector;
 
     SLOG1(("ANSI_DISK(%p):    sector %d on cylinder %d and head %d", this, sector, cylinder, m_selected_head));
-    SLOG1(("ANSI_DISK(%p):    linearized as logical sector address %d", this, sector));
+    SLOG1(("ANSI_DISK(%p):    linearized as logical sector address %d", this, sector_offset));
 
     if (!m_image) {
         SLOG1(("%p: disk image is null?", this));
@@ -367,7 +367,7 @@ void ansi_disk_device::deassert_write_gate()
     int sector_offset = track_offset + sector;
 
     SLOG1(("ANSI_DISK(%p):    finish_write_sector for sector %d on cylinder %d and head %d", this, sector, cylinder, m_selected_head));
-    SLOG1(("ANSI_DISK(%p):    linearized as logical sector address %d", this, sector));
+    SLOG1(("ANSI_DISK(%p):    linearized as logical sector address %d", this, sector_offset));
 
     m_image->fseek(sector_offset * HARD_DISK_SECTOR_SIZE, SEEK_SET);
     m_image->fwrite(m_buffer, HARD_DISK_SECTOR_SIZE);
