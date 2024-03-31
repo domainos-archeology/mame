@@ -58,7 +58,7 @@ private:
 
 	// write registers
 	uint8_t m_wdc_ansi_cmd;
-	uint8_t m_wdc_ansi_parm; // should be _out
+	uint8_t m_wdc_ansi_parm_out;
 	uint8_t m_wdc_sector;
 	uint8_t m_wdc_cylinder_hi;
 	uint8_t m_wdc_cylinder_lo;
@@ -68,7 +68,7 @@ private:
 
 	// read registers
 	uint8_t m_wdc_attention_status;
-	// XXX 	uint8_t m_wdc_ansi_parm_in;
+	uint8_t m_wdc_ansi_parm_in;
 	uint8_t m_wdc_drive_num_of_status;
 	uint8_t m_controller_status_high;
 	uint8_t m_controller_status_low;

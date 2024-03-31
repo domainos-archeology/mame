@@ -92,7 +92,7 @@ apollo_dn300_disk_ctrlr_device::apollo_dn300_disk_ctrlr_device(const machine_con
 	// WDC-specific
     , m_wdc_selected_drive(0)
     , m_wdc_ansi_cmd(0)
-    , m_wdc_ansi_parm(0)
+    , m_wdc_ansi_parm_out(0)
     , m_wdc_sector(0)
 	, m_wdc_cylinder_hi(0)
 	, m_wdc_cylinder_lo(0)
@@ -100,6 +100,7 @@ apollo_dn300_disk_ctrlr_device::apollo_dn300_disk_ctrlr_device(const machine_con
     , m_wdc_interrupt_control(0)
     , m_controller_command(0)
     , m_wdc_attention_status(0)
+	, m_wdc_ansi_parm_in(0)
     , m_wdc_drive_num_of_status(0)
     , m_controller_status_high(0)
     , m_controller_status_low(0)
@@ -427,7 +428,7 @@ void apollo_dn300_disk_ctrlr_device::wdc_write(offs_t offset, uint8_t data, uint
             break;
         case WDC_REG_ANSI_PARM:
             SLOG1(("DN300_DISK_CTRLR: wdc ANSI_PARM write = %02x", data));
-            m_wdc_ansi_parm = data;
+            m_wdc_ansi_parm_out = data;
             break;
         case WDC_REG_SECTOR:
             SLOG1(("DN300_DISK_CTRLR: wdc SECTOR write = %02x", data));
@@ -494,8 +495,8 @@ uint8_t apollo_dn300_disk_ctrlr_device::wdc_read(offs_t offset, uint8_t mem_mask
 			);
             return m_wdc_attention_status;
         case WDC_REG_ANSI_PARM:
-            SLOG1(("DN300_DISK_CTRLR: wdc ANSI_PARM read = %02x", m_wdc_ansi_parm));
-            return m_wdc_ansi_parm;
+            SLOG1(("DN300_DISK_CTRLR: wdc ANSI_PARM read = %02x", m_wdc_ansi_parm_in));
+            return m_wdc_ansi_parm_in;
         case WDC_REG_STATUS_HIGH:
             SLOG1(("DN300_DISK_CTRLR: wdc STATUS_HIGH read = %02x", m_controller_status_high, mem_mask));
             return m_controller_status_high;
@@ -564,19 +565,19 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
 
             disk->execute_command(ANSI_CMD_LOAD_CYL_ADDR_HIGH, m_wdc_cylinder_hi);
             disk->execute_command(ANSI_CMD_LOAD_CYL_ADDR_LOW, m_wdc_cylinder_lo);
-            disk->execute_command(ANSI_CMD_SEEK, m_wdc_ansi_parm);
+            disk->execute_command(ANSI_CMD_SEEK, m_wdc_ansi_parm_out);
 
             break;
         }
 
         case WDC_CONTROLLER_CMD_EXEC_ANSI_CMD: {
             ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
-            m_wdc_ansi_parm = disk->execute_command(m_wdc_ansi_cmd, m_wdc_ansi_parm);
+            m_wdc_ansi_parm_in = disk->execute_command(m_wdc_ansi_cmd, m_wdc_ansi_parm_out);
             break;
         }
 
         case WDC_CONTROLLER_CMD_EXEC_DRIVE_SELECT: {
-            m_wdc_selected_drive = m_wdc_ansi_parm;
+            m_wdc_selected_drive = m_wdc_ansi_parm_out;
 			SLOG1(("DN300_DISK_CTRLR: selecting disk %d", m_wdc_selected_drive))
 			m_pulsed_sector = UNKNOWN_SECTOR;
             ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
@@ -590,7 +591,7 @@ void apollo_dn300_disk_ctrlr_device::execute_command()
 
         case WDC_CONTROLLER_CMD_SELECT_HEAD: {
             ansi_disk_device *disk = our_disks[m_wdc_selected_drive-1];
-            m_wdc_ansi_parm = disk->execute_command(ANSI_CMD_SELECT_HEAD, m_wdc_head);
+            m_wdc_ansi_parm_in = disk->execute_command(ANSI_CMD_SELECT_HEAD, m_wdc_head);
             break;
         }
         default:
