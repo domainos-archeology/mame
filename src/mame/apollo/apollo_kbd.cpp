@@ -45,21 +45,21 @@ namespace {
 
 INPUT_PORTS_START( apollo_kbd )
 	PORT_START( "keyboard1" )
-	PORT_BIT( 0x00000001, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("~ '") PORT_CODE(KEYCODE_TILDE) /* ESC */
+	PORT_BIT( 0x00000001, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("` ~") PORT_CODE(KEYCODE_TILDE) /* ` ~ */
 	PORT_BIT( 0x00000002, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("ESC") PORT_CODE(KEYCODE_ESC) /* ESC */
 	PORT_BIT( 0x00000004, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("1 !") PORT_CODE(KEYCODE_1) /* 1 ! */
-	PORT_BIT( 0x00000008, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("2 \"") PORT_CODE(KEYCODE_2) /* 2 " */
+	PORT_BIT( 0x00000008, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("2 @") PORT_CODE(KEYCODE_2) /* 2 @ */
 	PORT_BIT( 0x00000010, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("3 #") PORT_CODE(KEYCODE_3) /* 3 # */
 	PORT_BIT( 0x00000020, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("4 $") PORT_CODE(KEYCODE_4) /* 4 $ */
 	PORT_BIT( 0x00000040, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("5 %") PORT_CODE(KEYCODE_5) /* 5 % */
-	PORT_BIT( 0x00000080, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("6 &") PORT_CODE(KEYCODE_6) /* 6 & */
-	PORT_BIT( 0x00000100, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("7 \'") PORT_CODE(KEYCODE_7) /* 7 ' */
-	PORT_BIT( 0x00000200, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("8 (") PORT_CODE(KEYCODE_8) /* 8 ( */
-	PORT_BIT( 0x00000400, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("9 )") PORT_CODE(KEYCODE_9) /* 9 ) */
-	PORT_BIT( 0x00000800, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("0") PORT_CODE(KEYCODE_0) /* 0 */
+	PORT_BIT( 0x00000080, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("6 ^") PORT_CODE(KEYCODE_6) /* 6 ^ */
+	PORT_BIT( 0x00000100, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("7 &'") PORT_CODE(KEYCODE_7) /* 7 & */
+	PORT_BIT( 0x00000200, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("8 *") PORT_CODE(KEYCODE_8) /* 8 * */
+	PORT_BIT( 0x00000400, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("9 (") PORT_CODE(KEYCODE_9) /* 9 ( */
+	PORT_BIT( 0x00000800, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("0 )") PORT_CODE(KEYCODE_0) /* 0 ) */
 	PORT_BIT( 0x00001000, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("- _") PORT_CODE(KEYCODE_MINUS) /* - _ */
 	PORT_BIT( 0x00002000, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("= +") PORT_CODE(KEYCODE_EQUALS) /* = + */
-	PORT_BIT( 0x00004000, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("@ ^") PORT_CODE(KEYCODE_BACKSLASH2) /* ~ ` */
+//	PORT_BIT( 0x00004000, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("` ~") PORT_CODE(KEYCODE_BACKSLASH2) /* ` ~ */
 	PORT_BIT( 0x00008000, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_CODE(KEYCODE_BACKSPACE) /* Backspace */
 	PORT_BIT( 0x00010000, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_CODE(KEYCODE_TAB) /* Tab */
 	PORT_BIT( 0x00020000, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("Q") PORT_CODE(KEYCODE_Q) /* Q */
@@ -86,8 +86,8 @@ INPUT_PORTS_START( apollo_kbd )
 	PORT_BIT( 0x00000010, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("J") PORT_CODE(KEYCODE_J) /* J */
 	PORT_BIT( 0x00000020, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("K") PORT_CODE(KEYCODE_K) /* K */
 	PORT_BIT( 0x00000040, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("L") PORT_CODE(KEYCODE_L) /* L */
-	PORT_BIT( 0x00000080, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("; +") PORT_CODE(KEYCODE_COLON) /* ; + */
-	PORT_BIT( 0x00000100, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME(": *") PORT_CODE(KEYCODE_QUOTE) /* : * */
+	PORT_BIT( 0x00000080, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("; :") PORT_CODE(KEYCODE_COLON) /* ; : */
+	PORT_BIT( 0x00000100, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("' \"") PORT_CODE(KEYCODE_QUOTE) /* ' " */
 	PORT_BIT( 0x00000200, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("\\ |") PORT_CODE(KEYCODE_BACKSLASH) /* \\ | */
 	PORT_BIT( 0x00000400, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("Z") PORT_CODE(KEYCODE_Z) /* Z */
 	PORT_BIT( 0x00000800, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("X") PORT_CODE(KEYCODE_X) /* X */
@@ -99,8 +99,7 @@ INPUT_PORTS_START( apollo_kbd )
 	PORT_BIT( 0x00020000, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME(", <") PORT_CODE(KEYCODE_COMMA) /* , < */
 	PORT_BIT( 0x00040000, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME(". >") PORT_CODE(KEYCODE_STOP) /* . > */
 	PORT_BIT( 0x00080000, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("/ ?") PORT_CODE(KEYCODE_SLASH) /* / ? */
-//??
-	PORT_BIT( 0x00100000, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("~ '") PORT_CODE(KEYCODE_TILDE) /* Underscore (shifted only?) */
+//??PORT_BIT( 0x00100000, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("~ '") PORT_CODE(KEYCODE_TILDE) /* Underscore (shifted only?) */
 	PORT_BIT( 0x00200000, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("Space")  PORT_CODE(KEYCODE_SPACE) /* Space */
 	PORT_BIT( 0x00400000, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("Home")  PORT_CODE(KEYCODE_HOME) /* Home */
 	PORT_BIT( 0x00800000, IP_ACTIVE_HIGH, IPT_KEYBOARD )  PORT_NAME("Delete")  PORT_CODE(KEYCODE_DEL) /* Del */
@@ -649,8 +648,6 @@ int apollo_kbd_device::push_scancode(uint8_t code, uint8_t repeat)
 	if (code == 0xe6)
 		m_numlock_state = !m_numlock_state;
 
-	LOG1(("scan_code = 0x%02x numlock = %d numlock_state = %d", code, numlock, m_numlock_state));
-
 	if (m_numlock_state)
 	{
 		// don't map function keys to Apollo left keypad
@@ -718,9 +715,10 @@ int apollo_kbd_device::push_scancode(uint8_t code, uint8_t repeat)
 		}
 	}
 
+	LOG1(("mame_scan_code = 0x%02x apollo = 0x%04x numlock = %d numlock_state = %d", code, key_code, numlock, m_numlock_state));
+
 	if (key_code != 0)
 	{
-		LOG1(("scan_code = 0x%02x key_code = 0x%04x",code, key_code));
 		if (m_mode > KBD_MODE_1_KEYSTATE)
 		{
 			set_mode(KBD_MODE_1_KEYSTATE);
@@ -744,7 +742,11 @@ void apollo_kbd_device::scan_keyboard()
 
 	for (x = 0; x < 0x80; x++)
 	{
-		if (!(m_io_keyboard[x / 32]->read() & (1 << (x % 32))))
+		const int page = x / 32;
+		const int bit = x % 32;
+		const bool key_pressed = m_io_keyboard[page]->read() & (1 << bit);
+
+		if (!key_pressed)
 		{
 			// no key pressed
 			if (m_keyon[x] != 0)
@@ -765,7 +767,7 @@ void apollo_kbd_device::scan_keyboard()
 				m_keytime[x] = m_mode == KBD_MODE_0_COMPATIBILITY ? m_delay : m_repeat;
 				m_keyon[x] = 1;
 				m_last_pressed = x;
-				LOG1(("pushed key 0x%02x at time %d",x, m_keytime[x]));
+				LOG1(("pushed key 0x%02x  = %d [%d, %d] at time %d",x, x, page, bit, m_keytime[x]));
 			}
 		}
 		else if (m_last_pressed == x)
@@ -793,11 +795,14 @@ TIMER_CALLBACK_MEMBER(apollo_kbd_device::kbd_scan_timer)
 	}
 }
 
+// The index in this table corresponds to the port page/bit in the key io ports at the top (i.e. kbdnum * 32 + bit)
+//  These are also keycodes based on the "Low Profile Type 2" keyboard
+
 apollo_kbd_device::code_entry const apollo_kbd_device::s_code_table[] = {
 		/* Key   | Keycap      | Down | Up  |Unshifted|Shifted|Control|Caps Lock|Up Trans|Auto  */
 		/* Number| Legend      | Code | Code|Code     | Code  | Code  |Code     | Code   |Repeat*/
-
-		/* B14     ~ ' / ESC   */ { 0x24, 0xA4, 0x60,     0x7E,   0x1E,   0x60,     NOP,     No  },
+// keyboard1, 0
+		/* B14     ` ~         */ { 0x24, 0xA4, 0x60,     0x7E,   0x1E,   0x60,     NOP,     No  }, // 0
 		/* B1      ESC         */ { 0x17, 0x97, 0x1B,     0x1B,   NOP,    0x1B,     NOP,     No  },
 		/* B2      ! 1         */ { 0x18, 0x98, 0x31,     0x21,   NOP,    0x31,     NOP,     No  },
 		/* B3      @ 2         */ { 0x19, 0x99, 0x32,     0x40,   NOP,    0x32,     NOP,     No  },
@@ -811,14 +816,15 @@ apollo_kbd_device::code_entry const apollo_kbd_device::s_code_table[] = {
 		/* B11     ) 0         */ { 0x21, 0xA1, 0x30,     0x29,   NOP,    0x30,     NOP,     No  },
 		/* B12     _ -         */ { 0x22, 0xA2, 0x2D,     0x5F,   NOP,    0x2D,     NOP,     Yes },
 		/* B13     + =         */ { 0x23, 0xA3, 0x3D,     0x2B,   NOP,    0x3D,     NOP,     Yes },
-		/* D14     \\ |        */ { 0x53, 0xD3, 0xC8,     0xC9,   NOP,    0xC8,     NOP,     No  },
+		{ 0 },
+//		/* D14     \\ |        */ { 0x53, 0xD3, 0xC8,     0xC9,   NOP,    0xC8,     NOP,     No  },
 		/* B15     BACKSPACE   */ { 0x25, 0xA5, 0xDE,     0xDE,   NOP,    0xDE,     NOP,     Yes },
 
-		/* C1      TAB         */ { 0x2C, 0xAC, 0xCA,     0xDA,   0xFA,   0xCA,     NOP,     No  },
+		/* C1      TAB         */ { 0x2C, 0xAC, 0xCA,     0xDA,   0xFA,   0xCA,     NOP,     No  }, // 16
 		/* C2      Q           */ { 0x2D, 0xAD, 0x71,     0x51,   0x11,   0x51,     NOP,     No  },
 		/* C3      W           */ { 0x2E, 0xAE, 0x77,     0x57,   0x17,   0x57,     NOP,     No  },
 		/* C4      E           */ { 0x2F, 0xAF, 0x65,     0x45,   0x05,   0x45,     NOP,     No  },
-		/* C5      R           */ { 0x30, 0xB0, 0x72,     0x52,   0x12,   0x52,     NOP,     No  },
+		/* C5      R           */ { 0x30, 0xB0, 0x72,     0x52,   0x12,   0x52,     NOP,     No  }, // 20 
 		/* C6      T           */ { 0x31, 0xB1, 0x74,     0x54,   0x14,   0x54,     NOP,     No  },
 		/* C7      V           */ { 0x32, 0xB2, 0x79,     0x59,   0x19,   0x59,     NOP,     No  },
 		/* C8      U           */ { 0x33, 0xB3, 0x75,     0x55,   0x15,   0x55,     NOP,     No  },
@@ -829,7 +835,7 @@ apollo_kbd_device::code_entry const apollo_kbd_device::s_code_table[] = {
 		/* C13     } ] / Oe    */ { 0x38, 0xB8, 0x7D,     0x5D,   0x1D,   0x7D,     NOP,     No  },
 		/* D13     RETURN      */ { 0x52, 0xD2, 0xCB,     0xDB,   NOP,    0xCB,     NOP,     No  },
 
-		/* D2      A           */ { 0x46, 0xC6, 0x61,     0x41,   0x01,   0x41,     NOP,     No  },
+		/* D2      A           */ { 0x46, 0xC6, 0x61,     0x41,   0x01,   0x41,     NOP,     No  }, // 30
 		/* D3      S           */ { 0x47, 0xC7, 0x73,     0x53,   0x13,   0x53,     NOP,     No  },
 		/* D4      D           */ { 0x48, 0xC8, 0x64,     0x44,   0x04,   0x44,     NOP,     No  },
 		/* D5      F           */ { 0x49, 0xC9, 0x66,     0x46,   0x06,   0x46,     NOP,     No  },
@@ -839,9 +845,10 @@ apollo_kbd_device::code_entry const apollo_kbd_device::s_code_table[] = {
 		/* D9      K           */ { 0x4D, 0xCD, 0x6B,     0x4B,   0x0B,   0x4B,     NOP,     No  },
 		/* D10     L           */ { 0x4E, 0xCE, 0x6C,     0x4C,   0x0C,   0x4C,     NOP,     No  },
 		/* D11     : ; / Oe    */ { 0x4F, 0xCF, 0x3B,     0x3A,   0xFB,   0x3B,     NOP,     No  },
-		/* D12     " ' / Ae    */ { 0x50, 0xD0, 0x27,     0x22,   0xF8,   0x27,     NOP,     No  },
-// Apollo US keyboards have no hash key (#)
-		/* D14     ' #         */ { NOP,  NOP,  0x23,     0x27,   NOP,    0x23,     NOP,     No  },
+		/* D12     " ' / Ae    */ { 0x50, 0xD0, 0x27,     0x22,   0xF8,   0x27,     NOP,     No  }, // 40
+// Apollo US keyboards have no hash key (#) // ... this is not true
+		/* D14     \\ |        */ { 0x53, 0xD3, 0xC8,     0xC9,   NOP,    0xC8,     NOP,     No  },
+//		/* D14     ' #         */ { NOP,  NOP,  0x23,     0x27,   NOP,    0x23,     NOP,     No  },
 
 		/* E2      Z           */ { 0x60, 0xE0, 0x7A,     0x5A,   0x1A,   0x5A,     NOP,     No  },
 		/* E3      X           */ { 0x61, 0xE1, 0x78,     0x58,   0x18,   0x58,     NOP,     No  },
@@ -851,10 +858,10 @@ apollo_kbd_device::code_entry const apollo_kbd_device::s_code_table[] = {
 		/* E7      N           */ { 0x65, 0xE5, 0x6E,     0x4E,   0x0E,   0x4E,     NOP,     No  },
 		/* E8      M           */ { 0x66, 0xE6, 0x6D,     0x4D,   0x0D,   0x4D,     NOP,     No  },
 		/* E9      < ,         */ { 0x67, 0xE7, 0x2C,     0x3C,   NOP,    0x2C,     NOP,     No  },
-		/* E10     > .         */ { 0x68, 0xE8, 0x2E,     0x3E,   NOP,    0x2E,     NOP,     Yes },
+		/* E10     > .         */ { 0x68, 0xE8, 0x2E,     0x3E,   NOP,    0x2E,     NOP,     Yes }, // 50
 		/* E11     ? /         */ { 0x69, 0xE9, 0xCC,     0xDC,   0xFC,   0xCC,     NOP,     No  },
 
-		/*         _           */ { NOP,  NOP,  NOP,      NOP,    NOP,    NOP,      NOP,     NOP },
+		{ 0 },
 		/* F1      (space bar) */ { 0x76, 0xF6, 0x20,     0x20,   0x20,   0x20,     NOP,     Yes },
 		/* LC0     Home        */ { 0x27, 0xA7, 0x84,     0x94,   0x84,   0x84,     0xA4,    No  },
 #if !MAP_APOLLO_KEYS
@@ -901,6 +908,8 @@ apollo_kbd_device::code_entry const apollo_kbd_device::s_code_table[] = {
 		/* A8      F8          */ { 0x0C, 0x8C, 0xC7,     0x07,   0xF7,   0xC7,     0xE7,    No  },
 		/* A9      F9          */ { 0x0D, 0x8D, 0x1F,     0x2F,   0x3F,   0x1F,     0xBD,    No  },
 #else
+// this corresponds to KEYCODE_MENU in the io port map, no idea what that is. the rest are numpad
+// mappings
 		/* E13     POP         */ { 0x6C, 0xEC, 0x80,     0x90,   0x80,   0x80,     0xA0,    No  },
 		/* LDO     [<-]        */ { 0x40, 0xC0, 0x87,     0x97,   0x87,   0x87,     0xA7,    No  },
 		/* LD2     [->]        */ { 0x42, 0xC2, 0x89,     0x99,   0x89,   0x89,     0xA9,    No  },
@@ -921,6 +930,7 @@ apollo_kbd_device::code_entry const apollo_kbd_device::s_code_table[] = {
 		/*         Numpad ,    */ { NOP,  NOP,  NOP,      NOP,    NOP,    NOP,      NOP,     NOP },
 		/* E13     POP         */ { 0x6C, 0xEC, 0x80,     0x90,   0x80,   0x80,     0xA0,    No  },
 
+// F# key mappings are correct from here
 		/* LC1  F1/SHELL/CMD   */ { 0x28, 0xA8, 0x85,     0x95,   0x85,   0x85,     0xA5,    No  },
 		/* LB0  F2/CUT/COPY    */ { 0x13, 0x93, 0xB0,     0xB4,   0xB0,   0xB0,     0xB8,    No  },
 		/* LB1  F3/UNDO/PASTE  */ { 0x14, 0x94, 0xB1,     0xB5,   0xB1,   0xB1,     0xB9,    No  },
@@ -937,7 +947,9 @@ apollo_kbd_device::code_entry const apollo_kbd_device::s_code_table[] = {
 		/* RA3 F11/ABORT/EXIT  */ { 0x11, 0x91, 0xDD,     0xEC,   0xD0,   0xD0,     0xFD,    No  },
 		/* RA4 F12/HELP/HOLD   */ { 0x12, 0x92, 0xB3,     0xB7,   0xB3,   0xB3,     0xBB,    No  },
 
+// KEYCODE_INSERT
 		/* LE1     NEXT WINDOW */ { 0x5A, 0xDA, 0x8B,     0x9B,   0x8B,   0x8B,     0xAB,    No  },
+// KEYCODE_RWIN
 		/* LE1     NEXT WINDOW */ { 0x5A, 0xDA, 0x8B,     0x9B,   0x8B,   0x8B,     0xAB,    No  },
 
 		/* D1      CAPS LOCK   */ { NOP,  NOP,  NOP,      NOP,    NOP,    NOP,      NOP,     NOP },
@@ -947,7 +959,7 @@ apollo_kbd_device::code_entry const apollo_kbd_device::s_code_table[] = {
 		/* ??      ALT_R       */ { 0x77, 0xF7, 0xfe00,   NOP,    NOP,    NOP,      0xfe01,  No  },
 		/* ??      ALT_L       */ { 0x75, 0xF5, 0xfe02,   NOP,    NOP,    NOP,      0xfe03,  No  },
 		/* E12     SHIFT       */ { 0x6A, 0xEA, NOP,      NOP,    NOP,    NOP,      NOP,     NOP },
-// not yet used:
+// not yet used: (maps to NUMLOCK)
 		/* E0      REPEAT      */ { 0x5D, 0xDD, NOP,      NOP,    NOP,    NOP,      NOP,     NOP },
 		/*        CAPS LOCK LED*/ { 0x7E, 0xFE, NOP,      NOP,    NOP,    NOP,      NOP,     NOP },
 // german kbd:
