@@ -4,6 +4,15 @@
 #define VERBOSE 0
 #include "apollo_dn300.h"
 
+#define STATUS_MMU_ENABLED        (1 << 0)
+#define STATUS_PTT_ACCESS_ENABLED (1 << 1)
+// 1 << 2 is unused
+#define STATUS_INTERRUPT_PENDING  (1 << 3)
+#define STATUS_NORMAL_MODE		  (1 << 4)
+#define STATUS_BUS_TIMEOUT        (1 << 5)
+#define STATUS_PAGE_FAULT         (1 << 6)
+#define STATUS_ACCESS_VIOLATION   (1 << 7)
+
 DEFINE_DEVICE_TYPE(APOLLO_DN300_MMU, apollo_dn300_mmu_device, APOLLO_DN300_MMU_TAG, "Apollo DN300 Custom MMU")
 
 apollo_dn300_mmu_device::apollo_dn300_mmu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock):
@@ -35,12 +44,12 @@ void apollo_dn300_mmu_device::device_start()
 
 void apollo_dn300_mmu_device::device_reset()
 {
-    SLOG2(("RESET of the mmu"));
+    SLOG2(("apollo_dn300_mmu_device::device_reset"));
     m_enabled = 0;
     m_asid = 0;
 
 	// normal mode
-	// m_status = 0x10;
+	// m_status = STATUS_NORMAL_MODE;
 
     // m_pft = std::make_unique<uint16_t[]>(8192);
     // save_pointer(NAME(m_pft), 8192);
@@ -98,7 +107,7 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset, int intention) {
     // One PPTE every 1024 bytes in table.
     int vpn = byte_offset >> PAGE_SIZE_OFFSET;
 
-    if ((m_status & 0x02) // PTT is enabled
+    if ((m_status & STATUS_PTT_ACCESS_ENABLED)
          && (byte_offset >= 0x700000 && byte_offset < 0x800000)) {
         return byte_offset;
      }
@@ -109,9 +118,9 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset, int intention) {
     int xsvpn = vpn >> PAGE_SIZE_OFFSET;
 
     int byte_offset_within_page = byte_offset % PAGE_SIZE;
-    int ppn = m_ptt[ptt_index] & 0xfff;
+    int ppn = m_ptt[ptt_index] & 0x0fff; /* upper nibble = Junk - ignore */
 
-    if (m_dump_translations) {
+    if (ptt_index == 36 || m_dump_translations) {
         MLOG1((
             "apollo_dn300_mmu_device::translate(%x) -> PTT index %d, PTTE %x, PPN %d, XSVPN %d",
             byte_offset, ptt_index, m_ptt[ptt_index], ppn, xsvpn
@@ -140,7 +149,7 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset, int intention) {
             seen_eoc = true;
         }
 
-        if (m_dump_translations) {
+        if (ptt_index == 36 || m_dump_translations) {
             MLOG1(("    pft_entry for ppn %d, xsvpn %d",  cur_ppn, pfte_xsvpn));
         }
 
@@ -151,9 +160,10 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset, int intention) {
                 pfte_global || pfte_elsid == m_asid
             )) {
             // we found a match.
-            if (m_dump_translations) {
+            if (ptt_index == 36 || m_dump_translations) {
                 MLOG1(("    found a match"));
             }
+
             // update the PTT to point to this PFT entry first so we'll hit it faster next time
             m_ptt[ptt_index] = cur_ppn;
 
@@ -169,12 +179,16 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset, int intention) {
             return (cur_ppn << 10) | byte_offset_within_page;
         }
 
+		if (ptt_index == 36 || m_dump_translations) {
+			MLOG1(("    no match.  next ppn is %d", pfte_link));
+		}
+
         cur_ppn = pfte_link;
     }
 
 #if VERBOSE > 0
-    SLOG1(("failed to find mapping for address %08x, asid %d, ppn %d, xsvpn %d", byte_offset, m_asid, ppn, xsvpn));
-    SLOG1(("pft chain:"));
+    SLOG1(("apollo_dn300_mmu_device::translate: failed to find mapping for address %08x, asid %d, ppn %d, xsvpn %d, ptt index %d", byte_offset, m_asid, ppn, xsvpn, ptt_index));
+    SLOG1(("apollo_dn300_mmu_device::translate: pft chain:"));
     cur_ppn = ppn;
     seen_eoc = false;
     while (true) {
@@ -203,7 +217,7 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset, int intention) {
             seen_eoc = true;
         }
 
-        SLOG1(("    pft_entry for ppn %d: elsid %d, elaccess %d, DOMAIN %d, wrx = %d%d%d, xsvpn %d, eoc %d, global %d",
+        SLOG1(("apollo_dn300_mmu_device::translate:    pft_entry for ppn %d: elsid %d, elaccess %d, DOMAIN %d, wrx = %d%d%d, xsvpn %d, eoc %d, global %d",
           cur_ppn,
           pfte_elsid,
           pfte_elaccess,
@@ -218,21 +232,20 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset, int intention) {
 #endif
 
 	if (!machine().side_effects_disabled()) {
-		SLOG1(("bus error due to PTT miss"));
+		SLOG1(("apollo_dn300_mmu_device::translate: bus error due to PTT miss"));
 		// when we can't find a physical page, add this bit (Page fault) to our
 		// status so the FIM can tell why we bus errored.
-		m_status |= 0x40;
-		m_status |= 0x80;
+		m_status |= STATUS_PAGE_FAULT | STATUS_ACCESS_VIOLATION;
 		// interrupt pending too?
 
-		m_cpu->set_buserror_details(byte_offset, (intention & TRANSLATE_READ) ? 1 : 0, m_cpu->get_fc(), false);
+		m_cpu->set_buserror_details(byte_offset, (intention & TRANSLATE_READ) ? 1 : 0, m_cpu->get_fc(), true);
 	}
     return 0;
 }
 
 void apollo_dn300_mmu_device::ptt_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
-    if (!(m_status & 0x02)) {
+    if (!(m_status & STATUS_PTT_ACCESS_ENABLED)) {
         // ptt access disabled
         return;
     }
@@ -243,7 +256,7 @@ void apollo_dn300_mmu_device::ptt_w(offs_t offset, uint16_t data, uint16_t mem_m
         return;
     }
 
-    SLOG2(("writing PTT at offset %02x = %02x & %08x", offset, data, mem_mask));
+    SLOG2(("writing PTT at offset %02x [index=%d] = %04x & %04x", offset, offset/512, data, mem_mask));
     m_ptt[offset/512] = data & mem_mask;
 }
 
@@ -255,36 +268,37 @@ uint16_t apollo_dn300_mmu_device::ptt_r(offs_t offset, uint16_t mem_mask)
         return 0;
     }
 
-    // SLOG2(("reading PTT at offset %02x & %08x", offset, mem_mask));
+    // SLOG2(("reading PTT at offset %02x & %04x", offset, mem_mask));
     return m_ptt[offset/512] & mem_mask;
 }
 
 void apollo_dn300_mmu_device::pft_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
-    // SLOG2(("writing PFT at offset %02x = %02x & %08x", offset, data, mem_mask));
+    // SLOG2(("writing PFT at offset %02x = %04x & %04x", offset, data, mem_mask));
     m_pft[offset] = data & mem_mask;
 }
+
 uint16_t apollo_dn300_mmu_device::pft_r(offs_t offset, uint16_t mem_mask)
 {
-    // SLOG2(("reading PFT at offset %02x & %08x", offset, mem_mask));
+    // SLOG2(("reading PFT at offset %02x & %04x", offset, mem_mask));
     return m_pft[offset] & mem_mask;
 }
 
 void apollo_dn300_mmu_device::unk_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
-    SLOG1(("UNKNOWN MMU WRITE at offset %02x = %02x & %08x", offset, data, mem_mask));
+    SLOG1(("UNKNOWN MMU WRITE at offset %02x = %04x & %04x", offset, data, mem_mask));
 }
 
 uint16_t apollo_dn300_mmu_device::unk_r(offs_t offset, uint16_t mem_mask)
 {
-    SLOG1(("UNKNOWN MMU READ at offset %02x & %08x", offset, mem_mask));
+    SLOG1(("UNKNOWN MMU READ at offset %04x & %04x", offset, mem_mask));
 
     return 0;
 }
 
 void apollo_dn300_mmu_device::pid_priv_power_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
-    SLOG2(("writing PID/PRIV/POWER at offset %02x = %02x & %08x", offset, data, mem_mask));
+    SLOG2(("writing PID/PRIV/POWER at offset %02x = %04x & %04x", offset, data, mem_mask));
     COMBINE_DATA(&m_pid_priv_power);
 
 	bool was_enabled = m_enabled;
@@ -307,15 +321,15 @@ void apollo_dn300_mmu_device::pid_priv_power_w(offs_t offset, uint16_t data, uin
 	}
 
 	if (m_enabled) {
-		m_status |= 0x01;
+		m_status |= STATUS_MMU_ENABLED;
 	} else {
-		m_enabled &= ~0x01;
+		m_enabled &= ~STATUS_MMU_ENABLED;
 	}
 
     if (ptt_access_enabled) {
-        m_status |= 0x02;
+        m_status |= STATUS_PTT_ACCESS_ENABLED;
     } else {
-        m_status &= ~0x02;
+        m_status &= ~STATUS_PTT_ACCESS_ENABLED;
     }
     m_cpu->set_emmu_enable(m_enabled);
 }
@@ -327,25 +341,26 @@ uint16_t apollo_dn300_mmu_device::pid_priv_power_r(offs_t offset, uint16_t mem_m
 
 void apollo_dn300_mmu_device::status_w(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
-    SLOG2(("MMU STATUS WRITE at offset %02x = %02x & %08x", offset, data, mem_mask));
+    SLOG2(("apollo_dn300_mmu_device::status_w offset %02x = %02x & %02x", offset, data, mem_mask));
     // EH87 says any write to register clears bits 5-7.
-    m_status &= ~(0xe0);
+    m_status &= ~(STATUS_ACCESS_VIOLATION | STATUS_PAGE_FAULT | STATUS_BUS_TIMEOUT);
 }
 
 uint8_t apollo_dn300_mmu_device::status_r(offs_t offset, uint8_t mem_mask)
 {
-    SLOG2(("MMU STATUS READ = %02x", m_status));
+    SLOG2(("apollo_dn300_mmu_device::status_r %02x", m_status));
     return m_status;
 }
 
 void apollo_dn300_mmu_device::fpu_owner_w(offs_t offset, uint8_t data, uint8_t mem_mask)
 {
-    SLOG2(("MMU FPU OWNER WRITE at offset %02x = %02x & %08x", offset, data, mem_mask));
+    SLOG2(("apollo_dn300_mmu_device::fpu_owner_w offset %02x = %02x & %02x", offset, data, mem_mask));
+	m_fpu_owner = data;
 }
 
 uint8_t apollo_dn300_mmu_device::fpu_owner_r(offs_t offset, uint8_t mem_mask)
 {
-    SLOG2(("MMU FPU OWNER = %02x", m_fpu_owner));
+    SLOG2(("apollo_dn300_mmu_device::fpu_owner_r %02x", m_fpu_owner));
     return m_fpu_owner;
 }
 
