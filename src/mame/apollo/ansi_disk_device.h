@@ -13,85 +13,6 @@
 #define ANSI_DISK_TYPE_HACK_DN3500 0xffff// allow us to do the right thing at bootup sharing the disk image with a big esdi disk from a dn3500
 
 
-// ANSI commands
-#define ANSI_CMD_REPORT_ILLEGAL_COMMAND     0x00
-#define ANSI_CMD_CLEAR_FAULT                0x01
-#define ANSI_CMD_CLEAR_ATTENTION            0x02
-#define ANSI_CMD_SEEK                       0x03
-#define ANSI_CMD_REZERO				        0x04
-#define ANSI_CMD_REPORT_SENSE_BYTE_2        0x0D
-#define ANSI_CMD_REPORT_SENSE_BYTE_1        0x0E
-#define ANSI_CMD_REPORT_GENERAL_STATUS      0x0F
-// --
-#define ANSI_CMD_REPORT_ATTRIBUTE           0x10
-#define ANSI_CMD_SET_ATTENTION              0x11
-#define ANSI_CMD_SELECTIVE_RESET            0x14
-#define ANSI_CMD_SEEK_TO_LANDING_ZONE       0x15
-#define ANSI_CMD_REFORMAT_TRACK             0x16
-// --
-#define ANSI_CMD_REPORT_CYL_ADDR_HIGH       0x29
-#define ANSI_CMD_REPORT_CYL_ADDR_LOW        0x2A
-#define ANSI_CMD_REPORT_READ_PERMIT_HIGH    0x2B
-#define ANSI_CMD_REPORT_READ_PERMIT_LOW     0x2C
-#define ANSI_CMD_REPORT_WRITE_PERMIT_HIGH   0x2D
-#define ANSI_CMD_REPORT_WRITE_PERMIT_LOW    0x2E
-#define ANSI_CMD_REPORT_TEST_BYTE           0x2F
-// --
-#define ANSI_CMD_ATTENTION_CONTROL          0x40
-#define ANSI_CMD_WRITE_CONTROL              0x41
-#define ANSI_CMD_LOAD_CYL_ADDR_HIGH         0x42
-#define ANSI_CMD_LOAD_CYL_ADDR_LOW          0x43
-#define ANSI_CMD_SELECT_HEAD                0x44
-// --
-#define ANSI_CMD_LOAD_ATTRIBUTE_NUMBER      0x50
-#define ANSI_CMD_LOAD_ATTRIBUTE             0x51
-#define ANSI_CMD_READ_CONTROL               0x53
-#define ANSI_CMD_OFFSET_CONTROL             0x54
-#define ANSI_CMD_SPIN_CONTROL               0x55
-#define ANSI_CMD_LOAD_SECT_PER_TRACK_HIGH   0x56 // MSB
-#define ANSI_CMD_LOAD_SECT_PER_TRACK_MEDIUM 0x57 // MedSB
-#define ANSI_CMD_LOAD_SECT_PER_TRACK_LOW    0x58 // LSB
-#define ANSI_CMD_LOAD_BYTES_PER_SECT_HIGH   0x59 // MSB
-#define ANSI_CMD_LOAD_BYTES_PER_SECT_MEDIUM 0x5A // MedSB
-#define ANSI_CMD_LOAD_BYTES_PER_SECT_LOW    0x5B // LSB
-// --
-#define ANSI_CMD_LOAD_READ_PERMIT_HIGH      0x6B
-#define ANSI_CMD_LOAD_READ_PERMIT_LOW       0x6C
-#define ANSI_CMD_LOAD_WRITE_PERMIT_HIGH     0x6D
-#define ANSI_CMD_LOAD_WRITE_PERMIT_LOW      0x6E
-#define ANSI_CMD_LOAD_TEST_BYTE             0x6F
-
-// general status bits
-#define GS_NOT_READY         0x01
-#define GS_CONTROL_BUS_ERROR 0x02
-#define GS_ILLEGAL_COMMAND   0x04
-#define GS_ILLEGAL_PARAMETER 0x08
-#define GS_SENSE_BYTE_1      0x10
-#define GS_SENSE_BYTE_2      0x20
-#define GS_BUSY_EXECUTING    0x40
-#define GS_NORMAL_COMPLETE   0x80
-
-// sense byte 1 bits
-#define SB1_SEEK_ERROR          0x01
-#define SB1_RW_FAULT            0x02
-#define SB1_POWER_FAULT         0x04
-#define SB1_RW_PERMIT_VIOLATION 0x08
-#define SB1_SPEED_ERROR         0x10
-#define SB1_COMMAND_REJECT      0x20
-#define SB1_OTHER_ERRORS        0x40
-#define SB1_VENDOR_ERRORS       0x80
-
-// sense byte 2 bits
-#define SB2_INITIAL_STATE                          0x01
-#define SB2_READY_TRANSITION                       0x02
-#define SB2_DEV_RESERVED_TO_THIS_POINT             0x04
-#define SB2_FORCED_RELEASE                         0x08
-#define SB2_DEV_RESERVED_TO_ALT_PORT               0x10
-#define SB2_DEVICE_ATTR_TABLE_MODIFIED             0x20
-#define SB2_POSITIONED_WITHIN_WRITE_PROTECTED_AREA 0x40
-#define SB2_VENDOR_ATTNS						   0x80
-
-
 // forward declaration of image class
 DECLARE_DEVICE_TYPE(ANSI_DISK_DEVICE, ansi_disk_device)
 
@@ -133,6 +54,10 @@ public:
 
     uint8_t execute_command(uint8_t command, uint8_t parameter);
 
+	void set_bus_direction_out(uint8_t v);
+	void set_command_request(uint8_t v);
+	void set_parameter_request(uint8_t v);
+
 protected:
 	// device-level overrides
 	virtual void device_resolve_objects() override;
@@ -141,8 +66,30 @@ protected:
 
 	void ansi_disk_config(uint16_t disk_type);
 
-	// XXX(toshok)once read/write record are here, switch this back to private
-public:
+private:
+	// not all possible state changes are listed here.  only the ones that are
+	// not immediately responded to.
+	enum State {
+		// inactive state - we're here if PORT_ENABLE is not active.
+		STATE_INACTIVE,
+
+		// active state - we were in STATE_INACTIVE and PORT_ENABLE was just
+		// enabled.
+		STATE_ACTIVE,
+
+	    // drive is selected by the host.
+		STATE_SELECTED,
+
+		// part of command handshake.  we've gotten the command byte and it's
+		// tagged with an out parameter, so we're waiting for Parameter_Request
+		// and will then read it and execute the command.
+		STATE_AWAITING_PARAMETER_OUT,
+
+		// part of the command handshake.  we've gotten the command byte and
+		// it's tagged with an in parameter, so we should already be executing
+		// the command (or have finished.)
+		STATE_AWAITING_PARAMETER_IN,
+	};
 	emu_timer *m_time_dependent_timer;
 	void start_time_dependent_command(attotime duration);
 	TIMER_CALLBACK_MEMBER(finish_time_dependent_command);

@@ -1,5 +1,68 @@
-#include "ansi_disk_device.h"
+#include <string.h>
+
 #include "ansi_disk_core.h"
+
+void ANSIDisk::set_sb2_bits(uint8_t bits) {
+    if ((m_sense_byte_2 & bits) == 0) {
+        m_sense_byte_2 |= bits;
+        // only certain sb2 bits set attention on 0->1 transition
+        if (bits | (
+            SB2_INITIAL_STATE |
+            SB2_READY_TRANSITION |
+            SB2_FORCED_RELEASE |
+            SB2_DEVICE_ATTR_TABLE_MODIFIED |
+            SB2_VENDOR_ATTNS
+        )) {
+			m_platform->AssertPin(ANSIPin::ATTENTION);
+        }
+    }
+}
+
+void ANSIDisk::clear_sb2_bits(uint8_t value) {
+    m_sense_byte_2 &= ~value;
+}
+
+ANSIDisk::ANSIDisk(ANSIDiskPlatform* platform)
+    // , cur_attention_cb()
+	// , cur_busy_cb()
+    // , cur_read_data_cb()
+    // , cur_index_pulse_cb()
+    // , cur_sector_pulse_cb()
+    : m_type(0)
+    , m_cylinders(0)
+    , m_heads(0)
+    , m_sectors(0)
+    , m_sectorbytes(0)
+    , m_sector_count(0)
+	, m_attention(false)
+    , m_selected(false)
+    , m_write_enabled(true)
+    , m_attention_enabled(true)
+    // , m_image(nullptr)
+    , m_current_cylinder_high(0)
+    , m_current_cylinder_low(0)
+    , m_load_cylinder_high(0)
+    , m_load_cylinder_low(0)
+    , m_attribute_number(0)
+    , m_test_byte(0)
+    , m_selected_head(0)
+    , m_general_status(0)
+    , m_sense_byte_1(0)
+    , m_sense_byte_2(0)
+    // , m_pulsed_sector(0)
+	, m_platform(platform)
+{
+}
+
+void ANSIDisk::Initialize() {
+	// get our disk parameters, set up the pin irqs callbacks need
+}
+
+void ANSIDisk::Destroy() {
+	// disconnect our pin irqs
+}
+
+#if 0
 
 #define VERBOSE 1
 #include "apollo_dn300.h"
@@ -836,7 +899,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
 }
 
 void ansi_disk_device::set_sb1(uint8_t value) {
-    if ((m_sense_byte_1 & value) == 0) {
+    if ((m_sense_byte_1 & value) != value) {
         m_sense_byte_1 |= value;
         // all sb1 bits set attention on 0->1 transition
         set_attention_line(true);
@@ -848,7 +911,7 @@ void ansi_disk_device::clear_sb1(uint8_t value) {
 }
 
 void ansi_disk_device::set_sb2(uint8_t value) {
-    if ((m_sense_byte_2 & value) == 0) {
+    if ((m_sense_byte_2 & value) != value) {
         m_sense_byte_2 |= value;
         // only certain sb2 bits set attention on 0->1 transition
         if (value | (
@@ -914,3 +977,5 @@ TIMER_CALLBACK_MEMBER(ansi_disk_device::sector_callback) {
 		cur_sector_pulse_cb(this);
 	}
 }
+
+#endif

@@ -13,6 +13,7 @@
 #include "apollo_dn300.h"
 #include "formats/apollo_dsk.h"
 #include "ansi_disk_device.h"
+#include "ansi_disk_core.h"
 
 #define HARD_DISK_SECTOR_SIZE 1056
 #define FLOPPY_DISK_SECTOR_SIZE 1024
