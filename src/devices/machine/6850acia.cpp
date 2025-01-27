@@ -437,6 +437,7 @@ void acia6850_device::write_rxc(int state)
 								}
 
 								m_rdr = m_rx_shift;
+								LOG("MC6850: '%s': RDR = %d\n", tag(), m_rdr);
 
 								if (m_bits == 7 && m_parity != PARITY_NONE)
 								{

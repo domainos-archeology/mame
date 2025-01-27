@@ -504,6 +504,8 @@ static const std::map<std::string, const gdb_register_map &> gdb_register_maps =
 	{ "ppc601",     gdb_register_map_ppc601 },
 	{ "m68030",     gdb_register_map_m68030 },
 	{ "m68020pmmu", gdb_register_map_m68020pmmu },
+	{ "m68010emmu", gdb_register_map_m68000 },
+	{ "m68010",     gdb_register_map_m68000 },
 	{ "m68000",     gdb_register_map_m68000 },
 	{ "z80",        gdb_register_map_z80 },
 	{ "z80n",       gdb_register_map_z80 },

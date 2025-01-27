@@ -1321,3 +1321,13 @@ int m68851_buserror(u32& addr)
 	addr = m_mmu_last_logical_addr;
 	return false;
 }
+
+offs_t emmu_translate_addr(offs_t addr_in, int intention)
+{
+	if (!m_emmu_translate_callback.isnull())
+	{
+		return m_emmu_translate_callback(addr_in, intention);
+	}
+
+	return addr_in;
+}

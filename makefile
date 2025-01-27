@@ -18,12 +18,12 @@
 # IGNORE_GIT = 1
 
 # TARGET = mame
-# SUBTARGET = tiny
+SUBTARGET = mess
 # TOOLS = 1
 # EMULATOR = 1
 # TESTS = 1
 # BENCHMARKS = 1
-# OSD = sdl
+OSD = sdl
 
 # NO_OPENGL = 0
 # USE_DISPATCH_GL = 0

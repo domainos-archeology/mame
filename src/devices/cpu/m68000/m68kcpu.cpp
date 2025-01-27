@@ -1036,6 +1036,7 @@ void m68000_musashi_device::init_cpu_common(void)
 	/* disable all MMUs */
 	m_has_pmmu         = false;
 	m_has_hmmu         = false;
+	m_has_emmu         = false;
 	m_pmmu_enabled     = false;
 	m_hmmu_enabled     = 0;
 	m_emmu_enabled     = false;
@@ -1071,6 +1072,7 @@ void m68000_musashi_device::init_cpu_common(void)
 	save_item(NAME(m_nmi_pending));
 	save_item(NAME(m_has_pmmu));
 	save_item(NAME(m_has_hmmu));
+	save_item(NAME(m_has_emmu));
 	save_item(NAME(m_pmmu_enabled));
 	save_item(NAME(m_hmmu_enabled));
 	save_item(NAME(m_emmu_enabled));
@@ -1835,6 +1837,58 @@ void m68000_musashi_device::init32mmu_no_smear(address_space &space, address_spa
 	};
 }
 
+/* interface for 16-bit data bus with external MMU */
+void m68000_musashi_device::init16emmu(address_space &space, address_space &ospace)
+{
+	m_space = &space;
+	m_ospace = &ospace;
+	ospace.cache(m_oprogram16);
+	space.specific(m_program16);
+
+	m_readimm16 = [this](offs_t address) -> u16 {
+		if (m_emmu_enabled)
+			address = emmu_translate_addr(address, TRANSLATE_READ);
+		return m_oprogram16.read_word(address);
+	};
+
+	m_read8   = [this](offs_t address) -> u8     {
+		if (m_emmu_enabled)
+			address = emmu_translate_addr(address, TRANSLATE_READ);
+		return m_program16.read_byte(address);
+	};
+
+	m_read16  = [this](offs_t address) -> u16    {
+		if (m_emmu_enabled)
+			address = emmu_translate_addr(address, TRANSLATE_READ);
+		return m_program16.read_word(address);
+	};
+
+	m_read32  = [this](offs_t address) -> u32    {
+		if (m_emmu_enabled)
+			address = emmu_translate_addr(address, TRANSLATE_READ);
+		return m_program16.read_dword(address);
+	};
+
+
+	m_write8  = [this](offs_t address, u8 data)  {
+		if (m_emmu_enabled)
+			address = emmu_translate_addr(address, TRANSLATE_WRITE);
+		m_program16.write_byte(address, data);
+	};
+
+	m_write16 = [this](offs_t address, u16 data)  {
+		if (m_emmu_enabled)
+			address = emmu_translate_addr(address, TRANSLATE_WRITE);
+		m_program16.write_word(address, data);
+	};
+
+	m_write32 = [this](offs_t address, u32 data)  {
+		if (m_emmu_enabled)
+			address = emmu_translate_addr(address, TRANSLATE_WRITE);
+		m_program16.write_dword(address, data);
+	};
+}
+
 void m68000_musashi_device::init32hmmu(address_space &space, address_space &ospace)
 {
 	m_space = &space;
@@ -2065,6 +2119,7 @@ void m68000_musashi_device::init_cpu_m68000(void)
 	m_cyc_reset        = 132;
 	m_has_pmmu         = 0;
 	m_has_hmmu         = false;
+	m_has_emmu         = false;
 	m_has_fpu          = 0;
 
 	define_state();
@@ -2125,6 +2180,14 @@ void m68000_musashi_device::init_cpu_m68010(void)
 	define_state();
 }
 
+void m68000_musashi_device::init_cpu_m68010emmu(void)
+{
+	init_cpu_m68010();
+
+	m_has_emmu           = 1;
+
+	init16emmu(*m_program, *m_oprogram);
+}
 
 void m68000_musashi_device::init_cpu_m68020(void)
 {
@@ -2451,6 +2514,8 @@ void m68000_musashi_device::m68ki_exception_interrupt(u32 int_level)
 	if(m_stopped)
 		return;
 
+    // logerror("m68000_base_device::m68ki_exception_interrupt, level %d\n", int_level);
+
 	/* Inform the device than an interrupt is taken */
 	if(m_interrupt_mixer)
 		standard_irq_callback(int_level, m_pc);
@@ -2509,7 +2574,8 @@ m68000_musashi_device::m68000_musashi_device(const machine_config &mconfig, cons
 	: m68000_base_device(mconfig, type, tag, owner, clock),
 		m_program_config("program", ENDIANNESS_BIG, prg_data_width, prg_address_bits, 0, internal_map),
 		m_oprogram_config("decrypted_opcodes", ENDIANNESS_BIG, prg_data_width, prg_address_bits, 0, internal_map),
-		m_cpu_space_config("cpu_space", ENDIANNESS_BIG, prg_data_width, prg_address_bits, 0, address_map_constructor(FUNC(m68000_musashi_device::default_autovectors_map), this))
+		m_cpu_space_config("cpu_space", ENDIANNESS_BIG, prg_data_width, prg_address_bits, 0, address_map_constructor(FUNC(m68000_musashi_device::default_autovectors_map), this)),
+		m_emmu_translate_callback(*this)
 {
 	clear_all();
 }
@@ -2520,7 +2586,8 @@ m68000_musashi_device::m68000_musashi_device(const machine_config &mconfig, cons
 	: m68000_base_device(mconfig, type, tag, owner, clock),
 		m_program_config("program", ENDIANNESS_BIG, prg_data_width, prg_address_bits),
 		m_oprogram_config("decrypted_opcodes", ENDIANNESS_BIG, prg_data_width, prg_address_bits),
-		m_cpu_space_config("cpu_space", ENDIANNESS_BIG, prg_data_width, prg_address_bits, 0, address_map_constructor(FUNC(m68000_musashi_device::default_autovectors_map), this))
+		m_cpu_space_config("cpu_space", ENDIANNESS_BIG, prg_data_width, prg_address_bits, 0, address_map_constructor(FUNC(m68000_musashi_device::default_autovectors_map), this)),
+		m_emmu_translate_callback(*this)
 {
 	clear_all();
 }
@@ -2646,6 +2713,7 @@ void m68000_musashi_device::clear_all()
 
 void m68000_musashi_device::device_start()
 {
+	m_emmu_translate_callback.resolve();
 }
 
 void m68000_musashi_device::device_stop()
@@ -2669,6 +2737,7 @@ void m68000_musashi_device::execute_set_input(int inputnum, int state)
 		case M68K_IRQ_6:
 		case M68K_IRQ_7:
 		case INPUT_LINE_NMI:
+		    // logerror("m68000_base_device::execute_set_input, inputnum %d, state %d\n", inputnum, state);
 			set_irq_line(inputnum, state);
 			break;
 
