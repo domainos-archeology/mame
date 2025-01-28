@@ -193,13 +193,13 @@ apollo_dn300_kbd_device::apollo_dn300_kbd_device(const machine_config &mconfig, 
 	, m_io_keyboard(*this, "keyboard%u", 1U)
 	, m_io_mouse(*this, "mouse%u", 1U)
 	, m_tx_w(*this)
-	, m_german_r(*this)
+	, m_german_r(*this, 0)
 	, m_rxd(0)
 	, m_rxd_handler(*this)
 {
 }
 
-WRITE_LINE_MEMBER( apollo_dn300_kbd_device::write_txd )
+void apollo_dn300_kbd_device::write_txd(int state)
 {
 	LOG1(("in apollo_dn300_kbd_device::write_txd"));
 }
@@ -231,9 +231,6 @@ ioport_constructor apollo_dn300_kbd_device::device_input_ports() const
 
 void apollo_dn300_kbd_device::device_resolve_objects()
 {
-	m_tx_w.resolve_safe();
-	m_german_r.resolve_safe(0);
-	m_rxd_handler.resolve_safe();
 }
 
 //-------------------------------------------------

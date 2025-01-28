@@ -19,7 +19,7 @@
 #include "apollo_dn300_disk.h"
 #include "apollo_dn300_ring.h"
 
-#include "cpu/m68000/m68000.h"
+#include "cpu/m68000/m68kmusashi.h"
 
 #include "machine/6840ptm.h"
 #include "machine/hd63450.h"
@@ -202,10 +202,10 @@ public:
 
 	void apollo_bus_error(offs_t fault_addr, u8 rw);
 
-	DECLARE_WRITE_LINE_MEMBER( dma_irq );
+	virtual void dma_irq(int state);
 	void dma_end(offs_t offset, uint8_t data);
 
-	DECLARE_WRITE_LINE_MEMBER(apollo_reset_instr_callback);
+	virtual void apollo_reset_instr_callback(int state);
 
 	void common(machine_config &config);
 	void apollo_dn300(machine_config &config);

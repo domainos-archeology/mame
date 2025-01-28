@@ -148,9 +148,6 @@ void apollo_dn300_disk_ctrlr_device::floppy_formats(format_registration &fr)
 
 void apollo_dn300_disk_ctrlr_device::device_start()
 {
-	irq_cb.resolve();
-    drq_cb.resolve();
-
     // save_item(NAME(drq));
     our_disks[0] = subdevice<ansi_disk_device>(DN300_DISK0_TAG);
     our_disks[1] = subdevice<ansi_disk_device>(DN300_DISK1_TAG);

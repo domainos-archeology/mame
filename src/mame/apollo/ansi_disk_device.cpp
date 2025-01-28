@@ -189,7 +189,7 @@ void ansi_disk_device::device_reset()
    disk image create callback
 -------------------------------------------------*/
 
-image_init_result ansi_disk_device::call_create(int format_type, util::option_resolution *format_options)
+std::pair<std::error_condition, std::string> ansi_disk_device::call_create(int format_type, util::option_resolution *format_options)
 {
 	logerror("device_create_ansi_disk: creating ANSI Disk with %d blocks\n", m_sector_count);
 
@@ -201,11 +201,11 @@ image_init_result ansi_disk_device::call_create(int format_type, util::option_re
 		if (fwrite(sectordata, HARD_DISK_SECTOR_SIZE)
 				< HARD_DISK_SECTOR_SIZE)
 		{
-			return image_init_result::FAIL;
+			return std::make_pair(image_error::UNSPECIFIED, "short write");;
 		}
 	}
 
-	return image_init_result::PASS;
+	return std::make_pair(std::error_condition(), std::string());
 }
 
 uint8_t ansi_disk_device::report_attribute()

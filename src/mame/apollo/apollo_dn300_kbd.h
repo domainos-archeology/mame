@@ -45,8 +45,8 @@ public:
 
 	auto rxd_handler() { return m_rxd_handler.bind(); }
 
-	DECLARE_WRITE_LINE_MEMBER( write_txd );
-	DECLARE_READ_LINE_MEMBER( rxd_r ) { return m_rxd; }
+	virtual void write_txd(int state);
+	virtual int rxd_r() { return m_rxd; }
 
 private:
 	// device-level overrides

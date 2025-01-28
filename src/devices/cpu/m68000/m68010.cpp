@@ -30,13 +30,13 @@ std::unique_ptr<util::disasm_interface> m68010emmu_device::create_disassembler()
 }
 
 
-bool m68010emmu_device::memory_translate(int space, int intention, offs_t &address)
+bool m68010emmu_device::memory_translate(int space, int intention, offs_t &address, address_space *&target_space)
 {
 	/* only applies to the program address space and only does something if the MMU's enabled */
 	{
 		if ((space == AS_PROGRAM) && (m_emmu_enabled))
 		{
-			address = emmu_translate_addr(address, TRANSLATE_READ_DEBUG);
+			address = emmu_translate_addr(address, TR_READ);
 		}
 	}
 	return true;

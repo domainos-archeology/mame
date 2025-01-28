@@ -153,7 +153,7 @@ void apollo_dn300_state::apollo_bus_error(offs_t fault_addr, u8 rw)
 	m_maincpu->set_input_line(M68K_LINE_BUSERROR, CLEAR_LINE);
 }
 
-WRITE_LINE_MEMBER( apollo_dn300_state::dma_irq )
+void apollo_dn300_state::dma_irq(int state)
 {
 	MLOG2(("dma_irq: state=%d", state));
 }
@@ -387,7 +387,7 @@ void apollo_dn300_state::machine_reset()
 	MACHINE_RESET_CALL_MEMBER(apollo_dn300);
 }
 
-WRITE_LINE_MEMBER(apollo_dn300_state::apollo_reset_instr_callback)
+void apollo_dn300_state::apollo_reset_instr_callback(int state)
 {
 	MLOG1(("apollo_reset_instr_callback"));
 

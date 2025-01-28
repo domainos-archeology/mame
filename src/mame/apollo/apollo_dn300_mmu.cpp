@@ -171,7 +171,7 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset, int intention) {
 			m_pft[cur_ppn * 2 + 1] |= 1 << 13;
 
 			// and if we're writing, mark it as modified
-			if (intention & TRANSLATE_WRITE) {
+			if (intention & device_memory_interface::TR_WRITE) {
 				m_pft[cur_ppn * 2 + 1] |= 1 << 14;
 			}
 
@@ -238,7 +238,7 @@ offs_t apollo_dn300_mmu_device::translate(offs_t byte_offset, int intention) {
 		m_status |= STATUS_PAGE_FAULT | STATUS_ACCESS_VIOLATION;
 		// interrupt pending too?
 
-		m_cpu->set_buserror_details(byte_offset, (intention & TRANSLATE_READ) ? 1 : 0, m_cpu->get_fc(), true);
+		m_cpu->set_buserror_details(byte_offset, (intention & device_memory_interface::TR_READ) ? 1 : 0, m_cpu->get_fc(), true);
 	}
     return 0;
 }

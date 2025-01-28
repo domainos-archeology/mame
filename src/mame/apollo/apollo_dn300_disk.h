@@ -112,7 +112,7 @@ private:
 	// FDC-specific
 	required_device<upd765a_device> m_fdc;
 	required_device<floppy_connector> m_floppy;
-	DECLARE_WRITE_LINE_MEMBER(fdc_irq);
+	virtual void fdc_irq(int state);
 	static void floppy_formats(format_registration &fr);
 
 	// these might not really be necessary, as the controller card
@@ -141,11 +141,11 @@ private:
 	uint8_t calendar_data_r(offs_t offset, uint8_t mem_mask = ~0);
 
 	// write registers
-	uint8 m_calendar_ctrl;
-	// XXX uint8 m_calendar_write_data;
+	uint8_t m_calendar_ctrl;
+	// XXX uint8_t m_calendar_write_data;
 
 	// read registers
-	// XXX uint8 m_calendar_read_data;
+	// XXX uint8_t m_calendar_read_data;
 };
 
 // device type definition

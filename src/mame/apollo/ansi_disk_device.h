@@ -32,7 +32,7 @@ public:
 	virtual const char *image_type_name() const noexcept override { return "winchester"; }
 	virtual const char *image_brief_type_name() const noexcept override { return "disk"; }
 
-	virtual image_init_result call_create(int format_type, util::option_resolution *format_options) override;
+	virtual std::pair<std::error_condition, std::string> call_create(int format_type, util::option_resolution *format_options) override;
 
 	void set_attention_cb(bool_cb cb);
 	void set_busy_cb(bool_cb cb);

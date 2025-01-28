@@ -466,8 +466,6 @@ void apollo_dn300_graphics::device_start()
 {
 	MLOG1(("apollo_dn300_graphics::device_start"))
 
-	m_irq_cb.resolve_safe();
-
 	m_cr = 0;
 	m_sr = 0;
 }

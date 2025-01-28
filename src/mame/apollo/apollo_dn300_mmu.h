@@ -13,7 +13,7 @@
 #ifndef MAME_MACHINE_APOLLO_DN300_MMU_H
 #define MAME_MACHINE_APOLLO_DN300_MMU_H
 
-#include "cpu/m68000/m68000.h"
+#include "cpu/m68000/m68kmusashi.h"
 
 #include "machine/ram.h"
 #include "machine/bankdev.h"

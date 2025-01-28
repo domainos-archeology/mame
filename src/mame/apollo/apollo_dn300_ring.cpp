@@ -152,9 +152,6 @@ apollo_dn300_ring_ctrlr_device::apollo_dn300_ring_ctrlr_device(const machine_con
 void
 apollo_dn300_ring_ctrlr_device::device_start()
 {
-	rcv_header_drq_wr_cb.resolve();
-	rcv_data_drq_wr_cb.resolve();
-	transmit_data_drq_wr_cb.resolve();
 }
 
 void
