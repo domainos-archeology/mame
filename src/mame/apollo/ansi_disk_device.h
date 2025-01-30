@@ -134,9 +134,8 @@ private:
 
 	device_image_interface *m_image;
 
-	// these two cylinder bytes are for the actual current cylinder address
-	uint8_t m_current_cylinder_high;
-	uint8_t m_current_cylinder_low;
+	// the actual current cylinder address
+	uint16_t m_current_cylinder;
 	// and these next two are the values loaded by the load_cylinder commands.
 	// they will become the current ones above upon a successful seek.
 	uint8_t m_load_cylinder_high;

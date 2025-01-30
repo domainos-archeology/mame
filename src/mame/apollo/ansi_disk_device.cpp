@@ -25,8 +25,7 @@ ansi_disk_device::ansi_disk_device(const machine_config &mconfig, const char *ta
     , m_sectorbytes(0)
     , m_sector_count(0)
     , m_image(nullptr)
-    , m_current_cylinder_high(0)
-    , m_current_cylinder_low(0)
+	, m_current_cylinder(0)
     , m_load_cylinder_high(0)
     , m_load_cylinder_low(0)
     , m_attribute_number(0)
@@ -286,7 +285,7 @@ void ansi_disk_device::assert_read_gate()
 	m_sector_timer->enable(false);
 
 	int sector = m_pulsed_sector;
-    int cylinder = (m_current_cylinder_high << 8) | m_current_cylinder_low;
+    int cylinder = m_current_cylinder;
     int track = cylinder * m_heads + m_selected_head;
     int track_offset = track * m_sectors;
     int sector_offset = track_offset + sector;
@@ -362,7 +361,7 @@ void ansi_disk_device::write_sector_next_byte(uint8_t data)
 void ansi_disk_device::deassert_write_gate()
 {
 	int sector = m_pulsed_sector;
-    int cylinder = (m_current_cylinder_high << 8) | m_current_cylinder_low;
+    int cylinder = m_current_cylinder;
     int track = cylinder * m_heads + m_selected_head;
     int track_offset = track * m_sectors;
     int sector_offset = track_offset + sector;
@@ -472,8 +471,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             // device shall clear the Busy Executing bit in the General Status
             // Byte and set the Attention Condition.
 
-			m_current_cylinder_high = m_load_cylinder_high;
-			m_current_cylinder_low = m_load_cylinder_low;
+			m_current_cylinder = (m_load_cylinder_high << 8) | m_load_cylinder_low;
 
             start_time_dependent_command(attotime::from_msec(5)); // look up this timing...
             return m_general_status;
@@ -488,8 +486,7 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             // Upon the completion of the positioning of the moving head(s) over
             // cylinder zero the device shall clear the Busy Executing bit in the
             // General Status byte and set the Attention Condition.
-	        m_current_cylinder_high = 0;
-	        m_current_cylinder_low = 0;
+			m_current_cylinder = 0;
 
             start_time_dependent_command(attotime::from_msec(5)); // look up this timing...
             return m_general_status;
@@ -597,8 +594,8 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             // be ascertained by the vendor specification.
             // The information shall be transferred by the Parameter Byte of the
             // command sequence.
-            SLOG1(("ANSI_DISK(%p): ANSI_CMD_REPORT_CYL_ADDR_HIGH %02x", this, m_current_cylinder_high));
-			return m_current_cylinder_high;
+            SLOG1(("ANSI_DISK(%p): ANSI_CMD_REPORT_CYL_ADDR_HIGH %02x", this, m_current_cylinder >> 8));
+			return m_current_cylinder >> 8;
 
         case ANSI_CMD_REPORT_CYL_ADDR_LOW:
 			SLOG1(("ANSI_DISK(%p):    ansicmd REPORT_CYL_ADDR_LOW"));
@@ -614,8 +611,8 @@ uint8_t ansi_disk_device::execute_command(uint8_t command, uint8_t parameter)
             // The information shall be transferred by the Parameter Byte of the
             // command sequence.
             //
-            SLOG1(("ANSI_DISK(%p): ANSI_CMD_REPORT_CYL_ADDR_LOW %02x", this, m_current_cylinder_low));
-            return m_current_cylinder_low;
+            SLOG1(("ANSI_DISK(%p): ANSI_CMD_REPORT_CYL_ADDR_LOW %02x", this, m_current_cylinder & 0xFF));
+            return m_current_cylinder & 0xFF;
 
         case ANSI_CMD_REPORT_TEST_BYTE:
 			SLOG1(("ANSI_DISK(%p):    ansicmd REPORT_TEST_BYTE", this));
